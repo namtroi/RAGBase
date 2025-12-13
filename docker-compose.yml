@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/schemaforge
+      - REDIS_URL=redis://redis:6379
+      - API_KEY=${API_KEY}
+      - PORT=3000
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-50}
+      - MIN_TEXT_LENGTH=${MIN_TEXT_LENGTH:-50}
+      - MAX_NOISE_RATIO=${MAX_NOISE_RATIO:-0.5}
+      - REJECT_NOISE_RATIO=${REJECT_NOISE_RATIO:-0.8}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-self-hosted}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-Xenova/all-MiniLM-L6-v2}
+      - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-50}
+    networks:
+      - internal
+    volumes:
+      - uploads:/tmp/uploads
+
+  ai-worker:
+    build:
+      context: .
+      dockerfile: docker/ai-worker.Dockerfile
+    depends_on:
+      - redis
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - CALLBACK_URL=http://backend:3000/internal/callback
+      - OCR_ENABLED=${OCR_ENABLED:-false}
+      - OCR_MODE=${OCR_MODE:-auto}
+      - OCR_LANGUAGES=${OCR_LANGUAGES:-en}
+    networks:
+      - internal
+    volumes:
+      - uploads:/tmp/uploads
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=schemaforge
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  uploads:
