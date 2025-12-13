@@ -1,0 +1,67 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum FileFormat {
+  pdf
+  json
+  txt
+  md
+}
+
+enum ProcessingLane {
+  fast
+  heavy
+}
+
+model Document {
+  id          String         @id @default(uuid())
+  filename    String
+  mimeType    String         @map("mime_type")
+  fileSize    Int            @map("file_size")
+  format      FileFormat
+  lane        ProcessingLane
+  status      DocumentStatus @default(PENDING)
+  filePath    String         @map("file_path")
+  md5Hash     String         @unique @map("md5_hash")
+  retryCount  Int            @default(0) @map("retry_count")
+  failReason  String?        @map("fail_reason")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  chunks      Chunk[]
+
+  @@map("documents")
+}
+
+model Chunk {
+  id          String   @id @default(uuid())
+  documentId  String   @map("document_id")
+  content     String
+  chunkIndex  Int      @map("chunk_index")
+  embedding   Unsupported("vector(384)")
+  charStart   Int      @map("char_start")
+  charEnd     Int      @map("char_end")
+  page        Int?
+  heading     String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, chunkIndex])
+  @@map("chunks")
+}
