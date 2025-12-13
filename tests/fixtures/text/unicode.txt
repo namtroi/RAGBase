@@ -1,0 +1,13 @@
+Unicode Test File 🚀
+
+This file contains special characters for testing UTF-8 handling:
+- Emoji: 😀 🎉 ✨ 🔥
+- Accents: café, naïve, résumé
+- Math: ∑ ∫ √ ∞
+- Arrows: → ← ↑ ↓
+- Chinese: 你好世界
+- Japanese: こんにちは
+- Arabic: مرحبا
+- Russian: Привет
+
+The pipeline should handle all these characters correctly.

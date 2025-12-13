@@ -1,0 +1,17 @@
+{
+  "extends": "./apps/backend/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["apps/backend/src/*"],
+      "@tests/*": ["tests/*"]
+    },
+    "types": ["vitest/globals", "node"],
+    "skipLibCheck": true
+  },
+  "include": [
+    "tests/**/*",
+    "apps/backend/src/**/*"
+  ],
+  "exclude": ["node_modules", "dist", "apps/backend/dist"]
+}
