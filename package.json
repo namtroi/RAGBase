@@ -10,6 +10,8 @@
     "lint": "turbo run lint"
   },
   "devDependencies": {
-    "turbo": "^2.0.0"
+    "turbo": "^2.0.0",
+    "vitest": "^2.0.0",
+    "@types/node": "^20.14.0"
   }
 }

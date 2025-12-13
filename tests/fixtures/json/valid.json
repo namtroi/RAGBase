@@ -1,0 +1,8 @@
+{
+  "title": "Test Document",
+  "content": "This is valid JSON content for testing the fast lane processing pipeline.",
+  "metadata": {
+    "author": "Test Author",
+    "created": "2025-01-01"
+  }
+}
