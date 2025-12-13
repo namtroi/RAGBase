@@ -10,7 +10,7 @@
 !.yarn/releases
 !.yarn/versions
 
-# .claude
+# .claude and CLAUDE.md
 CLAUDE.md
 .claude
 
