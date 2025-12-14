@@ -520,8 +520,8 @@ curl http://localhost:3000/health
 
 ## 12. Next Phases
 
-- **Phase 05:** Queue integration (BullMQ) with proper job retry logic
-- **Phase 06:** E2E pipeline testing with Docling processing
-- **Phase 07:** Python AI Worker integration
-- **Phase 08:** Frontend UI (React + Vite)
-- **Phase 09:** Production hardening & scaling
+- **Phase 05:** Queue integration (BullMQ) with proper job retry logic & callback handling
+- **Phase 06:** E2E pipeline testing with Docling (Python worker) processing for PDF/DOCX
+- **Phase 07:** Python AI Worker deployment (Docling → markdown extraction)
+- **Phase 08:** Frontend UI (React + Vite) with upload + search interface
+- **Phase 09:** Production hardening & scaling (monitoring, alerts, load testing)
