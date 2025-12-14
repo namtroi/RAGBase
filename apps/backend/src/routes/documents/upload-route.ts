@@ -1,7 +1,5 @@
-import { HashService } from '@/services';
-import { ChunkerService } from '@/services/chunker-service';
+import { ChunkerService, EmbeddingService, HashService } from '@/services';
 import { getPrismaClient } from '@/services/database';
-import { EmbeddingService } from '@/services/embedding-service';
 import { detectFormat, getProcessingLane, validateUpload } from '@/validators';
 import multipart from '@fastify/multipart';
 import { FastifyInstance } from 'fastify';
@@ -156,58 +154,60 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
       // Process based on lane
       if (lane === 'fast') {
         // Fast lane: Process immediately (JSON, TXT, MD)
-        console.log('⚡ Fast lane processing...');
-        
+        console.log('⚡ Fast lane processing - reading file...');
+
         try {
-          // Read file content
+          // 1. Read file content
           const fileContent = await readFile(filePath, 'utf-8');
-          console.log('📖 File content read, length:', fileContent.length);
-          
-          // Chunk the content
+          console.log(`✅ File read: ${fileContent.length} characters`);
+
+          // 2. Chunk the content
           const chunker = new ChunkerService();
           const { chunks } = await chunker.chunk(fileContent);
-          console.log('✂️ Created chunks:', chunks.length);
-          
-          // Generate embeddings
+          console.log(`✅ Created ${chunks.length} chunks`);
+
+          // 3. Generate embeddings for all chunks
           const embedder = new EmbeddingService();
-          const texts = chunks.map(c => c.content);
+          const texts = chunks.map((c) => c.content);
           const embeddings = await embedder.embedBatch(texts);
-          console.log('🔢 Generated embeddings:', embeddings.length);
-          
-          // Store chunks in database
+          console.log(`✅ Generated ${embeddings.length} embeddings`);
+
+          // 4. Store chunks in database with embeddings
           for (let i = 0; i < chunks.length; i++) {
             const chunk = chunks[i];
             const embedding = embeddings[i];
-            
-            await prisma.chunk.create({
-              data: {
-                documentId: document.id,
-                content: chunk.content,
-                chunkIndex: chunk.index,
-                charStart: chunk.metadata.charStart,
-                charEnd: chunk.metadata.charEnd,
-                heading: chunk.metadata.heading,
-                embedding,
-              },
-            });
+
+            await prisma.$executeRaw`
+              INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, heading, created_at)
+              VALUES (
+                gen_random_uuid(),
+                ${document.id},
+                ${chunk.content},
+                ${chunk.index},
+                ${embedding}::vector,
+                ${chunk.metadata.charStart},
+                ${chunk.metadata.charEnd},
+                ${chunk.metadata.heading || null},
+                NOW()
+              )
+            `;
           }
-          console.log('💾 Chunks saved to database');
-          
-          // Update document status to COMPLETED
+          console.log(`✅ Stored ${chunks.length} chunks in database`);
+
+          // 5. Update document status to COMPLETED
           await prisma.document.update({
             where: { id: document.id },
             data: { status: 'COMPLETED' },
           });
           console.log('✅ Document marked as COMPLETED');
-          
+
         } catch (error) {
           console.error('❌ Fast lane processing error:', error);
-          // Mark document as FAILED
           await prisma.document.update({
             where: { id: document.id },
-            data: { 
+            data: {
               status: 'FAILED',
-              error: error instanceof Error ? error.message : 'Processing failed',
+              failReason: error instanceof Error ? error.message : 'Processing failed',
             },
           }).catch(console.error);
           throw error;
@@ -238,6 +238,15 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
     } catch (error: any) {
       console.error('💥 UPLOAD ROUTE ERROR:', error);
       console.error('Stack trace:', error.stack);
+
+      // Handle Fastify file size limit error
+      if (error.code === 'FST_REQ_FILE_TOO_LARGE') {
+        return reply.status(413).send({
+          error: 'INTERNAL_ERROR',
+          message: error.message || 'Request file too large',
+        });
+      }
+
       return reply.status(500).send({
         error: 'INTERNAL_ERROR',
         message: error.message || 'Internal server error',
