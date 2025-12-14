@@ -1,9 +1,11 @@
 import { HashService } from '@/services';
+import { ChunkerService } from '@/services/chunker-service';
 import { getPrismaClient } from '@/services/database';
+import { EmbeddingService } from '@/services/embedding-service';
 import { detectFormat, getProcessingLane, validateUpload } from '@/validators';
 import multipart from '@fastify/multipart';
 import { FastifyInstance } from 'fastify';
-import { mkdir, rm, writeFile } from 'fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'fs/promises';
 import path, { basename } from 'path';
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || '/tmp/uploads';
@@ -151,18 +153,79 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
         throw error;
       }
 
-      // Queue for processing (mock for now)
-      console.log('📬 Adding to queue...');
-      await mockQueue.add('process', {
-        documentId: document.id,
-        filePath,
-        format,
-        config: {
-          ocrMode: 'auto',
-          ocrLanguages: ['en'],
-        },
-      });
-      console.log('✅ Queued successfully');
+      // Process based on lane
+      if (lane === 'fast') {
+        // Fast lane: Process immediately (JSON, TXT, MD)
+        console.log('⚡ Fast lane processing...');
+        
+        try {
+          // Read file content
+          const fileContent = await readFile(filePath, 'utf-8');
+          console.log('📖 File content read, length:', fileContent.length);
+          
+          // Chunk the content
+          const chunker = new ChunkerService();
+          const { chunks } = await chunker.chunk(fileContent);
+          console.log('✂️ Created chunks:', chunks.length);
+          
+          // Generate embeddings
+          const embedder = new EmbeddingService();
+          const texts = chunks.map(c => c.content);
+          const embeddings = await embedder.embedBatch(texts);
+          console.log('🔢 Generated embeddings:', embeddings.length);
+          
+          // Store chunks in database
+          for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            const embedding = embeddings[i];
+            
+            await prisma.chunk.create({
+              data: {
+                documentId: document.id,
+                content: chunk.content,
+                chunkIndex: chunk.index,
+                charStart: chunk.metadata.charStart,
+                charEnd: chunk.metadata.charEnd,
+                heading: chunk.metadata.heading,
+                embedding,
+              },
+            });
+          }
+          console.log('💾 Chunks saved to database');
+          
+          // Update document status to COMPLETED
+          await prisma.document.update({
+            where: { id: document.id },
+            data: { status: 'COMPLETED' },
+          });
+          console.log('✅ Document marked as COMPLETED');
+          
+        } catch (error) {
+          console.error('❌ Fast lane processing error:', error);
+          // Mark document as FAILED
+          await prisma.document.update({
+            where: { id: document.id },
+            data: { 
+              status: 'FAILED',
+              error: error instanceof Error ? error.message : 'Processing failed',
+            },
+          }).catch(console.error);
+          throw error;
+        }
+      } else {
+        // Heavy lane: Queue for processing (PDF)
+        console.log('📬 Adding to queue...');
+        await mockQueue.add('process', {
+          documentId: document.id,
+          filePath,
+          format,
+          config: {
+            ocrMode: 'auto',
+            ocrLanguages: ['en'],
+          },
+        });
+        console.log('✅ Queued successfully');
+      }
 
       console.log('🎉 Upload complete, returning 201');
       return reply.status(201).send({
