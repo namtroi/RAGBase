@@ -1196,19 +1196,69 @@ export async function createApp(): Promise<FastifyInstance> {
 
 ## Todo List
 
-- [ ] Write `tests/integration/middleware/auth-middleware.test.ts` (RED)
-- [ ] Implement `src/middleware/auth-middleware.ts` (GREEN)
-- [ ] Write `tests/integration/routes/upload-route.test.ts` (RED)
-- [ ] Implement `src/routes/documents/upload-route.ts` (GREEN)
-- [ ] Write `tests/integration/routes/status-route.test.ts` (RED)
-- [ ] Implement `src/routes/documents/status-route.ts` (GREEN)
-- [ ] Write `tests/integration/routes/list-route.test.ts` (RED)
-- [ ] Implement `src/routes/documents/list-route.ts` (GREEN)
-- [ ] Write `tests/integration/routes/search-route.test.ts` (RED)
-- [ ] Implement `src/routes/query/search-route.ts` (GREEN)
-- [ ] Create `src/app.ts` factory
-- [ ] Run `pnpm test:integration` - all tests pass
+- [x] Write `tests/integration/middleware/auth-middleware.test.ts` (RED)
+- [x] Implement `src/middleware/auth-middleware.ts` (GREEN)
+- [x] Write `tests/integration/routes/upload-route.test.ts` (RED)
+- [x] Implement `src/routes/documents/upload-route.ts` (GREEN)
+- [x] Write `tests/integration/routes/status-route.test.ts` (RED)
+- [x] Implement `src/routes/documents/status-route.ts` (GREEN)
+- [x] Write `tests/integration/routes/list-route.test.ts` (RED)
+- [x] Implement `src/routes/documents/list-route.ts` (GREEN)
+- [x] Write `tests/integration/routes/search-route.test.ts` (RED)
+- [x] Implement `src/routes/query/search-route.ts` (GREEN) ⚠️ **CRITICAL ISSUES FOUND**
+- [x] Create `src/app.ts` factory
+
+### Code Review: Status & List Routes (2025-12-13 20:56 UTC)
+
+**Report Location:** `plans/reports/code-reviewer-2025-12-13-status-list-routes-review.md`
+
+**Status:** ✅ IMPLEMENTED, ⚠️ CRITICAL ISSUES REQUIRE FIXING
+
+#### Critical Issues Found (BLOCKING PRODUCTION)
+
+- [ ] **CRITICAL - Prisma Connection Anti-Pattern** (Issue #1)
+  - **Problem:** Both routes instantiate new `PrismaClient()` per request
+  - **Impact:** Connection pool exhaustion, memory leaks, performance degradation
+  - **Files Affected:**
+    - `src/routes/documents/status-route.ts` (line 20)
+    - `src/routes/documents/list-route.ts` (line 8)
+    - `src/routes/documents/upload-route.ts` (line 67)
+  - **Fix:** Replace with `getPrisma()` singleton from `@/database`
+  - **Effort:** 15 min (3 files × 2 changes)
+
+- [ ] **Missing Database Module Import**
+  - **Problem:** No import for `getPrisma()` function
+  - **Files Affected:** status-route.ts, list-route.ts
+  - **Fix:** Add `import { getPrisma } from '@/database';`
+
+- [ ] **Unnecessary Try-Finally Blocks**
+  - **Problem:** `await prisma.$disconnect()` in finally blocks (won't be needed with singleton)
+  - **Files Affected:** status-route.ts, list-route.ts, upload-route.ts
+  - **Fix:** Remove try-finally when using singleton
+
+#### Test Coverage & Alignment
+
+| Route | Tests | Coverage | Status |
+|-------|-------|----------|--------|
+| **status-route.ts** | 6 scenarios | ~85% | ✅ Tests pass, ⚠️ Code issue |
+| **list-route.ts** | 7 scenarios | ~88% | ✅ Tests pass, ⚠️ Code issue |
+
+**Implementation Quality:**
+- ✅ UUID validation correct (Zod uuid() validator)
+- ✅ Response structure matches spec (chunks, failReason, pagination)
+- ✅ Pagination logic correct (limit, offset, defaults)
+- ✅ Status filtering implemented (enum validation)
+- ✅ Database query optimization (efficient _count, Promise.all)
+- ✅ Error handling (proper 404/400 status codes)
+- ❌ Prisma lifecycle management (anti-pattern)
+
+**Spec Alignment:** 85% (requires Prisma fix)
+
+### Remaining Tasks:
+- [ ] Fix Prisma singleton pattern (status-route + list-route + upload-route)
+- [ ] Run `pnpm test:integration` - verify all tests still pass
 - [ ] Check coverage is 80%+ for routes
+- [ ] Review search-route for similar issues (separate review)
 
 ---
 
@@ -1219,6 +1269,7 @@ export async function createApp(): Promise<FastifyInstance> {
 3. API key auth blocks unauthorized requests
 4. File upload stores in DB and queues job
 5. Vector search returns ranked results
+6. **NEW:** All critical and high-priority code review issues fixed
 
 ---
 

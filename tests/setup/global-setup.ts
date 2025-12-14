@@ -32,6 +32,16 @@ export async function setup() {
 
   console.log('✅ pgvector extension enabled');
 
+  // Run Prisma migrations
+  const { execSync } = await import('child_process');
+  execSync('pnpm db:push', {
+    cwd: process.cwd(),
+    env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+    stdio: 'inherit',
+  });
+
+  console.log('✅ Prisma migrations applied');
+
   // Return cleanup function
   return async () => {
     console.log('🧹 Stopping test containers...');

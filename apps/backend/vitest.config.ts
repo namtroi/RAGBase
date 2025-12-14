@@ -1,5 +1,5 @@
-import { defineConfig } from 'vitest/config';
 import path from 'path';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
@@ -8,8 +8,8 @@ export default defineConfig({
     include: ['../../tests/**/*.test.ts'],
     exclude: ['node_modules', 'dist'],
     setupFiles: ['../../tests/setup/setup-file.ts'],
-    // Only use global setup for integration/e2e tests
-    // globalSetup: ['../../tests/setup/global-setup.ts'],
+    // Global setup for integration tests (starts testcontainers)
+    globalSetup: ['../../tests/setup/global-setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

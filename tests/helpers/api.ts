@@ -36,6 +36,13 @@ export async function getTestApp(): Promise<FastifyInstance> {
   return app;
 }
 
+/**
+ * Alias for getTestApp - used by integration tests
+ */
+export async function createTestApp(): Promise<FastifyInstance> {
+  return getTestApp();
+}
+
 export async function closeTestApp(): Promise<void> {
   if (app) {
     await app.close();

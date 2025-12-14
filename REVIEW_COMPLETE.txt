@@ -1,0 +1,159 @@
+================================================================================
+CODE REVIEW COMPLETE - Phase 04 Upload Route Implementation
+================================================================================
+
+Date: 2025-12-13
+Reviewer: Code Reviewer Agent
+Status: CRITICAL ISSUES FOUND - BLOCKING FURTHER PROGRESS
+
+================================================================================
+QUICK SUMMARY
+================================================================================
+
+Implementation Status: ✓ 100% Complete
+Production Ready: ✗ NO - 5 critical/high issues found
+Fix Time Estimate: 4-6 hours
+Test Status: Cannot run (requires Docker)
+
+================================================================================
+CRITICAL ISSUES FOUND
+================================================================================
+
+1. CRITICAL - Prisma Client Lifecycle Leak (all routes)
+   - Creates new client per request → connection pool exhaustion
+   - Fix: Use singleton with app-scoped lifecycle
+   - Time: 2 hours
+
+2. CRITICAL - SQL Injection in Search Route
+   - Embedding array interpolated as string in SQL
+   - Fix: Pass embedding directly to Prisma binding
+   - Time: 30 minutes
+
+3. CRITICAL - Path Traversal in Upload Route
+   - Filename not sanitized → can write to arbitrary paths
+   - Fix: Use basename() and validate characters
+   - Time: 1 hour
+
+4. HIGH - Timing Attack in Auth Middleware
+   - API key compared with !== (not constant-time)
+   - Fix: Use timingSafeEqual from crypto
+   - Time: 30 minutes
+
+5. HIGH - Missing File I/O Error Handling
+   - No try-catch for mkdir() and writeFile()
+   - No cleanup on DB failure
+   - Fix: Add comprehensive error handling
+   - Time: 1 hour
+
+================================================================================
+WHAT'S WORKING WELL
+================================================================================
+
+✓ All routes implemented (upload, status, list, search)
+✓ All middleware implemented (auth)
+✓ All test files written (36 integration tests)
+✓ Good API structure and separation of concerns
+✓ Proper use of Zod for validation
+✓ Correct file deduplication logic
+✓ Good format detection strategy
+✓ Comprehensive test coverage
+
+================================================================================
+DOCUMENTS CREATED
+================================================================================
+
+1. CODE_REVIEW_SUMMARY.md
+   - Quick reference of all issues
+   - Files affected
+   - Severity levels
+
+2. plans/reports/code-reviewer-2025-12-13-phase04-upload-route.md
+   - FULL DETAILED REVIEW (required reading)
+   - Code examples for each issue
+   - Impact assessment
+   - Security checklist
+
+3. FIX_RECOMMENDATIONS.md
+   - Step-by-step fixes with code
+   - Priority order
+   - Implementation details
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. READ the full code review report:
+   → plans/reports/code-reviewer-2025-12-13-phase04-upload-route.md
+
+2. APPLY fixes in priority order:
+   → Use FIX_RECOMMENDATIONS.md for detailed steps
+
+3. VERIFY fixes:
+   → Run: pnpm tsc --noEmit
+   → Run: pnpm lint
+
+4. TEST when Docker available:
+   → pnpm test:integration
+
+5. PROCEED to Phase 05
+
+================================================================================
+IMPACT ASSESSMENT
+================================================================================
+
+Security: POOR - 3 critical vulnerabilities (SQL injection, path traversal, timing attack)
+Reliability: POOR - Resource leaks and error handling gaps
+Performance: POOR - Connection pool exhaustion under load
+Testability: GOOD - Comprehensive test suite
+Code Quality: GOOD - Well-structured code
+
+VERDICT: NOT PRODUCTION READY
+Requires fixes before any testing or deployment.
+
+================================================================================
+SECURITY ISSUES
+================================================================================
+
+1. SQL Injection - Embedding interpolation
+2. Path Traversal - Filename validation missing
+3. Timing Attack - String comparison not constant-time
+4. Resource Leak - Prisma connection exhaustion
+
+All must be fixed before production.
+
+================================================================================
+EFFORT ESTIMATE
+================================================================================
+
+Priority 1 (Prisma singleton):        2 hours
+Priority 2 (SQL injection):           30 min
+Priority 3 (Path traversal):          1 hour
+Priority 4 (Timing attack):           30 min
+Priority 5 (File I/O errors):         1 hour
+Type check + lint + verify:           30 min
+                                      --------
+TOTAL:                                6 hours
+
+================================================================================
+FILES AFFECTED
+================================================================================
+
+Critical issues in:
+- apps/backend/src/routes/documents/upload-route.ts
+- apps/backend/src/routes/documents/status-route.ts
+- apps/backend/src/routes/documents/list-route.ts
+- apps/backend/src/routes/query/search-route.ts
+- apps/backend/src/middleware/auth-middleware.ts
+
+================================================================================
+STATUS: READY FOR FIXES
+================================================================================
+
+All issues documented and actionable.
+Code is well-structured and comprehensible.
+Fixes are straightforward to implement.
+No architectural changes required.
+
+PROCEED TO FIX PHASE when ready.
+
+================================================================================
