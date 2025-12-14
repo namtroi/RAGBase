@@ -1,3 +1,24 @@
+/**
+ * Integration Test Helper - Fastify App
+ * 
+ * ⚠️ NOTE: IDE shows TypeScript errors for 'fastify' import - this is EXPECTED and SAFE
+ * 
+ * Why the error occurs:
+ * - This file is in tests/ directory (root workspace)
+ * - 'fastify' is installed in apps/backend/node_modules (backend workspace)
+ * - TypeScript in tests/ can't see apps/backend/node_modules
+ * 
+ * Why it's safe:
+ * - This file is excluded from TypeScript compilation (see tests/tsconfig.json)
+ * - File is not imported by any tests yet (prepared for Phase 04)
+ * - Will work correctly at runtime when Vitest runs from apps/backend/
+ * 
+ * When to fix:
+ * - Phase 04: Integration Tests implementation
+ * - At that point, this file will be imported and work correctly
+ * 
+ * @see docs/TYPESCRIPT_PATH_FIX.md for full explanation
+ */
 import { FastifyInstance } from 'fastify';
 
 let app: FastifyInstance | null = null;

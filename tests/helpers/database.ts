@@ -1,3 +1,24 @@
+/**
+ * Integration Test Helper - Prisma Database
+ * 
+ * ⚠️ NOTE: IDE shows TypeScript errors for '@prisma/client' import - this is EXPECTED and SAFE
+ * 
+ * Why the error occurs:
+ * - This file is in tests/ directory (root workspace)
+ * - '@prisma/client' is installed in apps/backend/node_modules (backend workspace)
+ * - TypeScript in tests/ can't see apps/backend/node_modules
+ * 
+ * Why it's safe:
+ * - This file is excluded from TypeScript compilation (see tests/tsconfig.json)
+ * - File is not imported by any tests yet (prepared for Phase 04)
+ * - Will work correctly at runtime when Vitest runs from apps/backend/
+ * 
+ * When to fix:
+ * - Phase 04: Integration Tests implementation
+ * - At that point, this file will be imported and work correctly
+ * 
+ * @see docs/TYPESCRIPT_PATH_FIX.md for full explanation
+ */
 import { PrismaClient } from '@prisma/client';
 
 let prismaInstance: PrismaClient | null = null;
