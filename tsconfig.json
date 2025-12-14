@@ -2,6 +2,8 @@
   "extends": "./apps/backend/tsconfig.json",
   "compilerOptions": {
     "baseUrl": ".",
+    "rootDir": ".",  // ← ADD THIS LINE
+    "outDir": "./dist",  // ← ADD THIS LINE
     "paths": {
       "@/*": ["apps/backend/src/*"],
       "@tests/*": ["tests/*"]
