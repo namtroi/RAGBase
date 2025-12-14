@@ -91,3 +91,6 @@ apps/backend/prisma/migrations/
 # Uploads
 /tmp/uploads/
 uploads/
+
+
+apps/backend/local_cache/
