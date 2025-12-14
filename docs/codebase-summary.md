@@ -1,6 +1,6 @@
 # SchemaForge Codebase Summary
 
-**Last Updated:** Phase 04 Critical Fixes (Dec 2024)
+**Last Updated:** Task 1.3 - Fast Lane Processing (Dec 2024)
 **Token Compaction:** 24,627 tokens (102,707 chars)
 
 ---
@@ -93,7 +93,41 @@ Provides MD5 hashing for file deduplication. Used in `upload-route.ts` for:
 ### 2.3 Embedding Service
 **File:** `apps/backend/src/services/embedding-service.ts`
 
-Generates vector embeddings for text. Used in `search-route.ts` for similarity search.
+Generates vector embeddings using fastembed (self-hosted ONNX-based):
+- **Model:** sentence-transformers/all-MiniLM-L6-v2 (384-dim)
+- **Methods:**
+  - `embed(text)` - Single text → vector
+  - `embedBatch(texts)` - Batch texts → vectors (parallel processing)
+  - `cosineSimilarity(vec1, vec2)` - Compute similarity score
+  - `findSimilar(queryEmbedding, candidates, topK)` - Find top-K similar vectors
+- **Features:** Lazy initialization (singleton pattern), batch processing with generators
+- **Used by:** Fast lane processing (upload-route), vector search (search-route)
+
+**NEW (Task 1.3):** Full batch embedding support for fast lane processing.
+
+### 2.4 Chunker Service
+**File:** `apps/backend/src/services/chunker-service.ts`
+
+Text chunking using LangChain MarkdownTextSplitter:
+- **Config:** 1000-char chunks with 200-char overlap
+- **Returns:** Chunks with metadata (charStart, charEnd, heading, page)
+- **Heading extraction:** Parses markdown headers from chunk content
+- **Position tracking:** Maintains character positions in original text
+- **Used by:** Fast lane processing (upload-route), quality validation
+
+**NEW (Task 1.3):** Core component of fast lane processing pipeline.
+
+### 2.5 Fast Lane Processor
+**File:** `apps/backend/src/services/fast-lane-processor.ts`
+
+High-level orchestrator for immediate JSON/TXT/MD processing:
+- **Flow:** Chunk → Quality Gate → Embed → Store
+- **Quality gate:** Validates text length and noise ratio before processing
+- **Database:** Uses raw SQL INSERT for chunk storage (pgvector compatibility)
+- **Error handling:** Marks documents as FAILED with reason codes
+- **Status:** Updates from PENDING → PROCESSING → COMPLETED/FAILED
+
+**Implementation note:** `upload-route.ts` inlines fast lane logic for tighter control. Service provides reusable pipeline for potential future queue-based fast lane.
 
 ---
 
@@ -177,17 +211,34 @@ const results = await prisma.$queryRaw<...>`
 5. Check for duplicates via Prisma singleton
 6. Save file using MD5 hash path
 7. Create document record with file I/O error handling + rollback
-8. Queue job (mock for now)
+8. **FAST LANE (NEW Task 1.3):** Process JSON/TXT/MD files immediately:
+   - Read file content
+   - Chunk text using MarkdownTextSplitter (LangChain)
+   - Generate embeddings via fastembed (self-hosted ONNX)
+   - Store chunks + vectors directly in PostgreSQL/pgvector
+   - Mark document as COMPLETED
+9. **HEAVY LANE:** Queue PDF/DOCX for Python worker processing
+
+**Fast Lane Processing (Task 1.3):**
+- **Supported formats:** JSON, TXT, MD
+- **Chunking:** LangChain MarkdownTextSplitter (1000 char chunks, 200 char overlap)
+- **Embeddings:** fastembed all-MiniLM-L6-v2 (384-dim vectors)
+- **Storage:** Batch insert chunks with raw SQL + pgvector type cast
+- **Status flow:** PENDING → (immediate processing) → COMPLETED/FAILED
+- **Error handling:** Quality gate validation, proper error propagation
 
 **Error Handling:**
 - 400: Invalid file, unsupported format, path traversal attempt
 - 409: Duplicate file detected
-- 500: Storage error (with DB cleanup on failure)
+- 413: File exceeds 50MB (Payload Too Large)
+- 500: Storage error (with DB cleanup on failure), fast lane processing errors
 
-**New Features (Phase 04):**
+**Features (Phase 04+):**
 - File I/O rollback on DB failure (cleanup written file)
 - Path traversal protection via `basename()` + MD5 hash
 - Prisma singleton for connection efficiency
+- **NEW (Task 1.3):** Immediate fast lane processing with embeddings
+- **NEW (Task 1.3):** pgvector integration for semantic search readiness
 
 ### 4.2 Document Status
 **Route:** `GET /api/documents/:id`
@@ -449,7 +500,7 @@ curl http://localhost:3000/health
 
 ---
 
-## 11. Key Design Decisions (Phase 04)
+## 11. Key Design Decisions (Phase 04 + Task 1.3)
 
 | Decision | Rationale | Implementation |
 |----------|-----------|-----------------|
@@ -460,13 +511,17 @@ curl http://localhost:3000/health
 | **File I/O Rollback** | Maintain consistency if DB fails | Cleanup written files on DB errors |
 | **SafeParse Validation** | Proper error codes (400 vs 500) | Zod `safeParse()` in all routes |
 | **MD5 Hash Storage** | Unique, collision-resistant paths | `HashService.md5()` for filenames |
+| **Fast Lane Processing** (Task 1.3) | Immediate response for simple formats | Inline chunking + embedding in upload-route |
+| **Self-Hosted Embeddings** (Task 1.3) | No external API dependency | fastembed ONNX model + batch processing |
+| **Raw SQL for Chunks** (Task 1.3) | pgvector type compatibility | Prisma `$executeRaw` with `::vector` cast |
+| **Dual Lane Architecture** (Task 1.3) | Optimize for different file types | Fast lane (JSON/TXT/MD) vs Heavy lane (PDF/DOCX) |
 
 ---
 
 ## 12. Next Phases
 
-- **Phase 05:** Queue integration (BullMQ) with proper job retry logic
-- **Phase 06:** E2E pipeline testing with Docling processing
-- **Phase 07:** Python AI Worker integration
-- **Phase 08:** Frontend UI (React + Vite)
-- **Phase 09:** Production hardening & scaling
+- **Phase 05:** Queue integration (BullMQ) with proper job retry logic & callback handling
+- **Phase 06:** E2E pipeline testing with Docling (Python worker) processing for PDF/DOCX
+- **Phase 07:** Python AI Worker deployment (Docling → markdown extraction)
+- **Phase 08:** Frontend UI (React + Vite) with upload + search interface
+- **Phase 09:** Production hardening & scaling (monitoring, alerts, load testing)
