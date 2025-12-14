@@ -114,8 +114,10 @@ Tests       23 passed (23)
 23. `tests/unit/mocks/python-worker-mock.test.ts`
 24. `tests/unit/helpers/fixtures.test.ts`
 
-### Updated Files (1)
+### Updated Files (3)
 1. `apps/backend/package.json` - Added pg, @types/pg, @vitest/coverage-v8
+2. `package.json` (root) - Added vitest, @types/node to workspace root
+3. `tsconfig.json` (root) - Created for proper TypeScript resolution
 
 ---
 
@@ -156,6 +158,59 @@ const content = await readFixtureText(FIXTURES.json.valid);
 | @vitest/coverage-v8 | ^2.0.0 | Coverage reporting |
 | pg | ^8.11.0 | PostgreSQL client |
 | @types/pg | ^8.11.0 | TypeScript types |
+
+---
+
+## TypeScript Configuration
+
+### ✅ Root tsconfig.json
+Created to resolve module imports for test files:
+
+```json
+{
+  "extends": "./apps/backend/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "rootDir": ".",
+    "outDir": "./dist",
+    "paths": {
+      "@/*": ["apps/backend/src/*"],
+      "@tests/*": ["tests/*"]
+    },
+    "types": ["vitest/globals", "node"],
+    "skipLibCheck": true
+  },
+  "include": [
+    "tests/**/*",
+    "apps/backend/src/**/*"
+  ],
+  "exclude": ["node_modules", "dist", "apps/backend/dist"]
+}
+```
+
+**Key Features:**
+- ✅ Extends backend TypeScript config
+- ✅ Defines path aliases for `@` and `@tests`
+- ✅ Includes vitest global types
+- ✅ Fixes "Cannot find module 'vitest'" errors
+- ✅ Enables full IntelliSense in test files
+
+### ✅ Root Dependencies
+Added to `package.json` at workspace root:
+
+```json
+"devDependencies": {
+  "turbo": "^2.0.0",
+  "vitest": "^2.0.0",
+  "@types/node": "^20.14.0"
+}
+```
+
+**Why This Matters:**
+- TypeScript can now resolve vitest imports from test files
+- IDE shows no false errors
+- Full autocomplete and type checking in tests
+- Monorepo structure properly configured
 
 ---
 
@@ -244,6 +299,8 @@ pnpm --filter @schemaforge/backend test -- --coverage
 5. ✅ Vitest configuration working
 6. ✅ Path aliases (@, @tests) functional
 7. ✅ Coverage reporting configured
+8. ✅ TypeScript resolves all imports correctly
+9. ✅ No IDE errors in test files
 
 ---
 
@@ -253,6 +310,7 @@ pnpm --filter @schemaforge/backend test -- --coverage
 - **PDF Fixtures:** Placeholder README created - real PDFs to be added when needed
 - **Global Setup:** Commented out for unit tests, ready to enable for integration tests
 - **Database Cleanup:** Simplified for unit tests, will enhance for integration tests
+- **TypeScript Config:** Root tsconfig.json created to fix module resolution for test files
 
 ---
 
