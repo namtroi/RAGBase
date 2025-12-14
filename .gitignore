@@ -16,7 +16,8 @@ CLAUDE.md
 .claude
 
 # testing
-/coverage
+coverage/
+*.lcov
 
 # next.js
 /.next/
