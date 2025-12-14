@@ -1,4 +1,4 @@
-import { pipeline } from '@xenova/transformers';
+import { EmbeddingModel, FlagEmbedding } from 'fastembed';
 
 export interface EmbeddingConfig {
   model: string;
@@ -17,14 +17,14 @@ interface SimilarResult {
 }
 
 const DEFAULT_CONFIG: EmbeddingConfig = {
-  model: 'Xenova/all-MiniLM-L6-v2',
+  model: 'sentence-transformers/all-MiniLM-L6-v2',
   dimensions: 384,
   batchSize: 50,
 };
 
 export class EmbeddingService {
   private config: EmbeddingConfig;
-  private extractor: any = null;
+  private embedder: FlagEmbedding | null = null;
   private initPromise: Promise<void> | null = null;
 
   constructor(config: Partial<EmbeddingConfig> = {}) {
@@ -32,17 +32,17 @@ export class EmbeddingService {
   }
 
   /**
-   * Initialize the embedding pipeline (singleton)
+   * Initialize the embedding model (singleton)
    */
   private async initialize(): Promise<void> {
-    if (this.extractor) return;
+    if (this.embedder) return;
 
     if (!this.initPromise) {
       this.initPromise = (async () => {
-        this.extractor = await pipeline(
-          'feature-extraction',
-          this.config.model
-        );
+        // Use EmbeddingModel enum for all-MiniLM-L6-v2
+        this.embedder = await FlagEmbedding.init({
+          model: EmbeddingModel.AllMiniLML6V2,
+        });
       })();
     }
 
@@ -55,12 +55,9 @@ export class EmbeddingService {
   async embed(text: string): Promise<number[]> {
     await this.initialize();
 
-    const output = await this.extractor(text, {
-      pooling: 'mean',
-      normalize: true,
-    });
-
-    return Array.from(output.data);
+    // fastembed returns Float32Array, convert to number[]
+    const embedding = await this.embedder!.queryEmbed(text);
+    return Array.from(embedding);
   }
 
   /**
@@ -69,13 +66,15 @@ export class EmbeddingService {
   async embedBatch(texts: string[]): Promise<number[][]> {
     if (texts.length === 0) return [];
 
-    // Process in batches
-    const results: number[][] = [];
+    await this.initialize();
 
-    for (let i = 0; i < texts.length; i += this.config.batchSize) {
-      const batch = texts.slice(i, i + this.config.batchSize);
-      const embeddings = await Promise.all(batch.map(t => this.embed(t)));
-      results.push(...embeddings);
+    // fastembed supports batch processing with generators
+    const results: number[][] = [];
+    const embeddings = this.embedder!.embed(texts, this.config.batchSize);
+
+    for await (const batch of embeddings) {
+      // batch is number[][], convert each Float32Array to number[]
+      results.push(...batch.map(emb => Array.from(emb)));
     }
 
     return results;

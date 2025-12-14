@@ -64,7 +64,7 @@ schemaforge/
 - **Backend:** Node.js 20 + Fastify + TypeScript
 - **Database:** PostgreSQL 16 + pgvector
 - **Queue:** BullMQ + Redis
-- **Embedding:** @xenova/transformers (self-hosted)
+- **Embedding:** fastembed (self-hosted, ONNX-based)
 - **AI Worker:** Python 3.11 + Docling
 - **Testing:** Vitest + Testcontainers
 

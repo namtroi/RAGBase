@@ -118,7 +118,7 @@ pnpm install
 | ORM | Prisma | 5.22.0 |
 | Validation | Zod | 3.23.0 |
 | Queue | BullMQ | 5.12.0 |
-| Embedding | @xenova/transformers | 2.17.0 |
+| Embedding | fastembed | 2.0.0 |
 | Chunking | LangChain | 0.3.0 |
 | Database | PostgreSQL + pgvector | 16 + 0.5.1 |
 | Cache | Redis | 7-alpine |

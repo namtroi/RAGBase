@@ -1,0 +1,58 @@
+﻿
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/14-osp/SchemaForge/apps/backend[39m
+
+
+node.exe : [31mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[1m[7m Failed Suites 4 
+[27m[22mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[39m
+At C:\Users\namtr\AppData\Roaming\npm\pnpm.ps1:24 char:5
++     & "node$exe"  "$basedir/node_modules/pnpm/bin/pnpm.cjs" $args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([31mΓÄ»ΓÄ»ΓÄ»Γ...»ΓÄ»ΓÄ»ΓÄ»[ 
+   39m:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+[31m[1m[7m FAIL [27m[22m[39m 
+../../tests/e2e/pipeline/error-handling.test.ts[2m [ 
+../../tests/e2e/pipeline/error-handling.test.ts ][22m
+[31m[1m[7m FAIL [27m[22m[39m 
+../../tests/e2e/pipeline/json-fast-lane.test.ts[2m [ 
+../../tests/e2e/pipeline/json-fast-lane.test.ts ][22m
+[31m[1m[7m FAIL [27m[22m[39m 
+../../tests/e2e/pipeline/pdf-upload-flow.test.ts[2m [ 
+../../tests/e2e/pipeline/pdf-upload-flow.test.ts ][22m
+[31m[1m[7m FAIL [27m[22m[39m 
+../../tests/e2e/pipeline/query-flow.test.ts[2m [ 
+../../tests/e2e/pipeline/query-flow.test.ts ][22m
+[31m[1mError[22m: 
+Something went wrong installing the "sharp" module
+
+Cannot find module '../build/Release/sharp-win32-x64.node'
+Require stack:
+- D:\14-osp\SchemaForge\node_modules\.pnpm\sharp@0.32.6\node_modules\sharp\l
+ib\sharp.js
+- D:\14-osp\SchemaForge\node_modules\.pnpm\sharp@0.32.6\node_modules\sharp\l
+ib\constructor.js
+- D:\14-osp\SchemaForge\node_modules\.pnpm\sharp@0.32.6\node_modules\sharp\l
+ib\index.js
+
+Possible solutions:
+- Install with verbose logging and look for errors: "npm install 
+--ignore-scripts=false --foreground-scripts --verbose sharp"
+- Install for the current win32-x64 runtime: "npm install --platform=win32 
+--arch=x64 sharp"
+- Consult the installation documentation: 
+https://sharp.pixelplumbing.com/install[39m
+[90m [2mΓ¥»[22m Object.<anonymous> ../../node_modules/.pnpm/sharp@0.32.6/
+node_modules/sharp/lib/sharp.js:[2m37:9[22m[39m
+[90m [2mΓ¥»[22m Object.<anonymous> ../../node_modules/.pnpm/sharp@0.32.6/
+node_modules/sharp/lib/constructor.js:[2m11:1[22m[39m
+
+[31m[2mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»Γ
+Ä»ΓÄ»[1/4]ΓÄ»[22m[39m
+
+[2m Test Files [22m [1m[31m4 failed[39m[22m[90m (4)[39m
+[2m      Tests [22m [2mno tests[22m
+[2m   Start at [22m 22:33:06
+[2m   Duration [22m 1.80s[2m (transform 316ms, setup 0ms, collect 0ms, tests 0ms, environment 1ms, prepare 736ms)[22m
+
