@@ -76,17 +76,17 @@ This project follows **Test-Driven Development (TDD)**:
 2. Implement minimum code (GREEN)
 3. Refactor (REFACTOR)
 
-See [docs/TEST_STRATEGY.md](docs/TEST_STRATEGY.md) for details.
+See [docs/core/testing-strategy.md](docs/core/testing-strategy.md) for details.
 
 ## Phase 1 Implementation Status
 
-- [x] **Phase 00:** Scaffold & Infrastructure
-- [ ] **Phase 01:** Test Infrastructure
-- [ ] **Phase 02:** Validation Layer (TDD)
-- [ ] **Phase 03:** Business Logic (TDD)
-- [ ] **Phase 04:** API Routes Integration (TDD)
-- [ ] **Phase 05:** Queue & Callbacks (TDD)
-- [ ] **Phase 06:** E2E Pipeline (TDD)
+- [x] **Phase 00:** Scaffold & Infrastructure - [Completion Report](plans/2025-12-13-phase1-tdd-implementation/completion/phase-00-complete.md)
+- [x] **Phase 01:** Test Infrastructure - [Completion Report](plans/2025-12-13-phase1-tdd-implementation/completion/phase-01-complete.md)
+- [x] **Phase 02:** Validation Layer (TDD) - [Completion Report](plans/2025-12-13-phase1-tdd-implementation/completion/phase-02-complete.md)
+- [x] **Phase 03:** Business Logic (TDD) - [Completion Report](plans/2025-12-13-phase1-tdd-implementation/completion/phase-03-complete.md)
+- [x] **Phase 04:** API Routes Integration (TDD) - [Completion Report](plans/2025-12-13-phase1-tdd-implementation/completion/phase-04-complete.md)
+- [x] **Phase 05:** Queue & Callbacks (TDD) - [Completion Report](plans/2025-12-13-phase1-tdd-implementation/completion/phase-05-complete.md)
+- [x] **Phase 06:** E2E Pipeline (TDD) - [Completion Report](plans/2025-12-13-phase1-tdd-implementation/completion/phase-06-complete.md)
 - [ ] **Phase 07:** Python AI Worker
 - [ ] **Phase 08:** Frontend UI
 - [ ] **Phase 09:** Production Readiness
@@ -125,11 +125,15 @@ See [.env.example](.env.example) for all configuration options.
 
 ## Documentation
 
-- [OVERVIEW.md](docs/OVERVIEW.md) - Project overview
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - Technical architecture
-- [CONTRACT.md](docs/CONTRACT.md) - API contracts
-- [TEST_STRATEGY.md](docs/TEST_STRATEGY.md) - Testing approach
-- [ROADMAP.md](docs/ROADMAP.md) - Development roadmap
+📚 **[View Full Documentation Index](docs/README.md)**
+
+### Quick Links
+- [Project Overview](docs/core/project-overview-pdr.md) - What is SchemaForge?
+- [System Architecture](docs/core/system-architecture.md) - Technical design
+- [API Contracts](docs/core/api-contracts.md) - API specifications
+- [Testing Strategy](docs/core/testing-strategy.md) - TDD approach
+- [Project Roadmap](docs/core/project-roadmap.md) - Development phases
+- [Code Standards](docs/core/code-standards.md) - Coding conventions
 
 ## License
 
