@@ -36,3 +36,6 @@ export async function disconnectPrisma(): Promise<void> {
     prismaInstance = null;
   }
 }
+
+// Alias for consistency with test helpers
+export const getPrisma = getPrismaClient;
