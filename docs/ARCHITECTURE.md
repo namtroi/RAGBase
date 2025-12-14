@@ -43,14 +43,14 @@ PDF/DOCX → [Python: Docling → Markdown] → callback
 
 | Provider | Implementation |
 |----------|----------------|
-| **Self-hosted** (default) | `@xenova/transformers` - ONNX runtime in Node.js |
+| **Self-hosted** (default) | `fastembed` - Fast ONNX-based embeddings in Node.js |
 | **OpenAI** (opt-in) | `@langchain/openai` - API call |
 
 **Config:**
 ```yaml
 environment:
   - EMBEDDING_PROVIDER=self-hosted  # or 'openai'
-  - EMBEDDING_MODEL=Xenova/all-MiniLM-L6-v2
+  - EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
   - EMBEDDING_BATCH_SIZE=50
 ```
 

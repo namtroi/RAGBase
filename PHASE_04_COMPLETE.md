@@ -109,7 +109,7 @@ apps/backend/src/app.ts
 - **@fastify/multipart** - File upload handling
 - **Zod** - Request validation
 - **Prisma** - Database ORM
-- **@xenova/transformers** - Embedding generation
+- **fastembed** - Fast ONNX-based embedding generation
 - **pgvector** - Vector similarity search
 
 ### Database Integration
