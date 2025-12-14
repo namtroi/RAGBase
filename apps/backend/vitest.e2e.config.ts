@@ -6,7 +6,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['../../tests/e2e/**/*.test.ts'],
-    exclude: ['node_modules', 'dist'],
+    exclude: ['node_modules', 'dist', '../../tests/e2e/prisma-test.test.ts'],
     // E2E tests manage their own setup/teardown per suite
     // No global setup needed
     testTimeout: 120000, // 2 minutes for E2E tests
@@ -22,6 +22,11 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '@tests': path.resolve(__dirname, '../../tests'),
+      '@prisma/client': path.resolve(__dirname, '../node_modules/.prisma/client'),
     },
+    extensions: ['.ts', '.js', '.mjs', '.json'],
+  },
+  esbuild: {
+    target: 'node18',
   },
 });
