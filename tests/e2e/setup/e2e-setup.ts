@@ -47,17 +47,18 @@ export async function setupE2E() {
 
   console.log('✅ pgvector extension created');
 
-  // Run migrations
-  console.log('🗄️  Running Prisma migrations...');
+  // Push Prisma schema (faster and more reliable for tests)
+  console.log('🗄️  Pushing Prisma schema...');
   try {
-    execSync('npx prisma migrate deploy', {
+    execSync('pnpm --filter @schemaforge/backend db:push', {
+      shell: true,  // Required for Windows compatibility
       env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
-      cwd: process.cwd() + '/apps/backend',
+      cwd: process.cwd(),  // Run from root directory
       stdio: 'inherit',
     });
-    console.log('✅ Migrations completed');
+    console.log('✅ Schema pushed');
   } catch (error) {
-    console.error('❌ Migration failed:', error);
+    console.error('❌ Schema push failed:', error);
     throw error;
   }
 
