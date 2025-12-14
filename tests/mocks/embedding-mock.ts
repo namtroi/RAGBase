@@ -32,23 +32,38 @@ export function createMockEmbedder() {
 }
 
 /**
- * Mock the @xenova/transformers module
+ * Mock the fastembed module
  */
-export function mockTransformers() {
-  vi.mock('@xenova/transformers', () => ({
-    pipeline: vi.fn(async () => {
-      return async (text: string, options?: { pooling?: string; normalize?: boolean }) => {
-        return {
-          data: new Float32Array(mockEmbedding(text)),
-        };
-      };
-    }),
-    env: {
-      allowRemoteModels: true,
-      allowLocalModels: true,
+export function mockFastEmbed() {
+  vi.mock('fastembed', () => ({
+    FlagEmbedding: {
+      init: vi.fn(async () => ({
+        queryEmbed: vi.fn(async (text: string) => {
+          return new Float32Array(mockEmbedding(text));
+        }),
+        embed: vi.fn(function* (texts: string[], batchSize: number = 256) {
+          // Generator that yields batches
+          for (let i = 0; i < texts.length; i += batchSize) {
+            const batch = texts.slice(i, i + batchSize);
+            yield batch.map(t => new Float32Array(mockEmbedding(t)));
+          }
+        }),
+      })),
+    },
+    EmbeddingModel: {
+      AllMiniLML6V2: 'sentence-transformers/all-MiniLM-L6-v2',
+      BGEBaseEN: 'BAAI/bge-base-en',
+      BGEBaseENV15: 'BAAI/bge-base-en-v1.5',
+      BGESmallEN: 'BAAI/bge-small-en',
+      BGESmallENV15: 'BAAI/bge-small-en-v1.5',
+      BGESmallZH: 'BAAI/bge-base-zh-v1.5',
+      MLE5Large: 'intfloat/multilingual-e5-large',
     },
   }));
 }
+
+// Alias for backward compatibility
+export const mockTransformers = mockFastEmbed;
 
 // Pre-computed embeddings for common test phrases
 export const KNOWN_EMBEDDINGS = {
