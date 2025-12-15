@@ -5,7 +5,7 @@ Unit tests for the FastAPI main application.
 
 import pytest
 from pathlib import Path
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, AsyncMock, PropertyMock
 
 # Import from parent directory
 import sys
@@ -41,10 +41,13 @@ class TestReadinessEndpoint:
         """Test readiness when worker is not running."""
         from fastapi.testclient import TestClient
         from src.main import app
+        from src.consumer import DocumentWorker
 
         with patch("src.main.document_worker.start", new_callable=AsyncMock):
             with patch("src.main.document_worker.stop", new_callable=AsyncMock):
-                with patch("src.main.document_worker.is_running", False):
+                with patch.object(
+                    DocumentWorker, "is_running", new_callable=PropertyMock, return_value=False
+                ):
                     with TestClient(app) as client:
                         response = client.get("/ready")
 
@@ -58,10 +61,13 @@ class TestReadinessEndpoint:
         """Test readiness when worker is running."""
         from fastapi.testclient import TestClient
         from src.main import app
+        from src.consumer import DocumentWorker
 
         with patch("src.main.document_worker.start", new_callable=AsyncMock):
             with patch("src.main.document_worker.stop", new_callable=AsyncMock):
-                with patch("src.main.document_worker.is_running", True):
+                with patch.object(
+                    DocumentWorker, "is_running", new_callable=PropertyMock, return_value=True
+                ):
                     with TestClient(app) as client:
                         response = client.get("/ready")
 

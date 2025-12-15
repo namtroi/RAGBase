@@ -144,11 +144,18 @@ class TestDocumentWorker:
         """Test worker handles missing bullmq gracefully."""
         worker = DocumentWorker()
 
-        # Mock ImportError for bullmq
-        with patch.dict("sys.modules", {"bullmq": None}):
-            with patch("src.consumer.Worker", side_effect=ImportError("No module named 'bullmq'")):
-                # Should not raise, just log warning
-                await worker.start()
+        # Mock the bullmq import to raise ImportError
+        import builtins
+        real_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "bullmq":
+                raise ImportError("No module named 'bullmq'")
+            return real_import(name, *args, **kwargs)
+
+        with patch.object(builtins, "__import__", side_effect=mock_import):
+            # Should not raise, just log warning
+            await worker.start()
 
         assert worker.is_running is False
 

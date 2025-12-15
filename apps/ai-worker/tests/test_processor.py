@@ -91,9 +91,10 @@ class TestPDFProcessor:
         pdf_path.write_bytes(b"%PDF-1.4")
 
         # Mock password check and converter
+        # Use an error message that doesn't contain 'invalid', 'corrupt', or 'timeout'
         with patch.object(processor, "_is_password_protected", return_value=False):
             with patch.object(
-                processor, "_get_converter", side_effect=Exception("Invalid PDF format")
+                processor, "_get_converter", side_effect=Exception("Failed to parse document")
             ):
                 result = await processor.process(str(pdf_path))
 
