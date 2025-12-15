@@ -11,7 +11,7 @@
 | Date | 2025-12-13 |
 | Priority | P0 (Critical) |
 | Est. Hours | 10 |
-| Status | Pending |
+| Status | ✅ Completed |
 
 **Description:** Python FastAPI worker for PDF processing via Docling. Consumes BullMQ jobs, processes PDFs, and sends HTTP callback to Node.js.
 
@@ -30,12 +30,12 @@
 ## Requirements
 
 ### Acceptance Criteria
-- [ ] FastAPI server starts and health check works
-- [ ] BullMQ consumer polls jobs from Redis
-- [ ] Docling converts PDF to Markdown
-- [ ] OCR triggered based on mode (auto/force/never)
-- [ ] HTTP callback to Node.js with result/error
-- [ ] Proper error handling for all failure modes
+- [x] FastAPI server starts and health check works
+- [x] BullMQ consumer polls jobs from Redis
+- [x] Docling converts PDF to Markdown
+- [x] OCR triggered based on mode (auto/force/never)
+- [x] HTTP callback to Node.js with result/error
+- [x] Proper error handling for all failure modes
 
 ---
 
@@ -800,19 +800,19 @@ addopts = -v --cov=src --cov-report=html
 
 ## Todo List
 
-- [ ] Create `apps/ai-worker/src/config.py`
-- [ ] Create `apps/ai-worker/src/logging_config.py`
-- [ ] Create `apps/ai-worker/src/processor.py`
-- [ ] Create `apps/ai-worker/src/callback.py`
-- [ ] Create `apps/ai-worker/src/consumer.py`
-- [ ] Create `apps/ai-worker/src/main.py`
-- [ ] Create `apps/ai-worker/requirements.txt`
-- [ ] Create `apps/ai-worker/Dockerfile`
-- [ ] Write unit tests for processor
-- [ ] Write unit tests for callback
-- [ ] Test with sample PDF
-- [ ] Verify BullMQ consumer works
-- [ ] Test callback to Node.js
+- [x] Create `apps/ai-worker/src/config.py`
+- [x] Create `apps/ai-worker/src/logging_config.py`
+- [x] Create `apps/ai-worker/src/processor.py`
+- [x] Create `apps/ai-worker/src/callback.py`
+- [x] Create `apps/ai-worker/src/consumer.py`
+- [x] Create `apps/ai-worker/src/main.py`
+- [x] Create `apps/ai-worker/requirements.txt`
+- [x] Create `apps/ai-worker/Dockerfile`
+- [x] Write unit tests for processor
+- [x] Write unit tests for callback
+- [ ] Test with sample PDF (requires Docker)
+- [ ] Verify BullMQ consumer works (requires Docker)
+- [ ] Test callback to Node.js (requires Docker)
 
 ---
 

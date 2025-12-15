@@ -1,7 +1,18 @@
+# apps/ai-worker/requirements.txt
+# Core
 fastapi==0.115.0
 uvicorn==0.32.0
-docling==2.10.0
-redis==5.2.0
+pydantic-settings==2.5.0
 httpx==0.27.0
-pydantic==2.9.0
 structlog==24.4.0
+
+# Document processing
+docling==2.10.0
+PyMuPDF==1.24.0
+
+# Queue
+bullmq==0.4.0
+redis==5.2.0
+
+# OCR (optional - heavy dependency)
+# easyocr==1.7.1  # Uncomment if OCR needed
