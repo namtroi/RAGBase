@@ -11,7 +11,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-start gap-3 flex-1 min-w-0">
-          <FileText className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
+          <FileText className="w-5 h-5 text-gray-400 shrink-0 mt-0.5" />
           <div className="min-w-0 flex-1">
             <h3 className="font-medium text-gray-900 truncate">{document.filename}</h3>
             <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
