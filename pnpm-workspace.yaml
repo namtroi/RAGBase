@@ -1,3 +1,14 @@
 packages:
-  - 'apps/*'
-  - 'packages/*'
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - cpu-features
+  - esbuild
+  - msgpackr-extract
+  - onnxruntime-node
+  - prisma
+  - protobufjs
+  - ssh2
