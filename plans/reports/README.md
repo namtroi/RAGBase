@@ -1,50 +1,31 @@
-# Code Review Reports - Phase 04
+# Reports Directory
 
-**Date:** 2025-12-13
-**Reviewed By:** Code Reviewer Subagent
-**Phase:** Phase 04 - API Routes Integration (TDD)
+**Updated:** 2025-12-14
 
----
+Reports and reviews for the SchemaForge project.
 
-## Overview
+## Active Reports
 
-This directory contains comprehensive code review reports for Phase 04 integration tests and API route implementations.
+- [2025-12-14-docs-refactor-plan.md](2025-12-14-docs-refactor-plan.md) - Documentation refactoring plan
+- [PROJECT-STATUS-2025-12-14.md](PROJECT-STATUS-2025-12-14.md) - Current project status
 
-### Files in This Report
+## Archive
 
-1. **code-review-summary.txt** (this document)
-   - High-level overview and quick reference
-   - Executive summary, metrics, verdict
-   - Perfect for quick review or status updates
+Historical reports from completed phases are stored in [`archive/`](archive/).
 
-2. **code-reviewer-231213-phase04-integration-tests.md**
-   - Detailed comprehensive code review
-   - ~8,000 words covering all aspects
-   - Detailed findings by category
-   - Code examples and explanations
-   - Recommended for thorough understanding
+| Subdirectory | Contents |
+|--------------|----------|
+| `archive/phase04-reviews/` | Phase 04 code reviews and fixes |
+| `archive/` (root) | Other historical reports |
 
-3. **code-reviewer-action-items.md**
-   - Step-by-step fix instructions
-   - Code snippets ready to apply
-   - Implementation order with effort estimates
-   - Perfect for developers implementing fixes
+## Adding New Reports
 
-4. **README.md** (this file)
-   - Navigation and context for reports
+Use descriptive names with dates:
+```
+{role}-{date}-{topic}.md
+Example: code-reviewer-2025-12-15-phase07-review.md
+```
 
----
-
-## Quick Assessment
-
-| Category | Rating | Status |
-|----------|--------|--------|
-| **Overall Quality** | 8.5/10 | ✅ APPROVED |
-| **Test Coverage** | 9/10 | ✅ Excellent |
-| **Code Structure** | 9/10 | ✅ Excellent |
-| **Implementation** | 8/10 | ✅ Good |
-| **Security** | 8/10 | ✅ Good |
-| **Production Ready** | 8/10 | ⚠️ With fixes |
 
 ---
 

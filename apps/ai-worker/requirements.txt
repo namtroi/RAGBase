@@ -1,7 +1,28 @@
-fastapi==0.115.0
-uvicorn==0.32.0
-docling==2.10.0
-redis==5.2.0
-httpx==0.27.0
-pydantic==2.9.0
-structlog==24.4.0
+# apps/ai-worker/requirements.txt
+# Core
+fastapi>=0.100.0
+uvicorn>=0.30.0
+pydantic-settings>=2.0.0
+httpx>=0.25.0
+structlog>=24.0.0
+
+# Queue
+redis>=5.0.0
+
+# ====================
+# OPTIONAL DEPENDENCIES
+# ====================
+# The following are heavy dependencies that require special setup.
+# Install them separately if needed for full functionality.
+
+# PDF Processing (requires C++ build tools on Windows)
+# pip install pymupdf
+
+# Document conversion (large download ~500MB)
+# pip install docling
+
+# BullMQ (requires Node.js bindings)
+# pip install bullmq
+
+# OCR (very large ~1GB+)
+# pip install easyocr

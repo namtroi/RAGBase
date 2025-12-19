@@ -1,15 +1,69 @@
+# apps/ai-worker/src/main.py
 """
-AI Worker - Placeholder for Phase 07
-This file will be implemented in Phase 07: Python AI Worker
+FastAPI application entry point for AI Worker.
+Provides health checks and runs BullMQ consumer.
 """
 
-import structlog
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
 
-logger = structlog.get_logger()
+from .config import settings
+from .consumer import document_worker
+from .logging_config import configure_logging, get_logger
+
+# Configure logging first
+configure_logging()
+logger = get_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan handler."""
+    # Startup
+    logger.info("application_starting")
+    await document_worker.start()
+
+    yield
+
+    # Shutdown
+    logger.info("application_stopping")
+    await document_worker.stop()
+
+
+app = FastAPI(
+    title="SchemaForge AI Worker",
+    description="PDF processing worker using Docling",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {
+        "status": "ok",
+        "service": "ai-worker",
+        "ocr_enabled": settings.ocr_enabled,
+    }
+
+
+@app.get("/ready")
+async def readiness_check():
+    """Readiness check - verifies worker is running."""
+    worker_running = document_worker.is_running
+    return {
+        "ready": worker_running,
+        "worker_active": worker_running,
+    }
+
 
 if __name__ == "__main__":
-    logger.info("AI Worker placeholder - will be implemented in Phase 07")
-    # Keep container running
-    import time
-    while True:
-        time.sleep(60)
+    import uvicorn
+
+    uvicorn.run(
+        "src.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+    )

@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo:*)",
+      "Skill(planning)",
+      "Bash(python:*)",
+      "SlashCommand(/plan:hard Create comprehensive TDD implementation plan for SchemaForge Phase 1 (MVP: Core Pipeline).\n\nPROJECT CONTEXT:\n- Open source ETL system for SMEs converting unstructured data (PDFs, Excel) into structured knowledge for Vector DBs\n- Methodology: Test-Driven Development (TDD) - write tests FIRST, then implement\n- Architecture: 3 Docker containers (app-backend, ai-worker, postgres-db) via BullMQ + HTTP callbacks\n- Tech: Node.js + Fastify + TypeScript + Prisma + Zod + BullMQ (backend), Python 3.11+ + FastAPI + Docling (AI), PostgreSQL 16+ + pgvector\n\nPHASE 1 SCOPE (from docs/ROADMAP.md):\nFormats: .pdf (digital + scanned OCR opt-in), .json, .txt, .md\nFeatures:\n- Manual upload via API/UI\n- Processing: Docling → Markdown → LangChain chunks (1000 chars, 200 overlap)\n- Embedding: Self-hosted all-MiniLM-L6-v2 (384d) via @xenova/transformers\n- Storage: PostgreSQL + pgvector\n- UI: Upload + Status monitor + Simple query\n- Auth: API Key (single key in .env)\n- Queue: BullMQ with 3 retries, exponential backoff\n- OCR: Optional EasyOCR via Docling (env controlled)\n\nKEY CONTRACTS (from docs/CONTRACT.md):\n- Document statuses: PENDING → PROCESSING → COMPLETED/FAILED\n- Processing lanes: fast (json/txt/md) vs heavy (pdf via Python)\n- Error codes: PASSWORD_PROTECTED, CORRUPT_FILE, UNSUPPORTED_FORMAT, OCR_FAILED, TIMEOUT, INTERNAL_ERROR\n- API endpoints: POST /api/documents (upload), GET /api/documents/:id (status), POST /api/query (vector search), GET /api/documents (list)\n- Quality gate: Reject if text < 50 chars, noise > 80%\n\nTEST STRATEGY (from docs/TEST_STRATEGY.md):\n- Test pyramid: 60% unit, 30% integration, 10% E2E\n- Unit: Zod schemas, format detection, chunking, noise calc (no I/O, mocked DB/queue/FS)\n- Integration: API→DB, queue jobs, status transitions, pgvector queries (real DB via Testcontainers, mocked Python worker)\n- E2E: Full pipeline upload→queue→callback→chunks→query (Testcontainers for all services)\n- Coverage: 100% validation, 90% business logic, 80% API routes\n- Fixtures: tests/fixtures/{pdfs,json,text,expected}/ with helpers\n- Mocks: Python worker HTTP stub, deterministic embeddings, in-memory BullMQ\n\nARCHITECTURE (from docs/ARCHITECTURE.md):\n- Service communication: Node→Redis (BullMQ job) → Python polls → Python→Node (HTTP POST /internal/callback)\n- Embedding in Node.js (not Python): Callback→LangChain chunking→@xenova/transformers→pgvector\n- Error handling: 3-tier retry (3x exponential backoff) → Dead Letter Queue → Alert webhook\n- OCR workflow: Extract 3 pages → detect text (<50 chars/page = trigger OCR) → modes: auto/force/never\n- Database: HNSW index for vectors, connection pooling via PgBouncer recommended\n\nPLAN REQUIREMENTS:\n1. Create detailed TDD implementation phases following RED→GREEN→REFACTOR cycle\n2. Structure plan by test categories FIRST, then implementation\n3. Include all test fixtures setup (PDF samples, mocks, Testcontainers)\n4. Break down into small, testable units (<200 lines per file)\n5. Specify exact file paths following kebab-case naming (e.g., document-upload-validator.ts, pdf-processing-queue-handler.ts)\n6. Include Prisma schema with pgvector extension\n7. Docker compose setup with all 3 services + Redis\n8. Environment variables and configuration\n9. Define acceptance criteria for each phase\n10. List dependencies to install (with versions where critical)\n\nOUTPUT STRUCTURE:\n- Phase 0: Project scaffold & infrastructure setup\n- Phase 1: Test fixtures & mocks infrastructure\n- Phase 2: Unit tests for validation layer (TDD)\n- Phase 3: Unit tests for business logic (TDD)\n- Phase 4: Integration tests for API routes (TDD)\n- Phase 5: Integration tests for queue & callbacks (TDD)\n- Phase 6: E2E tests for full pipeline (TDD)\n- Phase 7: UI implementation (after backend fully tested)\n- Phase 8: Production readiness (logging, metrics, error handling)\n\nFor each phase:\n- List tests to write FIRST (with describe/it structure)\n- Then list implementation to make tests pass\n- Include file paths, key interfaces, and pseudo-code where helpful\n- Specify acceptance criteria)",
+      "Bash(mkdir:*)",
+      "Bash(node .claude/scripts/set-active-plan.cjs:*)",
+      "WebSearch",
+      "Bash(npm run build:*)",
+      "Bash(pnpm exec tsc:*)",
+      "Bash(pnpm test:*)",
+      "Bash(npm run test:integration:*)",
+      "Bash(pnpm tsc:*)",
+      "Bash(pnpm --filter \"@schemaforge/backend\" test:unit:*)",
+      "Bash(xargs ls:*)",
+      "Bash(npm test)",
+      "Bash(cat:*)",
+      "Skill(code-review)",
+      "Bash(npx vitest:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm build:*)",
+      "Bash(repomix:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(pnpm test:e2e:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(ls:*)",
+      "Bash(dir:*)",
+      "Bash(bash:*)",
+      "Bash(tree:*)"
+    ]
+  }
+}
