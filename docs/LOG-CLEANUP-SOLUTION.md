@@ -54,7 +54,7 @@ test-*.ts
 ### Option 3: Full Cleanup + Prevention
 ```powershell
 # Step 1: Delete all junk files
-cd D:\14-osp\SchemaForge
+cd D:\14-osp\RAGBase
 Remove-Item -Force "apps\backend\*.log"
 Remove-Item -Force "apps\backend\e2e-full-error.txt"
 Remove-Item -Force "apps\backend\test-embedding-smoke.ts"

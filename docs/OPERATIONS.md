@@ -62,7 +62,7 @@ docker-compose -f docker-compose.prod.yml restart backend
 docker exec ragbase-postgres-1 pg_isready -U postgres
 
 # Check pgvector extension
-docker exec -it ragbase-postgres-1 psql -U postgres -d schemaforge -c "SELECT * FROM pg_extension WHERE extname='vector';"
+docker exec -it ragbase-postgres-1 psql -U postgres -d ragbase -c "SELECT * FROM pg_extension WHERE extname='vector';"
 
 # View database logs
 docker-compose -f docker-compose.prod.yml logs postgres
@@ -108,10 +108,10 @@ docker-compose -f docker-compose.prod.yml up -d
 ### PostgreSQL
 ```bash
 # Backup
-docker exec ragbase-postgres-1 pg_dump -U postgres schemaforge > backup-$(date +%Y%m%d).sql
+docker exec ragbase-postgres-1 pg_dump -U postgres ragbase > backup-$(date +%Y%m%d).sql
 
 # Restore
-cat backup-20251219.sql | docker exec -i ragbase-postgres-1 psql -U postgres schemaforge
+cat backup-20251219.sql | docker exec -i ragbase-postgres-1 psql -U postgres ragbase
 ```
 
 ### Redis

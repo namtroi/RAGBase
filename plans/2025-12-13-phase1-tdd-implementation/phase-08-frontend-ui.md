@@ -106,7 +106,7 @@ apps/frontend/
 ```json
 // apps/frontend/package.json
 {
-  "name": "@schemaforge/frontend",
+  "name": "@ragbase/frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -859,7 +859,7 @@ function AppContent() {
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-gray-900">SchemaForge</h1>
+            <h1 className="text-xl font-bold text-gray-900">RAGBase</h1>
             <div className="flex items-center gap-2">
               {!apiKey && (
                 <span className="text-sm text-amber-600 flex items-center gap-1">

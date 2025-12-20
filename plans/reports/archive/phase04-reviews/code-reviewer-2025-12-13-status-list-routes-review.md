@@ -52,9 +52,9 @@ Replace with singleton from `@/database` module:
 ```
 
 **Files affected:**
-- D:\14-osp\SchemaForge\apps\backend\src\routes\documents\status-route.ts
-- D:\14-osp\SchemaForge\apps\backend\src\routes\documents\list-route.ts
-- D:\14-osp\SchemaForge\apps\backend\src\routes\documents\upload-route.ts (same issue)
+- D:\14-osp\RAGBase\apps\backend\src\routes\documents\status-route.ts
+- D:\14-osp\RAGBase\apps\backend\src\routes\documents\list-route.ts
+- D:\14-osp\RAGBase\apps\backend\src\routes\documents\upload-route.ts (same issue)
 
 **Implementation priority:** BLOCK before production deployment.
 

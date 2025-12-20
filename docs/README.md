@@ -1,10 +1,10 @@
 # Documentation Index
 
-Welcome to SchemaForge documentation.
+Welcome to RAGBase documentation.
 
 ## Getting Started
 
-1. [Project Overview](core/project-overview-pdr.md) - What is SchemaForge?
+1. [Project Overview](core/project-overview-pdr.md) - What is RAGBase?
 2. [System Architecture](core/system-architecture.md) - How it works
 3. [Quick Start](../README.md#quick-start) - Get running in 5 minutes
 

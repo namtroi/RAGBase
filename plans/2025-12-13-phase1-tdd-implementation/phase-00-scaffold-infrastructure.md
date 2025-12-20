@@ -42,7 +42,7 @@
 ### Project Structure
 
 ```
-schemaforge/
+ragbase/
 ├── apps/
 │   ├── backend/           # Node.js Fastify API
 │   │   ├── src/
@@ -96,7 +96,7 @@ services:
     ports: ["3000:3000"]
     depends_on: [redis, postgres]
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/schemaforge
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ragbase
       - REDIS_URL=redis://redis:6379
       - API_KEY=${API_KEY}
     networks: [internal]
@@ -117,7 +117,7 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=schemaforge
+      - POSTGRES_DB=ragbase
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -168,7 +168,7 @@ pnpm init
 ```json
 // package.json
 {
-  "name": "schemaforge",
+  "name": "ragbase",
   "private": true,
   "scripts": {
     "dev": "turbo run dev",
@@ -196,7 +196,7 @@ packages:
 ```json
 // apps/backend/package.json
 {
-  "name": "@schemaforge/backend",
+  "name": "@ragbase/backend",
   "version": "0.1.0",
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -364,14 +364,14 @@ COPY apps/backend/prisma apps/backend/prisma/
 RUN pnpm install --frozen-lockfile
 
 # Generate Prisma client
-RUN pnpm --filter @schemaforge/backend db:generate
+RUN pnpm --filter @ragbase/backend db:generate
 
 # Copy source
 COPY apps/backend/src apps/backend/src
 COPY apps/backend/tsconfig.json apps/backend/
 
 # Build
-RUN pnpm --filter @schemaforge/backend build
+RUN pnpm --filter @ragbase/backend build
 
 # Production image
 FROM node:20-alpine
@@ -436,7 +436,7 @@ structlog==24.4.0
 ```bash
 # .env.example
 # Database
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/schemaforge
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ragbase
 
 # Redis
 REDIS_URL=redis://localhost:6379

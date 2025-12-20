@@ -116,19 +116,19 @@ pnpm test:integration --coverage
 ## Files to Review
 
 **Main Documentation:**
-- `D:\14-osp\SchemaForge\PHASE_04_COMPLETE.md` - Complete implementation guide
-- `D:\14-osp\SchemaForge\plans\2025-12-13-phase1-tdd-implementation\plan.md` - Updated plan
+- `D:\14-osp\RAGBase\PHASE_04_COMPLETE.md` - Complete implementation guide
+- `D:\14-osp\RAGBase\plans\2025-12-13-phase1-tdd-implementation\plan.md` - Updated plan
 
 **Code Files:**
-- `D:\14-osp\SchemaForge\apps\backend\src\services\database.ts` - Singleton service
-- `D:\14-osp\SchemaForge\apps\backend\src\app.ts` - App factory
-- `D:\14-osp\SchemaForge\apps\backend\src\middleware\auth-middleware.ts` - Auth
-- `D:\14-osp\SchemaForge\apps\backend\src\routes\documents\*` - Document routes
-- `D:\14-osp\SchemaForge\apps\backend\src\routes\query\search-route.ts` - Search
+- `D:\14-osp\RAGBase\apps\backend\src\services\database.ts` - Singleton service
+- `D:\14-osp\RAGBase\apps\backend\src\app.ts` - App factory
+- `D:\14-osp\RAGBase\apps\backend\src\middleware\auth-middleware.ts` - Auth
+- `D:\14-osp\RAGBase\apps\backend\src\routes\documents\*` - Document routes
+- `D:\14-osp\RAGBase\apps\backend\src\routes\query\search-route.ts` - Search
 
 **Reports:**
-- `D:\14-osp\SchemaForge\plans\reports\project-manager-2025-12-13-phase04-completion.md`
-- `D:\14-osp\SchemaForge\plans\reports\code-reviewer-251213-phase04-fixes-verification.md`
+- `D:\14-osp\RAGBase\plans\reports\project-manager-2025-12-13-phase04-completion.md`
+- `D:\14-osp\RAGBase\plans\reports\code-reviewer-251213-phase04-fixes-verification.md`
 
 ---
 

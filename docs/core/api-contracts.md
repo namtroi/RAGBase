@@ -1,4 +1,4 @@
-# SchemaForge Contracts
+# RAGBase Contracts
 
 **Phase 1 interfaces. TDD reference.**
 

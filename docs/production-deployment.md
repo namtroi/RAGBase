@@ -161,7 +161,7 @@ Default: 100 requests/minute per IP. Adjust based on:
 
 Update `DATABASE_URL` with connection pooling:
 ```
-postgresql://postgres:password@postgres:5432/schemaforge?connection_limit=10
+postgresql://postgres:password@postgres:5432/ragbase?connection_limit=10
 ```
 
 ### Redis Memory
@@ -201,7 +201,7 @@ Adjust Docker resource limits in `docker-compose.prod.yml` based on:
 
 2. Verify pgvector extension:
    ```bash
-   docker exec -it ragbase-postgres-1 psql -U postgres -d schemaforge -c "SELECT * FROM pg_extension WHERE extname='vector';"
+   docker exec -it ragbase-postgres-1 psql -U postgres -d ragbase -c "SELECT * FROM pg_extension WHERE extname='vector';"
    ```
 
 ### High Memory Usage
@@ -224,7 +224,7 @@ Adjust Docker resource limits in `docker-compose.prod.yml` based on:
 
 Daily backup using pg_dump:
 ```bash
-docker exec ragbase-postgres-1 pg_dump -U postgres schemaforge > backup-$(date +%Y%m%d).sql
+docker exec ragbase-postgres-1 pg_dump -U postgres ragbase > backup-$(date +%Y%m%d).sql
 ```
 
 ### Redis Persistence

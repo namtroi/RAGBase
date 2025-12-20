@@ -50,7 +50,7 @@ export async function setupE2E() {
   // Push Prisma schema (faster and more reliable for tests)
   console.log('🗄️  Pushing Prisma schema...');
   try {
-    execSync('pnpm --filter @schemaforge/backend db:push', {
+    execSync('pnpm --filter @ragbase/backend db:push', {
       shell: true,  // Required for Windows compatibility
       env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
       cwd: process.cwd(),  // Run from root directory

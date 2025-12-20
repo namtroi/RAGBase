@@ -2,7 +2,7 @@
 
 **Updated:** 2025-12-14
 
-Reports and reviews for the SchemaForge project.
+Reports and reviews for the RAGBase project.
 
 ## Active Reports
 
@@ -260,7 +260,7 @@ For questions about specific findings:
 - **Reviewed:** All integration test files + implementations
 - **Date:** 2025-12-13
 - **Reviewer:** Code Reviewer Subagent (Claude Haiku 4.5)
-- **Project:** SchemaForge - Enterprise RAG Data Pipeline
+- **Project:** RAGBase - Enterprise RAG Data Pipeline
 - **Phase:** 04 - API Routes Integration (TDD)
 - **Status:** Complete
 - **Verdict:** Approved with recommendations

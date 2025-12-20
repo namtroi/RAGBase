@@ -155,13 +155,13 @@ uvicorn src.main:app --reload
 cd apps/ai-worker
 
 # Build
-docker build -t schemaforge-ai-worker .
+docker build -t ragbase-ai-worker .
 
 # Run
 docker run -p 8000:8000 \
   -e REDIS_URL=redis://host.docker.internal:6379 \
   -e CALLBACK_URL=http://host.docker.internal:3000/internal/callback \
-  schemaforge-ai-worker
+  ragbase-ai-worker
 ```
 
 ---

@@ -1,4 +1,4 @@
-# SchemaForge
+# RAGBase
 
 **The "Set & Forget" Data Pipeline for Enterprise RAG**
 
@@ -32,7 +32,7 @@ docker compose up -d
 
 4. **Run migrations:**
 ```bash
-pnpm --filter @schemaforge/backend db:push
+pnpm --filter @ragbase/backend db:push
 ```
 
 5. **Start development server:**
@@ -49,7 +49,7 @@ curl http://localhost:3000/health
 ## Project Structure
 
 ```
-schemaforge/
+ragbase/
 ├── apps/
 │   ├── backend/           # Node.js Fastify API
 │   └── ai-worker/         # Python FastAPI (Phase 07)
@@ -104,9 +104,9 @@ pnpm test:unit              # Run unit tests only
 pnpm test:integration       # Run integration tests
 
 # Database
-pnpm --filter @schemaforge/backend db:generate  # Generate Prisma client
-pnpm --filter @schemaforge/backend db:push      # Push schema to DB
-pnpm --filter @schemaforge/backend db:migrate   # Create migration
+pnpm --filter @ragbase/backend db:generate  # Generate Prisma client
+pnpm --filter @ragbase/backend db:push      # Push schema to DB
+pnpm --filter @ragbase/backend db:migrate   # Create migration
 
 # Linting
 pnpm lint                   # Type-check all packages
@@ -128,7 +128,7 @@ See [.env.example](.env.example) for all configuration options.
 📚 **[View Full Documentation Index](docs/README.md)**
 
 ### Quick Links
-- [Project Overview](docs/core/project-overview-pdr.md) - What is SchemaForge?
+- [Project Overview](docs/core/project-overview-pdr.md) - What is RAGBase?
 - [System Architecture](docs/core/system-architecture.md) - Technical design
 - [API Contracts](docs/core/api-contracts.md) - API specifications
 - [Testing Strategy](docs/core/testing-strategy.md) - TDD approach

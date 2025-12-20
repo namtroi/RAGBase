@@ -472,10 +472,10 @@ For better API debugging, consider including:
 
 ## Files Referenced
 
-- `/d/14-osp/SchemaForge/apps/backend/src/middleware/auth-middleware.ts`
-- `/d/14-osp/SchemaForge/apps/backend/src/app.ts`
-- `/d/14-osp/SchemaForge/tests/integration/middleware/auth-middleware.test.ts`
-- `/d/14-osp/SchemaForge/plans/2025-12-13-phase1-tdd-implementation/phase-04-api-routes-integration-tdd.md`
+- `/d/14-osp/RAGBase/apps/backend/src/middleware/auth-middleware.ts`
+- `/d/14-osp/RAGBase/apps/backend/src/app.ts`
+- `/d/14-osp/RAGBase/tests/integration/middleware/auth-middleware.test.ts`
+- `/d/14-osp/RAGBase/plans/2025-12-13-phase1-tdd-implementation/phase-04-api-routes-integration-tdd.md`
 
 ---
 
