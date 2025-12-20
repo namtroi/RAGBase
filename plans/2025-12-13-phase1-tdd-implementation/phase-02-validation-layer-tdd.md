@@ -1,20 +1,20 @@
 # Phase 02: Validation Layer (TDD)
 
-**Parent:** [plan.md](./plan.md) | **Status:** Pending | **Priority:** P0
+**Parent:** [plan.md](./plan.md) | **Status:** **DONE** | **Priority:** P0
 
 ## Objectives
 Define Zod schemas for input data (Request Body, Params) to ensure data integrity before business logic.
 
 ## Acceptance Criteria
-- [ ] Upload schema (types, size limits).
-- [ ] Query request schema.
-- [ ] AI Worker callback schema.
-- [ ] Unit tests for valid/invalid data scenarios.
+- [x] Upload schema (types, size limits).
+- [x] Query request schema.
+- [x] AI Worker callback schema.
+- [x] Unit tests for valid/invalid data scenarios in `tests/unit/validators/`.
 
 ## Key Files
-- `src/schemas/document.schema.ts`: Document schemas.
-- `src/schemas/query.schema.ts`: Query schemas.
-- `src/middleware/validation.middleware.ts`: Zod integration for Fastify.
+- `apps/backend/src/validators/upload-validator.ts`: Upload validation logic.
+- `apps/backend/src/validators/query-validator.ts`: Search request schemas.
+- `apps/backend/src/validators/callback-validator.ts`: Worker response schemas.
 
 ## Implementation Steps
 1. Write Unit Tests for schemas (RED).

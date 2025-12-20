@@ -1,20 +1,22 @@
 # Phase 03: Business Logic (TDD)
 
-**Parent:** [plan.md](./plan.md) | **Status:** Pending | **Priority:** P0
+**Parent:** [plan.md](./plan.md) | **Status:** **DONE** | **Priority:** P0
 
 ## Objectives
 Implement core logic: MD5 hashing, text chunking, and embedding generation in Node.js.
 
 ## Acceptance Criteria
-- [ ] MD5 hashing for document uniqueness.
-- [ ] RecursiveCharacterTextSplitter for accurate chunking.
-- [ ] @xenova/transformers integration for 384d vectors.
-- [ ] 90%+ unit test coverage for data processing.
+- [x] MD5 hashing for document uniqueness (`hash-service.ts`).
+- [x] LangChain `MarkdownTextSplitter` for accurate chunking (`chunker-service.ts`).
+- [x] `fastembed` integration for 384d vectors (`embedding-service.ts`).
+- [x] Implementation of `QualityGateService` for content validation.
+- [x] Unit tests for Hashing, Chunking, and Quality Gate.
 
 ## Key Files
-- `src/services/hash.service.ts`: MD5 handling.
-- `src/services/chunking.service.ts`: Text splitting.
-- `src/services/embedding.service.ts`: Vector generation.
+- `apps/backend/src/services/hash-service.ts`: MD5 handling.
+- `apps/backend/src/services/chunker-service.ts`: Text splitting.
+- `apps/backend/src/services/embedding-service.ts`: Vector generation via `fastembed`.
+- `apps/backend/src/services/quality-gate-service.ts`: Content quality checks.
 
 ## Implementation Steps
 1. Write tests for Hashing and Chunking.

@@ -1,20 +1,22 @@
 # Phase 01: Test Infrastructure
 
-**Parent:** [plan.md](./plan.md) | **Status:** Pending | **Priority:** P0
+**Parent:** [plan.md](./plan.md) | **Status:** **DONE** | **Priority:** P0
 
 ## Objectives
 Setup automated testing (Unit, Integration) using Vitest and Testcontainers for TDD.
 
 ## Acceptance Criteria
-- [ ] Vitest configured in backend.
-- [ ] Testcontainers runs PostgreSQL for integration tests.
-- [ ] DB testing fixtures and helpers established.
-- [ ] `npm run test` passes initial sample test.
+- [x] Vitest configured in backend (`apps/backend/vitest.config.ts`).
+- [x] Testcontainers runs PostgreSQL & Redis for integration tests (`tests/setup/global-setup.ts`).
+- [x] Shared root `tests/` directory for fixtures, helpers, and integration tests.
+- [x] Pytest infrastructure for AI Worker with coverage reports.
+- [x] `npm run test` in backend passes all cases.
 
 ## Key Files
-- `vitest.config.ts`: Vitest config.
-- `tests/helpers/database.ts`: DB test utilities.
-- `tests/setup.ts`: Global setup/teardown.
+- `apps/backend/vitest.config.ts`: Vitest config.
+- `tests/setup/global-setup.ts`: Testcontainers & Prisma setup.
+- `tests/helpers/database.ts`: DB test utilities (getPrisma, cleanDatabase).
+- `apps/ai-worker/pytest.ini`: Pytest configuration.
 
 ## Implementation Steps
 1. Install Vitest, Testcontainers, and dependencies.
