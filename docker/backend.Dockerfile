@@ -14,14 +14,14 @@ COPY apps/backend/prisma apps/backend/prisma/
 RUN pnpm install --frozen-lockfile
 
 # Generate Prisma client
-RUN pnpm --filter @schemaforge/backend db:generate
+RUN pnpm --filter @ragbase/backend db:generate
 
 # Copy source
 COPY apps/backend/src apps/backend/src
 COPY apps/backend/tsconfig.json apps/backend/
 
 # Build
-RUN pnpm --filter @schemaforge/backend build
+RUN pnpm --filter @ragbase/backend build
 
 # Production image
 FROM node:20-alpine

@@ -56,7 +56,7 @@ Code uses `prisma.$executeRaw` to insert chunks but the error message references
 Line 82-88 (json-debug.log):
 ❌ Fast lane processing error: PrismaClientUnknownRequestError:
 Invalid `prisma.chunk.create()` invocation in
-D:\14-osp\SchemaForge\apps\backend\src\routes\documents\upload-route.ts:182:32
+D:\14-osp\RAGBase\apps\backend\src\routes\documents\upload-route.ts:182:32
 ```
 
 **Impact:**

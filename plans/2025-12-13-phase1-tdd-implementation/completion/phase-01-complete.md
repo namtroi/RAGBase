@@ -8,7 +8,7 @@
 
 ## Summary
 
-Successfully set up comprehensive test infrastructure for SchemaForge with Vitest, Testcontainers, test fixtures, and mock utilities. All unit tests passing.
+Successfully set up comprehensive test infrastructure for RAGBase with Vitest, Testcontainers, test fixtures, and mock utilities. All unit tests passing.
 
 ---
 
@@ -54,7 +54,7 @@ Successfully set up comprehensive test infrastructure for SchemaForge with Vites
 ## Test Results
 
 ```bash
-pnpm --filter @schemaforge/backend test:unit
+pnpm --filter @ragbase/backend test:unit
 
 ✓ tests/unit/smoke.test.ts (2)
 ✓ tests/unit/helpers/fixtures.test.ts (5)
@@ -273,19 +273,19 @@ The following are now ready:
 
 ```bash
 # Unit tests (fast, no Docker)
-pnpm --filter @schemaforge/backend test:unit
+pnpm --filter @ragbase/backend test:unit
 
 # Integration tests (with Testcontainers)
-pnpm --filter @schemaforge/backend test:integration
+pnpm --filter @ragbase/backend test:integration
 
 # All tests
-pnpm --filter @schemaforge/backend test
+pnpm --filter @ragbase/backend test
 
 # Watch mode
-pnpm --filter @schemaforge/backend test -- --watch
+pnpm --filter @ragbase/backend test -- --watch
 
 # Coverage report
-pnpm --filter @schemaforge/backend test -- --coverage
+pnpm --filter @ragbase/backend test -- --coverage
 ```
 
 ---

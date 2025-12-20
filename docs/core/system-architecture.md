@@ -1,4 +1,4 @@
-# SchemaForge Architecture
+# RAGBase Architecture
 
 Technical implementation details for the core pipeline.
 

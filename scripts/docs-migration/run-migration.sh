@@ -6,7 +6,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "╔══════════════════════════════════════════════╗"
-echo "║   SchemaForge Documentation Migration        ║"
+echo "║   RAGBase Documentation Migration        ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 

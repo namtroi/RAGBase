@@ -550,7 +550,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="SchemaForge AI Worker",
+    title="RAGBase AI Worker",
     description="PDF processing worker using Docling",
     version="0.1.0",
     lifespan=lifespan,

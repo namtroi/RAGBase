@@ -127,7 +127,7 @@ plans/archive/
 ## 🚀 Execution Script
 
 ```powershell
-# Run from D:\14-osp\SchemaForge
+# Run from D:\14-osp\RAGBase
 
 # Phase 1.1: Archive reports
 mkdir -Force plans\reports\archive\phase04-reviews

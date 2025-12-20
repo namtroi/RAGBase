@@ -1,4 +1,4 @@
-# SchemaForge Roadmap
+# RAGBase Roadmap
 
 **3 Phases | MVP → Production Ready**
 

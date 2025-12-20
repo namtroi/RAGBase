@@ -1,4 +1,4 @@
-# SchemaForge Test Strategy
+# RAGBase Test Strategy
 
 **TDD approach for Phase 1.**
 

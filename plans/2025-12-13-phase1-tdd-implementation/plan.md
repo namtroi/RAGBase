@@ -1,4 +1,4 @@
-# SchemaForge Phase 1: TDD Implementation Plan
+# RAGBase Phase 1: TDD Implementation Plan
 
 **Date:** 2025-12-13 | **Branch:** ck/setup | **Methodology:** TDD
 
@@ -6,7 +6,7 @@
 
 ## Project Context
 
-SchemaForge is an open-source ETL system converting unstructured data (PDFs, JSON, TXT) into structured knowledge for vector databases. Phase 1 delivers the MVP: Core Pipeline.
+RAGBase is an open-source ETL system converting unstructured data (PDFs, JSON, TXT) into structured knowledge for vector databases. Phase 1 delivers the MVP: Core Pipeline.
 
 **Key Decisions:**
 - 3 Docker containers: app-backend (Node.js), ai-worker (Python), postgres-db + redis

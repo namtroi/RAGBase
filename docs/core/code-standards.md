@@ -1,4 +1,4 @@
-# SchemaForge Code Standards
+# RAGBase Code Standards
 
 **Last Updated:** Phase 04 Critical Fixes (Dec 2024)
 **Coverage:** Backend API + Database patterns

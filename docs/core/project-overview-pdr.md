@@ -1,4 +1,4 @@
-# **Project Spec: Schema Forge**
+# **Project Spec: RAGBase**
 
 **Slogan:** _The "Set & Forget" Data Pipeline for Enterprise RAG._
 **(Open Source | Self-Hosted | Structure-Aware | Prisma Powered)**
@@ -7,7 +7,7 @@
 
 ### **1. Overview & Philosophy**
 
-**SchemaForge** is an Open Source ETL system for SMEs. Converts unstructured data (PDFs, Excel) into structured knowledge for Vector Databases.
+**RAGBase** is an Open Source ETL system for SMEs. Converts unstructured data (PDFs, Excel) into structured knowledge for Vector Databases.
 
 **Core Philosophy: "Bring Your Own Infrastructure"**
 

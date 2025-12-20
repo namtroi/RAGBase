@@ -1,4 +1,4 @@
-# SchemaForge Codebase Summary
+# RAGBase Codebase Summary
 
 **Last Updated:** Task 1.3 - Fast Lane Processing (Dec 2024)
 **Token Compaction:** 24,627 tokens (102,707 chars)
@@ -8,7 +8,7 @@
 ## 1. Project Structure
 
 ```
-SchemaForge/
+RAGBase/
 ├── apps/
 │   ├── backend/                    # Node.js + Fastify API
 │   │   ├── src/
@@ -477,13 +477,13 @@ pnpm test:coverage
 ### Database Operations
 ```bash
 # Generate Prisma client
-pnpm --filter @schemaforge/backend db:generate
+pnpm --filter @ragbase/backend db:generate
 
 # Push schema to DB
-pnpm --filter @schemaforge/backend db:push
+pnpm --filter @ragbase/backend db:push
 
 # Create migration
-pnpm --filter @schemaforge/backend db:migrate
+pnpm --filter @ragbase/backend db:migrate
 ```
 
 ### Development Server

@@ -726,7 +726,7 @@ This is a normal text file for testing.
 It contains multiple paragraphs with sufficient content
 to pass the quality gate minimum text length requirement.
 
-The SchemaForge pipeline should process this file through
+The RAGBase pipeline should process this file through
 the fast lane since it's a simple text format.
 ```
 
