@@ -5,11 +5,11 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['../../tests/**/*.test.ts'],
+    include: ['tests/**/*.test.ts'],
     exclude: ['node_modules', 'dist'],
-    setupFiles: ['../../tests/setup/setup-file.ts'],
+    setupFiles: ['tests/setup/setup-file.ts'],
     // Global setup for integration tests (starts testcontainers)
-    globalSetup: ['../../tests/setup/global-setup.ts'],
+    globalSetup: ['tests/setup/global-setup.ts'],
     server: {
       deps: {
         inline: ['bullmq'],
@@ -31,7 +31,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
-      '@tests': path.resolve(__dirname, '../../tests'),
+      '@tests': path.resolve(__dirname, 'tests'),
       // Fix Prisma resolution for shared tests
       '@prisma/client': path.resolve(__dirname, 'node_modules/@prisma/client'),
       'bullmq': path.resolve(__dirname, 'node_modules/bullmq'),
