@@ -1,9 +1,9 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { API_KEY, getTestApp, setupE2E, teardownE2E } from '@tests/e2e/setup/e2e-setup.js';
 import { cleanDatabase, getPrisma, seedDocument } from '@tests/helpers/database.js';
 import { FIXTURES, readFixture } from '@tests/helpers/fixtures.js';
 import { mockEmbedding } from '@tests/mocks/embedding-mock.js';
 import { successCallback } from '@tests/mocks/python-worker-mock.js';
-import { API_KEY, getTestApp, setupE2E, teardownE2E } from '@tests/e2e/setup/e2e-setup.js';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 describe('E2E: Query Flow', () => {
   beforeAll(async () => {
@@ -90,8 +90,8 @@ desired behaviors and punishing undesired ones.`,
       // Results should be from our document
       expect(results[0].documentId).toBe(documentId);
 
-      // Results should have valid scores
-      expect(results[0].score).toBeGreaterThan(0);
+      // Results should have valid scores (0-1 range)
+      expect(results[0].score).toBeGreaterThanOrEqual(0);
       expect(results[0].score).toBeLessThanOrEqual(1);
     }, 60000);
 

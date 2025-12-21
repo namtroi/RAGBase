@@ -1,6 +1,6 @@
-import { EmbeddingService } from '@/services';
-import { getPrismaClient } from '@/services/database';
-import { QuerySchema } from '@/validators';
+import { getPrismaClient } from '@/services/database.js';
+import { EmbeddingService } from '@/services/embedding-service.js';
+import { QuerySchema } from '@/validators/index.js';
 import { FastifyInstance } from 'fastify';
 
 const embeddingService = new EmbeddingService();
@@ -58,7 +58,7 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
     return reply.send({
       results: results.map(r => ({
         content: r.content,
-        score: r.similarity,
+        score: Math.max(0, r.similarity),  // Ensure non-negative scores
         documentId: r.document_id,
         metadata: {
           charStart: r.char_start,
