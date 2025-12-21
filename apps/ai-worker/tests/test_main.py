@@ -1,14 +1,16 @@
 # apps/ai-worker/tests/test_main.py
 """
 Unit tests for the FastAPI main application.
+Updated for HTTP dispatch architecture (no queue worker).
 """
-
-import pytest
-from pathlib import Path
-from unittest.mock import patch, AsyncMock, PropertyMock
 
 # Import from parent directory
 import sys
+from pathlib import Path
+from unittest.mock import AsyncMock, patch
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
@@ -21,57 +23,113 @@ class TestHealthEndpoint:
         from fastapi.testclient import TestClient
         from src.main import app
 
-        with patch("src.main.document_worker.start", new_callable=AsyncMock):
-            with patch("src.main.document_worker.stop", new_callable=AsyncMock):
-                with TestClient(app) as client:
-                    response = client.get("/health")
+        with TestClient(app) as client:
+            response = client.get("/health")
 
-                    assert response.status_code == 200
-                    data = response.json()
-                    assert data["status"] == "ok"
-                    assert data["service"] == "ai-worker"
-                    assert "ocr_enabled" in data
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "ok"
+            assert data["service"] == "ai-worker"
+            assert "ocr_enabled" in data
 
 
 class TestReadinessEndpoint:
     """Tests for the readiness check endpoint."""
 
     @pytest.mark.asyncio
-    async def test_readiness_check_worker_not_running(self):
-        """Test readiness when worker is not running."""
+    async def test_readiness_check_always_ready(self):
+        """Test readiness always returns ready (HTTP dispatch mode)."""
         from fastapi.testclient import TestClient
         from src.main import app
-        from src.consumer import DocumentWorker
 
-        with patch("src.main.document_worker.start", new_callable=AsyncMock):
-            with patch("src.main.document_worker.stop", new_callable=AsyncMock):
-                with patch.object(
-                    DocumentWorker, "is_running", new_callable=PropertyMock, return_value=False
-                ):
-                    with TestClient(app) as client:
-                        response = client.get("/ready")
+        with TestClient(app) as client:
+            response = client.get("/ready")
 
-                        assert response.status_code == 200
-                        data = response.json()
-                        assert data["ready"] is False
-                        assert data["worker_active"] is False
+            assert response.status_code == 200
+            data = response.json()
+            assert data["ready"] is True
+            assert data["mode"] == "http-dispatch"
+
+
+class TestProcessEndpoint:
+    """Tests for the /process endpoint."""
 
     @pytest.mark.asyncio
-    async def test_readiness_check_worker_running(self):
-        """Test readiness when worker is running."""
+    async def test_process_missing_document_id(self):
+        """Test process endpoint requires documentId."""
         from fastapi.testclient import TestClient
         from src.main import app
-        from src.consumer import DocumentWorker
 
-        with patch("src.main.document_worker.start", new_callable=AsyncMock):
-            with patch("src.main.document_worker.stop", new_callable=AsyncMock):
-                with patch.object(
-                    DocumentWorker, "is_running", new_callable=PropertyMock, return_value=True
-                ):
-                    with TestClient(app) as client:
-                        response = client.get("/ready")
+        with TestClient(app) as client:
+            response = client.post("/process", json={
+                "filePath": "/tmp/test.pdf"
+            })
 
-                        assert response.status_code == 200
-                        data = response.json()
-                        assert data["ready"] is True
-                        assert data["worker_active"] is True
+            assert response.status_code == 422  # Validation error
+
+    @pytest.mark.asyncio
+    async def test_process_missing_file_path(self):
+        """Test process endpoint requires filePath."""
+        from fastapi.testclient import TestClient
+        from src.main import app
+
+        with TestClient(app) as client:
+            response = client.post("/process", json={
+                "documentId": "test-123"
+            })
+
+            assert response.status_code == 422  # Validation error
+
+    @pytest.mark.asyncio
+    async def test_process_success(self):
+        """Test successful PDF processing."""
+        from fastapi.testclient import TestClient
+        from src.main import app
+        from src.processor import ProcessingResult
+
+        mock_result = ProcessingResult(
+            success=True,
+            markdown="# Test Document",
+            page_count=1,
+            ocr_applied=False,
+            processing_time_ms=100,
+        )
+
+        with patch("src.main.pdf_processor.process", new_callable=AsyncMock, return_value=mock_result):
+            with patch("src.main.send_callback", new_callable=AsyncMock, return_value=True):
+                with TestClient(app) as client:
+                    response = client.post("/process", json={
+                        "documentId": "test-123",
+                        "filePath": "/tmp/test.pdf",
+                    })
+
+                    assert response.status_code == 200
+                    data = response.json()
+                    assert data["status"] == "processed"
+                    assert data["documentId"] == "test-123"
+                    assert data["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_process_callback_failure(self):
+        """Test handling of callback failure."""
+        from fastapi.testclient import TestClient
+        from src.main import app
+        from src.processor import ProcessingResult
+
+        mock_result = ProcessingResult(
+            success=True,
+            markdown="# Test",
+            page_count=1,
+            processing_time_ms=50,
+        )
+
+        with patch("src.main.pdf_processor.process", new_callable=AsyncMock, return_value=mock_result):
+            with patch("src.main.send_callback", new_callable=AsyncMock, return_value=False):
+                with TestClient(app) as client:
+                    response = client.post("/process", json={
+                        "documentId": "test-456",
+                        "filePath": "/tmp/test.pdf",
+                    })
+
+                    assert response.status_code == 500
+                    assert "callback" in response.json()["detail"].lower()
