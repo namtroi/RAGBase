@@ -68,9 +68,9 @@ export async function setupE2E() {
   await app.ready();
   console.log('✅ Fastify app ready');
 
-  // Initialize queue
+  // Initialize queue with forceNew=true to ensure fresh connection to this container's Redis
   console.log('📬 Initializing BullMQ queue...');
-  createProcessingQueue();
+  createProcessingQueue(true);
   console.log('✅ Queue initialized');
 
   console.log('🎉 E2E environment setup complete!');
