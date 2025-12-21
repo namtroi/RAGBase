@@ -70,6 +70,8 @@ export class FastLaneProcessor {
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
         const embedding = embeddings[i];
+        // Convert embedding array to PostgreSQL vector string format
+        const embeddingStr = `[${embedding.join(',')}]`;
 
         await prisma.$executeRaw`
           INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, heading, created_at)
@@ -78,7 +80,7 @@ export class FastLaneProcessor {
             ${documentId},
             ${chunk.content},
             ${chunk.index},
-            ${embedding}::vector,
+            ${embeddingStr}::vector,
             ${chunk.metadata.charStart},
             ${chunk.metadata.charEnd},
             ${chunk.metadata.heading || null},
