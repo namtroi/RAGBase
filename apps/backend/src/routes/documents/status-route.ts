@@ -1,4 +1,4 @@
-import { getPrismaClient } from '@/services/database';
+import { getPrismaClient } from '@/services/database.js';
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 

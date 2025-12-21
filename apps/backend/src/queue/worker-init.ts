@@ -3,15 +3,14 @@ import { Redis } from 'ioredis';
 import { createJobProcessor } from './job-processor.js';
 
 let worker: Worker | null = null;
+let connection: Redis | null = null;
 
-/**
- * Initialize the document processing worker
- */
 export function initWorker(): Worker {
   if (worker) return worker;
 
-  const connection = new Redis(process.env.REDIS_URL!, {
+  connection = new Redis(process.env.REDIS_URL!, {
     maxRetriesPerRequest: null,
+    enableReadyCheck: false,
   });
 
   worker = createJobProcessor(connection);
@@ -21,13 +20,14 @@ export function initWorker(): Worker {
   return worker;
 }
 
-/**
- * Gracefully shut down the worker
- */
 export async function shutdownWorker(): Promise<void> {
   if (worker) {
     await worker.close();
     worker = null;
-    console.log('🤖 BullMQ Worker shut down');
   }
+  if (connection) {
+    connection.disconnect();
+    connection = null;
+  }
+  console.log('🤖 BullMQ Worker shut down');
 }

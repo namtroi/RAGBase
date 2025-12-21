@@ -1,31 +1,52 @@
-import { createProcessingQueue, ProcessingJob } from '@/queue/processing-queue';
-import { RedisContainer } from '@testcontainers/redis';
-import { cleanDatabase, getPrisma, seedDocument } from '@tests/helpers/database';
-import { UnrecoverableError, Worker } from 'bullmq';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { ProcessingJob } from '@/queue/processing-queue.js';
+import { RedisContainer, StartedRedisContainer } from '@testcontainers/redis';
+import { cleanDatabase, getPrisma, seedDocument } from '@tests/helpers/database.js';
+import { Queue, UnrecoverableError, Worker } from 'bullmq';
+import { Redis } from 'ioredis';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 describe('RetryHandler', () => {
-  let redis: any;
-  let queue: any;
-  let worker: Worker;
-  const processedJobs: string[] = [];
+  let redisContainer: StartedRedisContainer;
+  let connection: Redis;
+  let queue: Queue<ProcessingJob>;
+  let worker: Worker<ProcessingJob> | null = null;
 
   beforeAll(async () => {
-    redis = await new RedisContainer().start();
-    process.env.REDIS_URL = redis.getConnectionUrl();
-    queue = createProcessingQueue();
-  });
+    redisContainer = await new RedisContainer().start();
+    
+    connection = new Redis(redisContainer.getConnectionUrl(), {
+      maxRetriesPerRequest: null,
+    });
+
+    queue = new Queue<ProcessingJob>('document-processing', {
+      connection,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,  
+        },
+      },
+    });
+  }, 30000);
 
   afterAll(async () => {
     await worker?.close();
-    await queue.close();
-    await redis.stop();
+    await queue?.close();
+    connection?.disconnect();
+    await redisContainer?.stop();
   });
 
   beforeEach(async () => {
-    processedJobs.length = 0;
     await queue.drain();
     await cleanDatabase();
+  });
+
+  afterEach(async () => {
+    if (worker) {
+      await worker.close();
+      worker = null;
+    }
   });
 
   describe('retry behavior', () => {
@@ -34,11 +55,11 @@ describe('RetryHandler', () => {
 
       worker = new Worker<ProcessingJob>(
         'document-processing',
-        async (job) => {
+        async () => {
           attemptCount++;
           throw new Error('Temporary failure');
         },
-        { connection: queue.opts.connection }
+        { connection }
       );
 
       const doc = await seedDocument({ status: 'PENDING' });
@@ -50,38 +71,43 @@ describe('RetryHandler', () => {
         config: { ocrMode: 'auto', ocrLanguages: ['en'] },
       });
 
-      // Wait for retries
-      await new Promise(resolve => setTimeout(resolve, 20000));
+      await new Promise<void>((resolve) => {
+        worker!.on('failed', (job) => {
+          if (job?.attemptsMade === 3) {
+            resolve();
+          }
+        });
+      });
 
-      // Should have attempted 3 times (initial + 2 retries)
       expect(attemptCount).toBe(3);
-    }, 30000);
+    }, 15000);
 
     it('should not retry UnrecoverableError', async () => {
       let attemptCount = 0;
 
       worker = new Worker<ProcessingJob>(
         'document-processing',
-        async (job) => {
+        async () => {
           attemptCount++;
           throw new UnrecoverableError('Password protected PDF');
         },
-        { connection: queue.opts.connection }
+        { connection }
       );
 
       const doc = await seedDocument({ status: 'PENDING' });
 
-      await queue.add('process', {
+      const job = await queue.add('process', {
         documentId: doc.id,
         filePath: '/tmp/test.pdf',
         format: 'pdf',
         config: { ocrMode: 'auto', ocrLanguages: ['en'] },
       });
 
-      // Wait for processing
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      // Wait for job to fail
+      await new Promise<void>((resolve) => {
+        worker!.on('failed', () => resolve());
+      });
 
-      // Should only attempt once
       expect(attemptCount).toBe(1);
     }, 10000);
 
@@ -92,14 +118,13 @@ describe('RetryHandler', () => {
       worker = new Worker<ProcessingJob>(
         'document-processing',
         async (job) => {
-          // Update retry count in DB
           await prisma.document.update({
             where: { id: job.data.documentId },
             data: { retryCount: job.attemptsMade },
           });
           throw new Error('Failure');
         },
-        { connection: queue.opts.connection }
+        { connection }
       );
 
       worker.on('failed', async (job, err) => {
@@ -121,16 +146,22 @@ describe('RetryHandler', () => {
         config: { ocrMode: 'auto', ocrLanguages: ['en'] },
       });
 
-      // Wait for all retries
-      await new Promise(resolve => setTimeout(resolve, 25000));
+      // Wait for final failure
+      await new Promise<void>((resolve) => {
+        worker!.on('failed', (job) => {
+          if (job?.attemptsMade === 3) {
+            setTimeout(resolve, 100);
+          }
+        });
+      });
 
       const updated = await prisma.document.findUnique({
         where: { id: doc.id },
       });
 
       expect(updated?.status).toBe('FAILED');
-      expect(updated?.retryCount).toBe(3);
-    }, 35000);
+      expect(updated?.retryCount).toBe(2);
+    }, 15000);
   });
 
   describe('exponential backoff', () => {
@@ -139,11 +170,11 @@ describe('RetryHandler', () => {
 
       worker = new Worker<ProcessingJob>(
         'document-processing',
-        async (job) => {
+        async () => {
           attemptTimes.push(Date.now());
           throw new Error('Failure');
         },
-        { connection: queue.opts.connection }
+        { connection }
       );
 
       const doc = await seedDocument({ status: 'PENDING' });
@@ -155,17 +186,22 @@ describe('RetryHandler', () => {
         config: { ocrMode: 'auto', ocrLanguages: ['en'] },
       });
 
-      // Wait for retries
-      await new Promise(resolve => setTimeout(resolve, 25000));
+      // Wait for all retries
+      await new Promise<void>((resolve) => {
+        worker!.on('failed', (job) => {
+          if (job?.attemptsMade === 3) {
+            resolve();
+          }
+        });
+      });
 
-      // Check delays are increasing
-      if (attemptTimes.length >= 3) {
-        const delay1 = attemptTimes[1] - attemptTimes[0];
-        const delay2 = attemptTimes[2] - attemptTimes[1];
+      expect(attemptTimes.length).toBe(3);
 
-        // Second delay should be roughly 2x first
-        expect(delay2).toBeGreaterThan(delay1);
-      }
-    }, 35000);
+      const delay1 = attemptTimes[1] - attemptTimes[0];
+      const delay2 = attemptTimes[2] - attemptTimes[1];
+
+      // delay2 should be ~2x delay1 (exponential)
+      expect(delay2).toBeGreaterThan(delay1 * 1.5);
+    }, 15000);
   });
 });

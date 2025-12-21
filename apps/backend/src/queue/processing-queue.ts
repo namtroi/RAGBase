@@ -11,17 +11,23 @@ export interface ProcessingJob {
   };
 }
 
-// Bỏ generic, để TS tự infer
-let queue: Queue | null = null;
+let queue: Queue<ProcessingJob> | null = null;
+let connection: Redis | null = null;  // Track connection
 
-export function createProcessingQueue(): Queue<ProcessingJob> {
-  if (queue) return queue as Queue<ProcessingJob>;
+export function createProcessingQueue(forceNew = false): Queue<ProcessingJob> {
+  if (queue && !forceNew) return queue;
 
-  const connection = new Redis(process.env.REDIS_URL!, {
+  if (forceNew && queue) {
+    queue.close().catch(console.error);
+    connection?.disconnect();
+  }
+
+  connection = new Redis(process.env.REDIS_URL!, {
     maxRetriesPerRequest: null,
+    enableReadyCheck: false,  
   });
 
-  queue = new Queue('document-processing', {
+  queue = new Queue<ProcessingJob>('document-processing', {
     connection,
     defaultJobOptions: {
       attempts: 3,
@@ -39,12 +45,23 @@ export function createProcessingQueue(): Queue<ProcessingJob> {
     },
   });
 
-  return queue as Queue<ProcessingJob>;
+  return queue;
 }
 
 export function getProcessingQueue(): Queue<ProcessingJob> {
   if (!queue) {
     return createProcessingQueue();
   }
-  return queue as Queue<ProcessingJob>;
+  return queue;
+}
+
+export async function closeQueue(): Promise<void> {
+  if (queue) {
+    await queue.close();
+    queue = null;
+  }
+  if (connection) {
+    connection.disconnect();  
+    connection = null;
+  }
 }
