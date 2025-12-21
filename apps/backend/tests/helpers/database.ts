@@ -1,41 +1,17 @@
 /**
  * Integration Test Helper - Prisma Database
  * 
- * ⚠️ NOTE: IDE shows TypeScript errors for '@prisma/client' import - this is EXPECTED and SAFE
- * 
- * Why the error occurs:
- * - This file is in tests/ directory (root workspace)
- * - '@prisma/client' is installed in apps/backend/node_modules (backend workspace)
- * - TypeScript in tests/ can't see apps/backend/node_modules
- * 
- * Why it's safe:
- * - This file is excluded from TypeScript compilation (see tests/tsconfig.json)
- * - File is not imported by any tests yet (prepared for Phase 04)
- * - Will work correctly at runtime when Vitest runs from apps/backend/
- * 
- * When to fix:
- * - Phase 04: Integration Tests implementation
- * - At that point, this file will be imported and work correctly
+ * Uses the SAME Prisma instance as source code to ensure routes and tests
+ * connect to the same database (testcontainers).
  * 
  * @see docs/TYPESCRIPT_PATH_FIX.md for full explanation
  */
-import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@prisma/client';
-import pg from 'pg';
 
-let prismaInstance: PrismaClient | null = null;
+// Re-export from source to ensure single instance
+export { disconnectPrisma, getPrisma } from '@/services/database.js';
 
-export function getPrisma(): PrismaClient {
-  if (!prismaInstance) {
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-    const adapter = new PrismaPg(pool);
-    
-    prismaInstance = new PrismaClient({
-      adapter,
-    }) as unknown as PrismaClient;
-  }
-  return prismaInstance;
-}
+// Import for use in this file
+import { getPrisma } from '@/services/database.js';
 
 export async function cleanDatabase(): Promise<void> {
   const prisma = getPrisma();
@@ -43,13 +19,6 @@ export async function cleanDatabase(): Promise<void> {
   // Note: chunk model uses pgvector (Unsupported), so we must use raw SQL for deletions
   await prisma.$executeRaw`DELETE FROM chunks`;
   await prisma.document.deleteMany();
-}
-
-export async function disconnectPrisma(): Promise<void> {
-  if (prismaInstance) {
-    await prismaInstance.$disconnect();
-    prismaInstance = null;
-  }
 }
 
 // Seed helpers for integration tests
