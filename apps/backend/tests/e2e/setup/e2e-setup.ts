@@ -2,7 +2,6 @@ import { createApp } from '@/app.js';
 import { closeQueue, createProcessingQueue } from '@/queue/processing-queue.js';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { RedisContainer } from '@testcontainers/redis';
-import { getPrisma } from '@tests/helpers/database.js';
 import { execSync } from 'child_process';
 import type { FastifyInstance } from 'fastify';
 import { Client } from 'pg';
@@ -96,7 +95,8 @@ export async function teardownE2E() {
   }
 
   try {
-    await getPrisma().$disconnect();
+    const { disconnectPrisma } = await import('@/services/database.js');
+    await disconnectPrisma();
     console.log('✅ Prisma disconnected');
   } catch (error) {
     console.error('⚠️  Prisma disconnect error:', error);

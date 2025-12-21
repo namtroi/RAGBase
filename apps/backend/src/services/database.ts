@@ -12,6 +12,7 @@ import pg from 'pg';
  */
 
 let prismaInstance: PrismaClient | null = null;
+let pgPool: pg.Pool | null = null;
 
 /**
  * Get or create Prisma Client instance
@@ -19,8 +20,8 @@ let prismaInstance: PrismaClient | null = null;
  */
 export function getPrismaClient(): PrismaClient {
   if (!prismaInstance) {
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-    const adapter = new PrismaPg(pool);
+    pgPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    const adapter = new PrismaPg(pgPool);
     
     prismaInstance = new PrismaClient({
       adapter,
@@ -33,7 +34,7 @@ export function getPrismaClient(): PrismaClient {
 }
 
 /**
- * Disconnect Prisma Client
+ * Disconnect Prisma Client and close pg Pool
  * Call on application shutdown
  */
 export async function disconnectPrisma(): Promise<void> {
@@ -41,7 +42,12 @@ export async function disconnectPrisma(): Promise<void> {
     await prismaInstance.$disconnect();
     prismaInstance = null;
   }
+  if (pgPool) {
+    await pgPool.end();
+    pgPool = null;
+  }
 }
 
 // Alias for consistency with test helpers
 export const getPrisma = getPrismaClient;
+
