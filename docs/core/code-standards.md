@@ -1,7 +1,7 @@
 # RAGBase Code Standards
 
-**Last Updated:** Phase 04 Critical Fixes (Dec 2024)
-**Coverage:** Backend API + Database patterns
+**Last Updated:** December 21, 2025 (Python 3.11 Phase 02 - Virtual Environment Setup)
+**Coverage:** Backend API + Database patterns + Python guidelines
 
 ---
 
@@ -671,3 +671,289 @@ Pin major versions in `package.json`:
 - [ ] JSDoc comments added
 - [ ] No console.log (use Prisma logging in dev)
 - [ ] Database operations transactional where needed
+
+---
+
+## 14. Python Standards (ai-worker)
+
+### 14.1 Python Version
+
+**Current State (Phase 02 - Dec 21, 2025):**
+- System Python: 3.10.12 (unchanged)
+- Python 3.11: 3.11.0rc1 (installed in Phase 01)
+- venv: `.venv` with Python 3.11.0rc1 (created in Phase 02)
+- Upgrade Plan: See [Python 3.11 Upgrade](./python-311-upgrade.md)
+
+**For Developers:**
+```bash
+# Check system Python
+python3 --version
+# Output: Python 3.10.12
+
+# Check Python 3.11 system install
+python3.11 --version
+# Output: Python 3.11.0rc1
+
+# Check development venv (after activation)
+cd apps/ai-worker
+source .venv/bin/activate
+python --version
+# Output: Python 3.11.0rc1
+```
+
+### 14.2 Virtual Environment Setup (Phase 02 - Active)
+
+**Main Development Environment (Python 3.11):**
+
+```bash
+# Navigate to ai-worker
+cd apps/ai-worker
+
+# Activate the Python 3.11 venv (already created)
+source .venv/bin/activate
+
+# Verify activation
+python --version
+# Output: Python 3.11.0rc1
+
+# Verify all 130 packages installed
+pip list | wc -l
+# Output: 132 (pip + setuptools + 130 packages)
+```
+
+**Legacy Environment (Python 3.10, optional):**
+
+```bash
+# Create separate venv for compatibility testing if needed
+python3 -m venv venv-py310-legacy
+source venv-py310-legacy/bin/activate
+pip install -r requirements.txt
+```
+
+### 14.3 Dependency Management (Phase 02 - Installed)
+
+**Location:** `apps/ai-worker/` (requirements files + `.venv/`)
+
+**Phase 02 Status:** All 130 packages installed in `.venv`
+
+**Installation (already complete):**
+```bash
+cd apps/ai-worker
+source .venv/bin/activate
+# Dependencies pre-installed - verify with:
+pip list
+```
+
+**If reinstalling is needed:**
+```bash
+# Install core dependencies
+pip install -r requirements.txt
+
+# Install production heavy dependencies
+pip install -r requirements-prod.txt
+
+# Install development/testing dependencies
+pip install -r requirements-dev.txt
+```
+
+**Core Dependency Categories:**
+
+*Framework & Server (5 packages):*
+- fastapi==0.126.0 (async web framework)
+- uvicorn==0.38.0 (ASGI server)
+- pydantic-settings==2.12.0 (config management)
+- httpx==0.28.0 (HTTP client)
+- structlog==24.4.0 (structured logging)
+
+*Document Processing (2 packages):*
+- docling==2.15.0 (document structure extraction, ~500MB)
+- pymupdf==1.26.0 (PDF processing)
+
+*Queue Integration (2 packages):*
+- bullmq==2.18.1 (BullMQ Python client)
+- redis>=5.0.0 (Redis client)
+
+*Testing Framework (4 packages):*
+- pytest==8.3.4 (test runner)
+- pytest-asyncio==0.25.0 (async test support)
+- pytest-cov==6.0.0 (coverage reporting)
+- httpx[test] (test client)
+
+*Transitive Dependencies (117+ packages):*
+- numpy, scipy, PIL, lxml, etc. (heavy ML/document processing deps)
+
+### 14.4 Code Style
+
+- **Linting:** Use `pylint` or `ruff` (configured in pyproject.toml)
+- **Formatting:** Use `black` (88 char line length)
+- **Type hints:** Always include type hints (PEP 484)
+
+```python
+# ✅ Good - Type hints provided
+async def process_document(file_path: str, timeout: int = 30) -> dict[str, Any]:
+    """Process a document and return metadata."""
+    result = await docling_processor.process(file_path)
+    return {
+        'status': 'success',
+        'file_size': len(result.content),
+        'chunks': result.chunk_count,
+    }
+
+# ❌ Bad - Missing type hints
+async def process_document(file_path, timeout=30):
+    result = docling_processor.process(file_path)
+    return result
+```
+
+### 14.5 Async Patterns
+
+Always use async/await for I/O-bound operations:
+
+```python
+# ✅ Good - Async throughout
+async def upload_handler(request: Request) -> JSONResponse:
+    file_content = await request.body()
+    result = await process_async(file_content)
+    await db.save(result)
+    return JSONResponse({'status': 'ok'})
+
+# ❌ Bad - Blocking I/O
+def upload_handler(request: Request) -> JSONResponse:
+    file_content = request.body()  # Blocking
+    result = process_sync(file_content)  # Blocking
+    return JSONResponse({'status': 'ok'})
+```
+
+### 14.6 Error Handling
+
+```python
+from fastapi import HTTPException
+from pydantic import ValidationError
+
+# ✅ Good - Specific error handling
+@app.post('/process')
+async def process(request: DocumentRequest) -> ProcessResponse:
+    try:
+        validated = DocumentSchema(**request.dict())
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={'error': 'VALIDATION_ERROR', 'message': str(e)}
+        )
+
+    try:
+        result = await process_document(validated.file_path)
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail={'error': 'FILE_NOT_FOUND', 'message': 'Document not found'}
+        )
+
+    return ProcessResponse(**result)
+
+# ❌ Bad - Silent failures
+@app.post('/process')
+async def process(request):
+    try:
+        result = process_document(request.file_path)
+    except Exception:
+        pass  # Swallowed
+    return result
+```
+
+### 14.7 Documentation Standards
+
+Use docstrings for all functions:
+
+```python
+def calculate_similarity(
+    embedding_1: list[float],
+    embedding_2: list[float],
+    metric: str = 'cosine'
+) -> float:
+    """
+    Calculate similarity between two embeddings.
+
+    Args:
+        embedding_1: First embedding vector (384d for all-MiniLM-L6-v2)
+        embedding_2: Second embedding vector
+        metric: Similarity metric ('cosine', 'euclidean', 'dot')
+
+    Returns:
+        Similarity score (0.0 to 1.0 for cosine distance)
+
+    Raises:
+        ValueError: If embeddings have different dimensions
+        ValueError: If metric is not supported
+    """
+```
+
+### 14.8 Testing
+
+Location: `apps/ai-worker/tests/`
+
+```python
+import pytest
+from fastapi.testclient import TestClient
+from app import app
+
+@pytest.fixture
+def client():
+    return TestClient(app)
+
+def test_process_valid_document(client):
+    """Test processing valid PDF document."""
+    response = client.post(
+        '/process',
+        json={'file_path': '/tmp/test.pdf', 'timeout': 30}
+    )
+    assert response.status_code == 200
+    assert response.json()['status'] == 'success'
+
+def test_process_invalid_format(client):
+    """Test processing unsupported format."""
+    response = client.post(
+        '/process',
+        json={'file_path': '/tmp/test.bin', 'timeout': 30}
+    )
+    assert response.status_code == 400
+    assert response.json()['error'] == 'INVALID_FORMAT'
+```
+
+### 14.9 Logging
+
+Use structlog for structured logging:
+
+```python
+import structlog
+
+logger = structlog.get_logger()
+
+async def process_queue_message(message: Message) -> None:
+    """Process message from BullMQ queue."""
+    logger.info('process_start', message_id=message.id, type=message.type)
+
+    try:
+        result = await docling.process(message.file_path)
+        logger.info('process_complete', duration_ms=message.duration)
+    except Exception as error:
+        logger.error(
+            'process_failed',
+            error_type=type(error).__name__,
+            error_message=str(error)
+        )
+        raise
+```
+
+### 14.10 Checklist for Python Features
+
+- [ ] Python version compatible (3.10.12 or 3.11.0rc1)
+- [ ] Type hints on all functions
+- [ ] Async/await used for I/O operations
+- [ ] Error handling covers normal + error paths
+- [ ] Structured logging with structlog
+- [ ] Docstrings on all public functions
+- [ ] Tests written (unit + integration)
+- [ ] No blocking operations in async context
+- [ ] Dependencies listed in requirements.txt
+- [ ] venv used for dependency isolation

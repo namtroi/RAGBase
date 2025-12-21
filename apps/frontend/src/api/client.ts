@@ -21,15 +21,22 @@ async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const isFormData = options.body instanceof FormData;
+  
+  const headers: Record<string, string> = {
+    ...options.headers as Record<string, string>,
+    'X-API-Key': config.apiKey,
+  };
+  
+  // Only set Content-Type for non-FormData requests
+  // FormData needs browser to auto-set with boundary
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
-    headers: {
-      ...options.headers,
-      'X-API-Key': config.apiKey,
-      'Content-Type': options.body instanceof FormData
-        ? (undefined as any)
-        : 'application/json',
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -39,6 +46,7 @@ async function request<T>(
 
   return response.json();
 }
+
 
 export const api = {
   get: <T>(endpoint: string) => request<T>(endpoint),

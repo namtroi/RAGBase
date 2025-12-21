@@ -6,10 +6,10 @@ BullMQ job consumer for processing document jobs.
 import asyncio
 from typing import Any, Dict, Optional
 
-from .config import settings
-from .processor import pdf_processor
 from .callback import send_callback
+from .config import settings
 from .logging_config import get_logger
+from .processor import pdf_processor
 
 logger = get_logger(__name__)
 
@@ -87,18 +87,19 @@ class DocumentWorker:
 
             self._running = True
 
-            # Event handlers
-            @self.worker.on("completed")
+            # Event handlers - explicit registration (bullmq 2.15.0 syntax)
             def on_completed(job, result):
                 logger.info("job_event_completed", job_id=job.id)
 
-            @self.worker.on("failed")
             def on_failed(job, error):
                 logger.error("job_event_failed", job_id=job.id, error=str(error))
 
-            @self.worker.on("error")
             def on_error(error):
                 logger.error("worker_error", error=str(error))
+
+            self.worker.on("completed", on_completed)
+            self.worker.on("failed", on_failed)
+            self.worker.on("error", on_error)
 
             logger.info("worker_started")
 
@@ -112,7 +113,10 @@ class DocumentWorker:
     async def stop(self):
         """Stop the BullMQ worker."""
         if self.worker:
-            await self.worker.close()
+            try:
+                await asyncio.wait_for(self.worker.close(), timeout=5.0)
+            except asyncio.TimeoutError:
+                logger.warning("worker_close_timeout", message="Force closing after 5s")
             self._running = False
             logger.info("worker_stopped")
 

@@ -1,3 +1,6 @@
+# =============================================================================
+# STAGE 1: Builder
+# =============================================================================
 FROM node:20-slim AS builder
 
 WORKDIR /app
@@ -13,29 +16,54 @@ RUN apt-get update && apt-get install -y \
 RUN corepack enable && corepack prepare pnpm@latest --activate
 ENV CI=true
 
-# Copy all files
-COPY . .
+# Copy lockfiles first for layer caching
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/backend/package.json ./apps/backend/
 
-# Install all deps
-RUN pnpm install
+# Install dependencies (cached unless lockfile changes)
+RUN pnpm install --frozen-lockfile
+
+# Copy prisma schema for generation
+COPY apps/backend/prisma ./apps/backend/prisma
 
 # Generate Prisma client
 RUN pnpm --filter @ragbase/backend db:generate
 
-# Build
+# Copy source code
+COPY apps/backend/src ./apps/backend/src
+COPY apps/backend/tsconfig*.json ./apps/backend/
+
+# Build TypeScript
 RUN pnpm --filter @ragbase/backend build
 
-# Production image
-FROM node:20-slim
+# =============================================================================
+# STAGE 2: Production
+# =============================================================================
+FROM node:20-slim AS production
 
 WORKDIR /app
 
-# Copy everything from builder
-COPY --from=builder /app ./
+# Install pnpm for production
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Copy package files
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/backend/package.json ./apps/backend/
+
+# Install production deps only
+ENV CI=true
+RUN pnpm install --frozen-lockfile --prod
+
+# Copy built artifacts from builder
+COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
+COPY --from=builder /app/apps/backend/prisma ./apps/backend/prisma
+COPY --from=builder /app/node_modules/.pnpm/@prisma+client* ./node_modules/.pnpm/
+
+# Copy generated Prisma client
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 ENV NODE_ENV=production
 EXPOSE 3000
 
-# Run from the backend directory with tsx to support path aliases
 WORKDIR /app/apps/backend
-CMD ["npx", "tsx", "src/index.ts"]
+CMD ["node", "dist/index.js"]

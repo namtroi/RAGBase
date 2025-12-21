@@ -19,6 +19,7 @@ Essential reading for all developers:
 - [Code Standards](core/code-standards.md) - Coding conventions
 - [Project Roadmap](core/project-roadmap.md) - Development phases
 - [Codebase Summary](core/codebase-summary.md) - Project structure
+- [Python 3.11 Upgrade Plan](core/python-311-upgrade.md) - Python version migration (Phase 01 complete)
 
 ## Features
 

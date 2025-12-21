@@ -6,15 +6,15 @@
 
 # PDF Processing
 # Requires C++ build tools on Windows
-pymupdf==1.24.0
+pymupdf==1.26.0
 
 # Document conversion
 # Large download ~500MB
-docling==2.10.0
+docling==2.15.0
 
 # BullMQ Python client
 # For consuming jobs from Redis queue
-bullmq==0.4.0
+bullmq==2.18.1
 
 # OCR (Optional - Install separately if needed)
 # Very large download ~1GB+

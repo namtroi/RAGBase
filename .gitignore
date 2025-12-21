@@ -98,4 +98,6 @@ uploads/
 
 apps/backend/local_cache/
 
+#Python
 venv/
+.venv
