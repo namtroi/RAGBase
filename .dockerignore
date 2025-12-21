@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# Development
+.git/
+.github/
+.vscode/
+.claude/
+.qodo/
+.turbo/
+
+# Documentation & plans
+docs/
+plans/
+*.md
+!README.md
+
+# Tests
+tests/
+**/tests/
+*.test.ts
+*.spec.ts
+vitest*.config.ts
+
+# Environment
+.env*
+!.env.example
+
+# IDE & OS
+.DS_Store
+*.swp
+*.swo
+.idea/
+
+# Misc
+*.log
+coverage/
+.repomixignore

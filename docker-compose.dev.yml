@@ -1,0 +1,49 @@
+# Development Docker Compose
+# Use: docker compose -f docker-compose.dev.yml up -d
+# Run backend locally with: pnpm --filter @ragbase/backend dev
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ragbase
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Optional: ai-worker with hot-reload
+  # Uncomment to run AI worker in container
+  # ai-worker:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/ai-worker.Dockerfile
+  #   environment:
+  #     - REDIS_URL=redis://redis:6379
+  #     - CALLBACK_URL=http://host.docker.internal:3000/internal/callback
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #   volumes:
+  #     - ./apps/ai-worker/src:/app/src:ro
+
+volumes:
+  postgres-data:
