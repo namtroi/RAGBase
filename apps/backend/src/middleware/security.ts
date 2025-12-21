@@ -16,6 +16,7 @@ export async function configureSecurity(fastify: FastifyInstance): Promise<void>
         },
       },
       crossOriginEmbedderPolicy: false,
+      hsts: false, // Disable HSTS for local development/testing
     });
   }
 

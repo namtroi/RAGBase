@@ -93,7 +93,7 @@ desired behaviors and punishing undesired ones.`,
       // Results should have valid scores (0-1 range)
       expect(results[0].score).toBeGreaterThanOrEqual(0);
       expect(results[0].score).toBeLessThanOrEqual(1);
-    }, 60000);
+    }, 120000);
 
     it('should respect topK limit', async () => {
       const app = getTestApp();

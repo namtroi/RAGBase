@@ -30,10 +30,10 @@ let app: FastifyInstance | null = null;
 export async function getTestApp(): Promise<FastifyInstance> {
   if (!app) {
     // Import app factory (to be created in Phase 04)
-    const { createApp } = await import('@/app');
+    const { createApp } = await import('@/app.js');
     app = await createApp();
   }
-  return app;
+  return app!;
 }
 
 /**

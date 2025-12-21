@@ -1,41 +1,41 @@
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
+# Install build dependencies for native modules
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
+ENV CI=true
 
-# Copy workspace files
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY apps/backend/package.json apps/backend/
-COPY apps/backend/prisma apps/backend/prisma/
+# Copy all files
+COPY . .
 
-# Install deps
-RUN pnpm install --frozen-lockfile
+# Install all deps
+RUN pnpm install
 
 # Generate Prisma client
 RUN pnpm --filter @ragbase/backend db:generate
-
-# Copy source
-COPY apps/backend/src apps/backend/src
-COPY apps/backend/tsconfig.json apps/backend/
 
 # Build
 RUN pnpm --filter @ragbase/backend build
 
 # Production image
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/backend/dist ./dist
-COPY --from=builder /app/apps/backend/prisma ./prisma
-COPY --from=builder /app/apps/backend/node_modules/.prisma ./node_modules/.prisma
+# Copy everything from builder
+COPY --from=builder /app ./
 
 ENV NODE_ENV=production
 EXPOSE 3000
 
-CMD ["node", "dist/index.js"]
+# Run from the backend directory with tsx to support path aliases
+WORKDIR /app/apps/backend
+CMD ["npx", "tsx", "src/index.ts"]
