@@ -8,8 +8,7 @@ import path, { basename } from 'path';
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || '/tmp/uploads';
 
-// Queue initialization
-const queue = getProcessingQueue();
+// NOTE: Queue is lazily initialized to allow env vars to be set first (important for tests)
 
 export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
   fastify.post('/api/documents', async (request, reply) => {
@@ -204,7 +203,7 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
       } else {
         // Heavy lane: Queue for processing (PDF)
         console.log('📬 Adding to queue...');
-        await queue.add('process', {
+        await getProcessingQueue().add('process', {
           documentId: document.id,
           filePath: filePath,
           format: format as any,

@@ -9,6 +9,8 @@ export default defineConfig({
     exclude: ['node_modules', 'dist', '../../tests/e2e/prisma-test.test.ts'],
     // E2E tests manage their own setup/teardown per suite
     // No global setup needed
+    // IMPORTANT: E2E tests must run sequentially because each file spins up its own containers
+    fileParallelism: false,
     testTimeout: 120000, // 2 minutes for E2E tests
     hookTimeout: 120000,
     coverage: {
@@ -22,7 +24,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '@tests': path.resolve(__dirname, '../../tests'),
-      '@prisma/client': path.resolve(__dirname, '../node_modules/.prisma/client'),
+      '@prisma/client': path.resolve(__dirname, '../../node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client'),
     },
     extensions: ['.ts', '.js', '.mjs', '.json'],
   },

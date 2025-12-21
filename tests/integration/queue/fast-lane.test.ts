@@ -1,13 +1,15 @@
-import { FastLaneProcessor } from '@/services/fast-lane-processor';
-import { cleanDatabase, getPrisma, seedDocument } from '@tests/helpers/database';
-import { FIXTURES, readFixtureText } from '@tests/helpers/fixtures';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { FastLaneProcessor } from '@/services/fast-lane-processor.js';
+import { cleanDatabase, getPrisma, seedDocument } from '@tests/helpers/database.js';
+import { FIXTURES, readFixtureText } from '@tests/helpers/fixtures.js';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
 describe('FastLaneProcessor', () => {
-  let processor: FastLaneProcessor;
+  const processor = new FastLaneProcessor();
 
-  beforeAll(() => {
-    processor = new FastLaneProcessor();
+  afterAll(async () => {
+    // Cleanup Prisma connection
+    const prisma = getPrisma();
+    await prisma.$disconnect();
   });
 
   beforeEach(async () => {
@@ -133,7 +135,6 @@ describe('FastLaneProcessor', () => {
         orderBy: { chunkIndex: 'asc' },
       });
 
-      // Should have heading metadata
       const chunksWithHeading = chunks.filter(c => c.heading);
       expect(chunksWithHeading.length).toBeGreaterThan(0);
     });
