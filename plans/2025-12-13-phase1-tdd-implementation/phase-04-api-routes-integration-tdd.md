@@ -6,16 +6,18 @@
 Develop official API endpoints; connect Routes - Services - DB via controller pattern.
 
 ## Acceptance Criteria
-- [ ] POST `/api/documents`: File upload support.
-- [ ] GET `/api/documents/:id`: Status retrieval.
-- [ ] POST `/api/query`: Vector search execution.
-- [ ] API Key middleware for authentication.
-- [ ] Integration tests via Testcontainers.
+- [x] POST `/api/documents`: File upload support (`upload-route.ts`).
+- [x] GET `/api/documents/:id`: Status retrieval (`status-route.ts`).
+- [x] POST `/api/query`: Vector search execution (`search-route.ts`).
+- [x] API Key middleware for authentication (`auth-middleware.ts`).
+- [x] Integration tests via Testcontainers in `tests/integration/routes/`.
+- [x] Internal callback endpoint for AI worker (`callback-route.ts`).
 
 ## Key Files
-- `src/routes/documents.ts`: Document API logic.
-- `src/routes/query.ts`: Query API logic.
-- `src/middleware/auth.ts`: Auth middleware.
+- `apps/backend/src/routes/documents/`: All document-related routes.
+- `apps/backend/src/routes/query/search-route.ts`: Search logic.
+- `apps/backend/src/middleware/auth-middleware.ts`: Security layer.
+- `tests/integration/routes/`: Route integration tests.
 
 ## Implementation Steps
 1. Write Integration Tests for routes (RED).

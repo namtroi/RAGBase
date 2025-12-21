@@ -1,20 +1,23 @@
 # Phase 05: Queue & Callbacks (TDD)
 
-**Parent:** [plan.md](./plan.md) | **Status:** Pending | **Priority:** P0
+**Parent:** [plan.md](./plan.md) | **Status:** DONE | **Priority:** P0
 
 ## Objectives
 Setup BullMQ for async tasks and AI Worker callback mechanism.
 
 ## Acceptance Criteria
-- [ ] Stable BullMQ + Redis integration.
-- [ ] Task lanes: fast (Node) vs. heavy (Python AI Worker).
-- [ ] AI Worker callback handles status updates.
-- [ ] Retry mechanism for failed tasks.
+- [x] BullMQ + Redis integration implemented (`processing-queue.ts`).
+- [x] Task lanes: fast (Node) vs. heavy (Python AI Worker) defined.
+- [x] AI Worker callback handles status updates (`callback-route.ts`).
+- [x] Retry mechanism for failed tasks tested (`retry-handler.test.ts`).
+- [x] **Wiring**: Integrated real queue into `upload-route.ts`.
+- [x] **Worker**: Initialized BullMQ worker in `app.ts`.
 
 ## Key Files
-- `src/queue/factory.ts`: BullMQ init.
-- `src/queue/workers/callback.worker.ts`: Result handling.
-- `src/routes/internal/callback.ts`: AI Worker hook.
+- `apps/backend/src/queue/processing-queue.ts`: BullMQ setup.
+- `apps/backend/src/queue/job-processor.ts`: Job handling logic.
+- `apps/backend/src/routes/internal/callback-route.ts`: AI Worker hook.
+- `tests/integration/queue/`: Integration tests for queue logic.
 
 ## Implementation Steps
 1. Set up BullMQ Queue and Worker.

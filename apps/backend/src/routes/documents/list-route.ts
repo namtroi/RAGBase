@@ -1,5 +1,5 @@
-import { getPrismaClient } from '@/services/database';
-import { ListQuerySchema } from '@/validators';
+import { getPrismaClient } from '@/services/database.js';
+import { ListQuerySchema } from '@/validators/index.js';
 import { FastifyInstance } from 'fastify';
 
 export async function listRoute(fastify: FastifyInstance): Promise<void> {

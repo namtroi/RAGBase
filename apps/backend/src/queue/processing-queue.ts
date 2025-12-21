@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq';
-import IORedis from 'ioredis';
+import { Redis } from 'ioredis';
 
 export interface ProcessingJob {
   documentId: string;
@@ -11,47 +11,40 @@ export interface ProcessingJob {
   };
 }
 
-let queue: Queue<ProcessingJob> | null = null;
+// Bỏ generic, để TS tự infer
+let queue: Queue | null = null;
 
 export function createProcessingQueue(): Queue<ProcessingJob> {
-  if (queue) return queue;
+  if (queue) return queue as Queue<ProcessingJob>;
 
-  const connection = new IORedis(process.env.REDIS_URL!, {
+  const connection = new Redis(process.env.REDIS_URL!, {
     maxRetriesPerRequest: null,
   });
 
-  queue = new Queue<ProcessingJob>('document-processing', {
+  queue = new Queue('document-processing', {
     connection,
     defaultJobOptions: {
       attempts: 3,
       backoff: {
         type: 'exponential',
-        delay: 5000, // 5s → 10s → 20s
+        delay: 5000,
       },
-      timeout: 300000, // 5 minutes
       removeOnComplete: {
-        age: 3600, // 1 hour
+        age: 3600,
         count: 1000,
       },
       removeOnFail: {
-        age: 86400, // 24 hours
+        age: 86400,
       },
     },
   });
 
-  return queue;
+  return queue as Queue<ProcessingJob>;
 }
 
 export function getProcessingQueue(): Queue<ProcessingJob> {
   if (!queue) {
     return createProcessingQueue();
   }
-  return queue;
-}
-
-export async function closeQueue(): Promise<void> {
-  if (queue) {
-    await queue.close();
-    queue = null;
-  }
+  return queue as Queue<ProcessingJob>;
 }

@@ -36,6 +36,7 @@ export function createJobProcessor(connection: any): Worker<ProcessingJob> {
     {
       connection,
       concurrency: 5,
+      lockDuration: 300000,
     }
   );
 

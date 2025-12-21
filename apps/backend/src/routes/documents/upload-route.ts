@@ -1,28 +1,17 @@
-import { ChunkerService, EmbeddingService, HashService } from '@/services';
-import { getPrismaClient } from '@/services/database';
-import { detectFormat, getProcessingLane, validateUpload } from '@/validators';
-import multipart from '@fastify/multipart';
+import { getProcessingQueue } from '@/queue/processing-queue.js';
+import { getPrismaClient } from '@/services/database.js';
+import { ChunkerService, EmbeddingService, HashService } from '@/services/index.js';
+import { detectFormat, getProcessingLane, validateUpload } from '@/validators/index.js';
 import { FastifyInstance } from 'fastify';
 import { mkdir, readFile, rm, writeFile } from 'fs/promises';
 import path, { basename } from 'path';
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || '/tmp/uploads';
 
-// Mock queue for now - will be replaced in Phase 05
-const mockQueue = {
-  add: async (name: string, data: any) => {
-    console.log(`[Mock Queue] Job added: ${name}`, data);
-  },
-};
+// Queue initialization
+const queue = getProcessingQueue();
 
 export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
-  // Register multipart
-  await fastify.register(multipart, {
-    limits: {
-      fileSize: 50 * 1024 * 1024, // 50MB
-    },
-  });
-
   fastify.post('/api/documents', async (request, reply) => {
     try {
       console.log('📤 Upload request received');
@@ -215,10 +204,10 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
       } else {
         // Heavy lane: Queue for processing (PDF)
         console.log('📬 Adding to queue...');
-        await mockQueue.add('process', {
+        await queue.add('process', {
           documentId: document.id,
-          filePath,
-          format,
+          filePath: filePath,
+          format: format as any,
           config: {
             ocrMode: 'auto',
             ocrLanguages: ['en'],
