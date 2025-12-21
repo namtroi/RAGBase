@@ -22,7 +22,7 @@ pymupdf==1.26.0
 docling==2.15.0
 
 # BullMQ (requires Node.js bindings)
-bullmq==2.15.0
+bullmq==2.18.1
 
 # OCR (very large ~1GB+)
 # pip install easyocr==1.7.1

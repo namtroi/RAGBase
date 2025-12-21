@@ -6,9 +6,9 @@ Handles OCR detection and password-protected PDFs.
 
 import asyncio
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
-from dataclasses import dataclass
 
 from .config import settings
 from .logging_config import get_logger
@@ -37,9 +37,9 @@ class PDFProcessor:
 
     def _get_converter(self, ocr_mode: str):
         """Create Docling converter with appropriate OCR settings."""
-        from docling.document_converter import DocumentConverter
         from docling.datamodel.base_models import InputFormat
         from docling.datamodel.pipeline_options import PdfPipelineOptions
+        from docling.document_converter import DocumentConverter
 
         pipeline_options = PdfPipelineOptions()
 
@@ -93,10 +93,7 @@ class PDFProcessor:
             converter = self._get_converter(ocr_mode)
 
             # Convert PDF (run in thread pool for async compatibility)
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None, lambda: converter.convert(str(path))
-            )
+            result = await asyncio.to_thread(converter.convert, str(path))
 
             # Check if OCR was actually applied
             ocr_applied = ocr_mode == "force" or (

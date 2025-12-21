@@ -46,8 +46,9 @@
 - LangChain.js (chunking) + BullMQ (queue)
 
 #### **AI Engine**
-- Python 3.11+ + FastAPI
+- Python 3.10.12+ (3.11.0rc1 available) + FastAPI
 - Docling (IBM) - PDF/table processing + OCR
+- See [Python 3.11 Upgrade Plan](./python-311-upgrade.md) for version migration status
 
 #### **Frontend**
 - React + Vite + Tailwind CSS (pure)

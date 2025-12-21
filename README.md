@@ -65,8 +65,10 @@ ragbase/
 - **Database:** PostgreSQL 16 + pgvector
 - **Queue:** BullMQ + Redis
 - **Embedding:** fastembed (self-hosted, ONNX-based)
-- **AI Worker:** Python 3.11 + Docling
+- **AI Worker:** Python 3.10+ (3.11 available) + Docling
 - **Testing:** Vitest + Testcontainers
+
+> **Note:** Python 3.11.0rc1 is now available at `/usr/bin/python3.11`. See [Python 3.11 Upgrade](docs/core/python-311-upgrade.md) for details.
 
 ## Development Workflow
 

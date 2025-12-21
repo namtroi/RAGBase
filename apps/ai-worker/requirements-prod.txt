@@ -14,7 +14,7 @@ docling==2.15.0
 
 # BullMQ Python client
 # For consuming jobs from Redis queue
-bullmq==2.15.0
+bullmq==2.18.1
 
 # OCR (Optional - Install separately if needed)
 # Very large download ~1GB+
