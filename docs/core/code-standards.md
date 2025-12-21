@@ -209,11 +209,16 @@ const results = await prisma.$queryRaw<ChunkRow[]>`
 // ✅ Good - Transactional consistency
 const result = await prisma.$transaction(async (tx) => {
   const doc = await tx.document.create({ data: {...} });
-  await tx.chunk.createMany({ data: [...] });
+  // NOTE: Chunks use pgvector (Unsupported type), so we cannot use createMany.
+  // We use a loop or Promise.all for small sets, or raw SQL for large sets.
+  await Promise.all([
+    tx.chunk.create({ data: { documentId: doc.id, ... } }),
+    tx.chunk.create({ data: { documentId: doc.id, ... } }),
+  ]);
   return doc;
 });
 
-// ❌ Bad - Not transactional (race condition possible)
+// ❌ Bad - Not transactional AND uses unsupported createMany
 const doc = await prisma.document.create({ data: {...} });
 await prisma.chunk.createMany({ data: [...] });
 ```
