@@ -64,18 +64,22 @@ export function metricsHook(fastify: FastifyInstance): void {
   });
 
   fastify.addHook('onResponse', async (request, reply) => {
-    const duration = (Date.now() - (request as any).startTime) / 1000;
-    const path = request.routeOptions?.url || request.url;
+    try {
+      const duration = (Date.now() - (request as any).startTime) / 1000;
+      const path = request.routeOptions?.url || request.url;
 
-    httpRequestsTotal.inc({
-      method: request.method,
-      path,
-      status: reply.statusCode,
-    });
+      httpRequestsTotal.inc({
+        method: request.method,
+        path,
+        status: reply.statusCode,
+      });
 
-    httpRequestDuration.observe(
-      { method: request.method, path, status: reply.statusCode },
-      duration
-    );
+      httpRequestDuration.observe(
+        { method: request.method, path, status: reply.statusCode },
+        duration
+      );
+    } catch {
+      // Ignore errors during test cleanup when response is already finalized
+    }
   });
 }

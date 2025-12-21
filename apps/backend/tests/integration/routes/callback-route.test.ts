@@ -26,7 +26,7 @@ describe('POST /internal/callback', () => {
         method: 'POST',
         url: '/internal/callback',
         payload: successCallback(doc.id, {
-          markdown: '# Test Document\n\nContent here.',
+          markdown: '# Test Document\n\nThis is enough content to pass the quality gate validation check.',
           pageCount: 1,
           ocrApplied: false,
           processingTimeMs: 150,
