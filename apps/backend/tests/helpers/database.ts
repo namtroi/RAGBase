@@ -19,19 +19,20 @@
  * 
  * @see docs/TYPESCRIPT_PATH_FIX.md for full explanation
  */
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import pg from 'pg';
 
 let prismaInstance: PrismaClient | null = null;
 
 export function getPrisma(): PrismaClient {
   if (!prismaInstance) {
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    const adapter = new PrismaPg(pool);
+    
     prismaInstance = new PrismaClient({
-      datasources: {
-        db: {
-          url: process.env.DATABASE_URL,
-        },
-      },
-    });
+      adapter,
+    }) as unknown as PrismaClient;
   }
   return prismaInstance;
 }

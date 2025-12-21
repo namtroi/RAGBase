@@ -1,4 +1,6 @@
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import pg from 'pg';
 
 /**
  * Prisma Client Singleton
@@ -17,11 +19,15 @@ let prismaInstance: PrismaClient | null = null;
  */
 export function getPrismaClient(): PrismaClient {
   if (!prismaInstance) {
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    const adapter = new PrismaPg(pool);
+    
     prismaInstance = new PrismaClient({
+      adapter,
       log: process.env.NODE_ENV === 'development'
         ? ['query', 'warn', 'error']
         : ['error'],
-    });
+    }) as unknown as PrismaClient; // Cast if types are slightly out of sync
   }
   return prismaInstance;
 }
