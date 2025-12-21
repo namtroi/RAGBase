@@ -1,9 +1,12 @@
+import multipart from '@fastify/multipart';
 import Fastify, { FastifyInstance } from 'fastify';
 import { logger } from './logging/logger.js';
 import { metricsHook, metricsRoute } from './metrics/prometheus.js';
 import { authMiddleware } from './middleware/auth-middleware.js';
 import { configureRateLimit } from './middleware/rate-limit.js';
 import { configureSecurity, securityHooks } from './middleware/security.js';
+import { closeQueue } from './queue/processing-queue.js';
+import { initWorker, shutdownWorker } from './queue/worker-init.js';
 import { listRoute } from './routes/documents/list-route.js';
 import { statusRoute } from './routes/documents/status-route.js';
 import { uploadRoute } from './routes/documents/upload-route.js';
@@ -30,6 +33,13 @@ export async function createApp(): Promise<FastifyInstance> {
   // Rate limiting
   await configureRateLimit(app);
 
+  // Register multipart
+  await app.register(multipart, {
+    limits: {
+      fileSize: 50 * 1024 * 1024, // 50MB
+    },
+  });
+
   // Metrics collection
   metricsHook(app);
 
@@ -42,17 +52,25 @@ export async function createApp(): Promise<FastifyInstance> {
   // Internal routes (no auth)
   await callbackRoute(app);
 
-  // Auth middleware for protected routes
-  app.addHook('onRequest', authMiddleware);
+  // Initialize BullMQ worker (if not in test mode)
+  if (process.env.NODE_ENV !== 'test') {
+    initWorker();
+  }
 
-  // Register protected routes
-  await uploadRoute(app);
-  await statusRoute(app);
-  await listRoute(app);
-  await searchRoute(app);
+  // Register protected routes (Auth applied here)
+  await app.register(async (protectedScope) => {
+    protectedScope.addHook('onRequest', authMiddleware);
+    
+    await uploadRoute(protectedScope);
+    await statusRoute(protectedScope);
+    await listRoute(protectedScope);
+    await searchRoute(protectedScope);
+  });
 
   // Cleanup on shutdown
   app.addHook('onClose', async () => {
+    await shutdownWorker();
+    await closeQueue();
     await disconnectPrisma();
   });
 

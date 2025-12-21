@@ -1,25 +1,13 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { mockEmbedding } from '@tests/mocks/embedding-mock';
+import { mockEmbedding, mockFastEmbed } from '@tests/mocks/embedding-mock';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock sharp to prevent native module loading errors
 vi.mock('sharp', () => ({
   default: vi.fn(),
 }));
 
-// Mock @xenova/transformers before importing the service
-vi.mock('@xenova/transformers', () => ({
-  pipeline: vi.fn(async () => {
-    return async (text: string, options?: { pooling?: string; normalize?: boolean }) => {
-      return {
-        data: new Float32Array(mockEmbedding(text)),
-      };
-    };
-  }),
-  env: {
-    allowRemoteModels: true,
-    allowLocalModels: true,
-  },
-}));
+// Use the shared fastembed mock
+mockFastEmbed();
 
 import { EmbeddingService } from '@/services/embedding-service';
 
@@ -28,7 +16,7 @@ describe('EmbeddingService', () => {
 
   beforeEach(async () => {
     service = new EmbeddingService({
-      model: 'Xenova/all-MiniLM-L6-v2',
+      model: 'sentence-transformers/all-MiniLM-L6-v2',
       dimensions: 384,
       batchSize: 50,
     });

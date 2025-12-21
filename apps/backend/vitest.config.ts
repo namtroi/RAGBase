@@ -27,6 +27,8 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '@tests': path.resolve(__dirname, '../../tests'),
+      // Fix Prisma resolution for shared tests
+      '@prisma/client': path.resolve(__dirname, 'node_modules/@prisma/client'),
     },
   },
 });
