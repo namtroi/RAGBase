@@ -44,6 +44,7 @@ jobs:
           context: .
           file: ./apps/backend/Dockerfile
           push: false
+          load: true
           tags: ragbase/backend:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -83,6 +84,7 @@ jobs:
           context: .
           file: ./apps/ai-worker/Dockerfile
           push: false
+          load: true
           tags: ragbase/ai-worker:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
