@@ -6,8 +6,8 @@ HTTP callback sender for notifying Node.js backend of processing results.
 import httpx
 
 from .config import settings
-from .processor import ProcessingResult
 from .logging_config import get_logger
+from .processor import ProcessingResult
 
 logger = get_logger(__name__)
 
@@ -40,7 +40,14 @@ async def send_callback(
         }
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        # Increased timeout for large documents (482 pages can have huge markdown)
+        timeout = httpx.Timeout(
+            connect=10.0,
+            read=120.0,   # 2 minutes for response
+            write=120.0,  # 2 minutes for sending large payload
+            pool=10.0,
+        )
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
                 settings.callback_url,
                 json=payload,

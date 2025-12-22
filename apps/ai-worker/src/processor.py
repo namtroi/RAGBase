@@ -39,7 +39,7 @@ class PDFProcessor:
         """Create Docling converter with appropriate OCR settings."""
         from docling.datamodel.base_models import InputFormat
         from docling.datamodel.pipeline_options import PdfPipelineOptions
-        from docling.document_converter import DocumentConverter
+        from docling.document_converter import DocumentConverter, PdfFormatOption
 
         pipeline_options = PdfPipelineOptions()
 
@@ -57,9 +57,12 @@ class PDFProcessor:
         else:
             pipeline_options.do_ocr = False
 
+        # Docling 2.15.0 API: wrap pipeline_options in PdfFormatOption
+        pdf_format_option = PdfFormatOption(pipeline_options=pipeline_options)
+
         return DocumentConverter(
             allowed_formats=[InputFormat.PDF],
-            format_options={InputFormat.PDF: pipeline_options},
+            format_options={InputFormat.PDF: pdf_format_option},
         )
 
     async def process(
@@ -102,6 +105,13 @@ class PDFProcessor:
 
             # Export to markdown
             markdown = result.document.export_to_markdown()
+
+            # Save markdown to file for quality review
+            output_dir = Path("/tmp/markdown_output")
+            output_dir.mkdir(exist_ok=True)
+            output_file = output_dir / f"{path.stem}.md"
+            output_file.write_text(markdown, encoding="utf-8")
+            logger.info("markdown_saved", output_path=str(output_file))
 
             # Get page count
             page_count = (
