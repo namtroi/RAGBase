@@ -21,85 +21,117 @@
 
 ---
 
-## Phase 1: Core Pipeline (MVP)
+## Phase 1: Core Pipeline (MVP) ✅ COMPLETE
 
-**Goal:** PDF/Text → Vector DB working end-to-end.
+**Status:** Complete (2025-12-21)  
+**Goal:** PDF/Text → Vector DB working end-to-end with production features.
 
-### Formats
+### Formats Supported
 
-- ✅ `.pdf` (digital + scanned with OCR opt-in)
-- ✅ `.json`, `.txt`, `.md` (Fast Lane)
+- ✅ `.pdf` (digital + scanned with OCR)
+- ✅ `.json`, `.txt`, `.md` (Fast Lane - immediate processing)
 
-### Scope
+### Architecture
 
-| Feature | Details |
-|---------|---------|
-| Input | Manual upload via API/UI |
-| Processing | Docling → Markdown → Chunks |
-| Embedding | Self-hosted `all-MiniLM-L6-v2` (384d) |
-| Storage | PostgreSQL + pgvector |
-| UI | Upload + Status monitor + Simple query |
-| Auth | API Key (single key in `.env`) |
+**HTTP Dispatch Pattern:**
+- Backend → HTTP POST → AI Worker → Callback
+- Avoids race conditions with dual BullMQ consumers
 
-### OCR Support (Optional)
+**Dual-Lane Processing:**
+- **Fast Lane:** JSON/TXT/MD → immediate (synchronous)
+- **Heavy Lane:** PDF → queue → async processing
 
-```yaml
-environment:
-  - OCR_ENABLED=${OCR_ENABLED:-false}
-  - OCR_LANGUAGES=en,vi  # Multi-language
-```
+### Features Delivered
 
-| OCR Mode | Docker Size | Speed | Use Case |
-|----------|-------------|-------|----------|
-| Disabled | ~2GB | Fast | Digital PDFs only |
-| Enabled | ~4GB | 2-5x slower | Scanned documents |
+| Feature | Implementation |
+|---------|----------------|
+| **Input** | Manual upload via API/UI |
+| **Processing** | Docling → Markdown → Chunks (LangChain) |
+| **Embedding** | Fastembed (all-MiniLM-L6-v2, 384d, self-hosted) |
+| **Storage** | PostgreSQL 16 + pgvector |
+| **Queue** | BullMQ + Redis (HTTP dispatch pattern) |
+| **UI** | React 18 + Tailwind v4 + React Query polling |
+| **Auth** | API Key (X-API-Key header) |
+| **Logging** | Pino (Node.js), structlog (Python) - JSON format |
+| **Metrics** | Prometheus (/metrics endpoint) |
+| **Health** | /health, /ready, /live endpoints |
+| **Security** | Helmet, CORS, rate limiting (100 req/min) |
 
-### Tech Decisions
+### Tech Stack
 
-- **Embedding:** Default self-hosted. Optional OpenAI opt-in.
-- **Chunking:** 1000 chars, 200 overlap, markdown-aware.
-- **Queue:** BullMQ with 3 retries, exponential backoff.
-- **OCR:** EasyOCR via Docling (opt-in).
+**Backend:**
+- Node.js 20 + Fastify 4.29
+- Prisma 7.2 + PostgreSQL adapter
+- Fastembed 2.0 (embeddings)
+- BullMQ 5.12 + Redis 7
 
-### Schema Additions
+**AI Worker:**
+- Python 3.11 + FastAPI 0.126
+- Docling 2.15 (PDF processing)
+- httpx 0.28 (callbacks)
 
-```prisma
-model Document {
-  // ... existing
-  failReason  String?  @map("fail_reason")
-  retryCount  Int      @default(0) @map("retry_count")
-}
-```
+**Frontend:**
+- React 18 + TypeScript 5
+- Vite 7 + Tailwind CSS v4
+- React Query (polling every 2-3s)
 
-### Decisions
+### Key Decisions
 
 | Question | Decision |
 |----------|----------|
-| Max file size | **50MB** default, configurable via `MAX_FILE_SIZE_MB` |
-| Password-protected PDF | **Reject** with clear error message |
-| Dashboard auth | **Basic password** (single shared password via env) |
-| Query endpoint | **Similarity only** (cosine distance, top-K) |
+| **Max file size** | 50MB (configurable via `MAX_FILE_SIZE_MB`) |
+| **Password-protected PDF** | Reject with `PASSWORD_PROTECTED` error |
+| **Embedding** | Fastembed only (self-hosted, no OpenAI) |
+| **Queue pattern** | HTTP dispatch (not dual consumers) |
+| **Auth** | API key (simple, production-ready) |
+| **Real-time updates** | React Query polling (not WebSockets) |
+| **Chunking** | 1000 chars, 200 overlap, markdown-aware |
+| **Retry** | 3 attempts, exponential backoff |
 
-### Config
+### Test Coverage
 
-```yaml
-environment:
-  - MAX_FILE_SIZE_MB=50
-  - DASHBOARD_PASSWORD=your-secret
-  - OCR_ENABLED=false
-  - OCR_LANGUAGES=en,vi
-```
+- **Total:** 3,688 lines of tests (79% coverage)
+- **Unit:** 843 lines (validation + business logic)
+- **Integration:** 1,329 lines (routes + queue)
+- **E2E:** 803 lines (full pipeline)
+- **Python:** 713 lines (AI worker)
 
-### API Behavior
+### Production Features
+
+- ✅ Structured logging (Pino/structlog)
+- ✅ Prometheus metrics
+- ✅ Health checks (3 endpoints)
+- ✅ Rate limiting (100 req/min)
+- ✅ Security headers (Helmet)
+- ✅ CORS configuration
+- ✅ Graceful shutdown
+- ✅ Docker production config
+
+### API Endpoints
 
 ```typescript
-// Password-protected PDF response
-{ "error": "PASSWORD_PROTECTED", "message": "Remove password and re-upload." }
+// Upload
+POST /api/documents (multipart/form-data)
 
-// Query endpoint
+// Status
+GET /api/documents/:id
+
+// List
+GET /api/documents?status=COMPLETED&limit=20
+
+// Search
 POST /api/query { "query": "...", "topK": 5 }
-→ { "results": [{ "content": "...", "score": 0.89 }] }
+
+// Health
+GET /health, /ready, /live
+
+// Metrics
+GET /metrics (Prometheus)
+
+// Internal
+POST /internal/callback (AI worker callback)
 ```
+
 
 ---
 

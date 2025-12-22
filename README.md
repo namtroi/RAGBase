@@ -1,141 +1,111 @@
 # RAGBase
 
-**The "Set & Forget" Data Pipeline for Enterprise RAG**
+**Open-source ETL for RAG** | Self-hosted | TDD | Production-ready
 
-Open Source | Self-Hosted | Structure-Aware | Prisma Powered
+Convert PDFs, JSON, TXT → Vector embeddings for semantic search.
+
+---
 
 ## Quick Start
 
 ### Prerequisites
-- Node.js 20 LTS
-- pnpm 9+
-- Docker & Docker Compose
-- PostgreSQL 16+ (via Docker)
+- Node.js 20 + pnpm 9+
+- Docker + Docker Compose
+- Python 3.11+ (for AI worker)
 
-### Development Setup
+### Setup
 
-1. **Install dependencies:**
 ```bash
+# 1. Install
 pnpm install
-```
 
-2. **Set up environment:**
-```bash
+# 2. Configure
 cp .env.example .env
-# Edit .env and set your API_KEY
-```
+# Edit .env: set API_KEY
 
-3. **Start services:**
-```bash
+# 3. Start services
 docker compose up -d
-```
 
-4. **Run migrations:**
-```bash
+# 4. Push schema
 pnpm --filter @ragbase/backend db:push
-```
 
-5. **Start development server:**
-```bash
-pnpm dev
-```
+# 5. Run backend
+pnpm --filter @ragbase/backend dev
 
-6. **Verify health:**
-```bash
+# 6. Run frontend (optional)
+pnpm --filter @ragbase/frontend dev
+
+# 7. Verify
 curl http://localhost:3000/health
-# Should return: {"status":"ok"}
 ```
+
+---
+
+## Tech Stack
+
+**Backend:** Node.js 20 + Fastify 4.29 + Prisma 7.2  
+**AI Worker:** Python 3.11 + FastAPI + Docling  
+**Frontend:** React 18 + Vite 7 + Tailwind v4  
+**Database:** PostgreSQL 16 + pgvector  
+**Queue:** BullMQ + Redis 7  
+**Embedding:** Fastembed (all-MiniLM-L6-v2, 384d)  
+**Testing:** Vitest + Testcontainers (79% coverage)
+
+---
 
 ## Project Structure
 
 ```
-ragbase/
-├── apps/
-│   ├── backend/           # Node.js Fastify API
-│   └── ai-worker/         # Python FastAPI (Phase 07)
-├── tests/                 # Test suites (Phase 01)
-├── docker/                # Dockerfiles
-├── docs/                  # Documentation
-└── plans/                 # Implementation plans
+apps/
+├── backend/      # Node.js API
+├── ai-worker/    # Python PDF processor
+└── frontend/     # React UI
+
+docs/             # Documentation
+plans/            # Implementation plans
 ```
 
-## Tech Stack
+---
 
-- **Backend:** Node.js 20 + Fastify + TypeScript
-- **Database:** PostgreSQL 16 + pgvector
-- **Queue:** BullMQ + Redis
-- **Embedding:** fastembed (self-hosted, ONNX-based)
-- **AI Worker:** Python 3.10+ (3.11 available) + Docling
-- **Testing:** Vitest + Testcontainers
-
-> **Note:** Python 3.11.0rc1 is now available at `/usr/bin/python3.11`. See [Python 3.11 Upgrade](docs/core/python-311-upgrade.md) for details.
-
-## Development Workflow
-
-This project follows **Test-Driven Development (TDD)**:
-
-1. Write tests FIRST (RED)
-2. Implement minimum code (GREEN)
-3. Refactor (REFACTOR)
-
-See [docs/core/testing-strategy.md](docs/core/testing-strategy.md) for details.
-
-## Phase 1 Implementation Status
-
-- [x] **Phase 00:** Scaffold & Infrastructure - [Completion Report](plans/2025-12-13-phase1-tdd-implementation/completion/phase-00-complete.md)
-- [x] **Phase 01:** Test Infrastructure - [Completion Report](plans/2025-12-13-phase1-tdd-implementation/completion/phase-01-complete.md)
-- [x] **Phase 02:** Validation Layer (TDD) - [Completion Report](plans/2025-12-13-phase1-tdd-implementation/completion/phase-02-complete.md)
-- [x] **Phase 03:** Business Logic (TDD) - [Completion Report](plans/2025-12-13-phase1-tdd-implementation/completion/phase-03-complete.md)
-- [x] **Phase 04:** API Routes Integration (TDD) - [Completion Report](plans/2025-12-13-phase1-tdd-implementation/completion/phase-04-complete.md)
-- [x] **Phase 05:** Queue & Callbacks (TDD) - [Completion Report](plans/2025-12-13-phase1-tdd-implementation/completion/phase-05-complete.md)
-- [x] **Phase 06:** E2E Pipeline (TDD) - [Completion Report](plans/2025-12-13-phase1-tdd-implementation/completion/phase-06-complete.md)
-- [ ] **Phase 07:** Python AI Worker
-- [ ] **Phase 08:** Frontend UI
-- [ ] **Phase 09:** Production Readiness
-
-## Available Commands
+## Commands
 
 ```bash
 # Development
-pnpm dev                    # Start all services in watch mode
-pnpm build                  # Build all packages
+pnpm dev          # All services
 
 # Testing
-pnpm test                   # Run all tests
-pnpm test:unit              # Run unit tests only
-pnpm test:integration       # Run integration tests
+pnpm test         # All tests
+pnpm test:unit    # Unit only
+pnpm test:e2e     # E2E only
 
 # Database
-pnpm --filter @ragbase/backend db:generate  # Generate Prisma client
-pnpm --filter @ragbase/backend db:push      # Push schema to DB
-pnpm --filter @ragbase/backend db:migrate   # Create migration
-
-# Linting
-pnpm lint                   # Type-check all packages
+pnpm --filter @ragbase/backend db:push     # Push schema
+pnpm --filter @ragbase/backend db:generate # Generate client
 ```
 
-## Docker Services
+---
 
-- **backend:** Node.js API (port 3000)
-- **ai-worker:** Python worker (internal)
-- **postgres:** PostgreSQL 16 + pgvector (port 5432)
-- **redis:** Redis 7 (port 6379)
+## Phase 1 Status: ✅ COMPLETE
 
-## Environment Variables
+- ✅ Backend API (Fastify + Prisma)
+- ✅ Python AI Worker (Docling)
+- ✅ Frontend UI (React + Tailwind)
+- ✅ Production features (logging, metrics, health)
+- ✅ 79% test coverage (3,688 lines of tests)
 
-See [.env.example](.env.example) for all configuration options.
+**See:** [plans/2025-12-13-phase1-tdd-implementation/plan.md](plans/2025-12-13-phase1-tdd-implementation/plan.md)
+
+---
 
 ## Documentation
 
-📚 **[View Full Documentation Index](docs/README.md)**
+- [PRODUCT.md](docs/PRODUCT.md) - Product overview
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - System design
+- [API.md](docs/API.md) - API contracts
+- [TESTING.md](docs/TESTING.md) - TDD strategy
+- [ROADMAP.md](docs/ROADMAP.md) - Future phases
 
-### Quick Links
-- [Project Overview](docs/core/project-overview-pdr.md) - What is RAGBase?
-- [System Architecture](docs/core/system-architecture.md) - Technical design
-- [API Contracts](docs/core/api-contracts.md) - API specifications
-- [Testing Strategy](docs/core/testing-strategy.md) - TDD approach
-- [Project Roadmap](docs/core/project-roadmap.md) - Development phases
-- [Code Standards](docs/core/code-standards.md) - Coding conventions
+---
 
 ## License
 
