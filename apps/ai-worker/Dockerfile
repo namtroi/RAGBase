@@ -16,8 +16,9 @@ RUN apt-get update && apt-get install -y \
 COPY apps/ai-worker/requirements.txt .
 COPY apps/ai-worker/requirements-prod.txt .
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements-prod.txt
+# Install dependencies (use CPU-only torch to save space)
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements-prod.txt
 
 # =============================================================================
 # STAGE 2: Production - Slim runtime image

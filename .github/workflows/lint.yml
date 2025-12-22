@@ -2,9 +2,9 @@ name: Lint & Code Quality
 
 on:
   push:
-    branches: [main, mvp/e2e, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 jobs:
   eslint:
