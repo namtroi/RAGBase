@@ -24,7 +24,9 @@ jobs:
   build-backend:
     name: Build Backend Image
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
       
@@ -57,14 +59,16 @@ jobs:
           output: 'trivy-backend.sarif'
           
       - name: Upload Trivy results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-backend.sarif'
           
   build-ai-worker:
     name: Build AI Worker Image
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
       
@@ -97,6 +101,6 @@ jobs:
           output: 'trivy-ai-worker.sarif'
           
       - name: Upload Trivy results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-ai-worker.sarif'
