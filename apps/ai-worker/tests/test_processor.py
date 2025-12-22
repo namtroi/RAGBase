@@ -95,7 +95,9 @@ class TestPDFProcessor:
         # Use an error message that doesn't contain 'invalid', 'corrupt', or 'timeout'
         with patch.object(processor, "_is_password_protected", return_value=False):
             with patch.object(
-                processor, "_get_converter", side_effect=Exception("Failed to parse document")
+                processor,
+                "_get_converter",
+                side_effect=Exception("Failed to parse document"),
             ):
                 result = await processor.process(str(pdf_path))
 
@@ -110,7 +112,9 @@ class TestPDFProcessor:
 
         with patch.object(processor, "_is_password_protected", return_value=False):
             with patch.object(
-                processor, "_get_converter", side_effect=Exception("Operation timeout exceeded")
+                processor,
+                "_get_converter",
+                side_effect=Exception("Operation timeout exceeded"),
             ):
                 result = await processor.process(str(pdf_path))
 

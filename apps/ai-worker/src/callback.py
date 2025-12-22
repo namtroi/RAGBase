@@ -43,7 +43,7 @@ async def send_callback(
         # Increased timeout for large documents (482 pages can have huge markdown)
         timeout = httpx.Timeout(
             connect=10.0,
-            read=120.0,   # 2 minutes for response
+            read=120.0,  # 2 minutes for response
             write=120.0,  # 2 minutes for sending large payload
             pool=10.0,
         )
