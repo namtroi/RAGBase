@@ -2,9 +2,9 @@ name: Backend Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, ci/cd/setup]
   pull_request:
-    branches: [main]
+    branches: [main, ci/cd/setup]
 
 jobs:
   unit-tests:
@@ -145,8 +145,8 @@ jobs:
         working-directory: apps/ai-worker
         run: |
           python -m pip install --upgrade pip
-          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements.txt
+          pip install -r requirements-dev.txt
           
       - name: Start AI Worker (background)
         working-directory: apps/ai-worker
