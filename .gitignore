@@ -24,6 +24,7 @@ coverage/
 /out/
 dist/
 bin/
+.turbo/
 
 # production
 /build
