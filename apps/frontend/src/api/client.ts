@@ -51,7 +51,7 @@ async function request<T>(
 export const api = {
   get: <T>(endpoint: string) => request<T>(endpoint),
 
-  post: <T>(endpoint: string, data?: any) =>
+  post: <T>(endpoint: string, data?: unknown) =>
     request<T>(endpoint, {
       method: 'POST',
       body: data instanceof FormData ? data : JSON.stringify(data),

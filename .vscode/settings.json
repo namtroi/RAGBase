@@ -22,5 +22,20 @@
     "**/node_modules/**": true,
     "**/dist/**": true,
     "**/.turbo/**": true
+  },
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+  "[typescript]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[typescriptreact]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "vscode.typescript-language-features"
   }
 }

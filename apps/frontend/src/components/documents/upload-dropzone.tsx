@@ -34,10 +34,10 @@ export function UploadDropzone() {
           type: 'success',
           message: `Uploaded ${result.filename} - ${result.lane} lane`,
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
         setUploadStatus({
           type: 'error',
-          message: error.message || 'Upload failed',
+          message: error instanceof Error ? error.message : 'Upload failed',
         });
       }
     },
