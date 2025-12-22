@@ -2,9 +2,9 @@ name: Backend Tests
 
 on:
   push:
-    branches: [main, ci/cd/setup]
+    branches: [main]
   pull_request:
-    branches: [main, ci/cd/setup]
+    branches: [main]
 
 jobs:
   unit-tests:
