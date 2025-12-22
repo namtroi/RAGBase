@@ -1,6 +1,6 @@
 # Implementation Plans
 
-This directory contains all implementation plans and execution artifacts.
+This directory contains all implementation plans and execution artifacts. 
 
 ## Active Plans
 
