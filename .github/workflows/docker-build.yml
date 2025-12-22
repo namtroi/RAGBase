@@ -21,7 +21,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./docker/backend/Dockerfile
+          file: ./apps/backend/Dockerfile
           push: false
           tags: ragbase/backend:test
           cache-from: type=gha
@@ -52,7 +52,7 @@ jobs:
       - name: Build ai-worker image
         uses: docker/build-push-action@v5
         with:
-          context: ./apps/ai-worker
+          context: .
           file: ./apps/ai-worker/Dockerfile
           push: false
           tags: ragbase/ai-worker:test
