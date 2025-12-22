@@ -10,6 +10,7 @@ on:
     branches: [main]
     paths:
       - 'apps/ai-worker/**'
+      - '.github/workflows/ai-worker-tests.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
