@@ -44,7 +44,7 @@ yarn-error.log*
 # package manager
 package-lock.json
 yarn.lock
-pnpm-lock.yaml
+# pnpm-lock.yaml  # Keep this for CI --frozen-lockfile
 
 # semantic-release
 .nyc_output
