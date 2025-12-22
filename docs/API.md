@@ -2,7 +2,6 @@
 
 **Phase 1 MVP - Complete** | **TDD Reference & Integration Spec**
 
-
 ---
 
 ## 1. Core Entities

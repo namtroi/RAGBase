@@ -221,12 +221,12 @@ graph TB
     Logs --> JSON[JSON Output<br/>Production]
     Logs --> Pretty[Pretty Print<br/>Development]
     
-    Metrics --> Scrape[/metrics endpoint]
+    Metrics --> Scrape['/metrics endpoint]
     Scrape --> Prometheus[Prometheus Server]
     
-    Health --> Basic[/health - Basic]
-    Health --> Ready[/ready - DB + Redis]
-    Health --> Live[/live - Process alive]
+    Health --> Basic['/health - Basic]
+    Health --> Ready['/ready - DB + Redis]
+    Health --> Live['/live - Process alive]
     
     style Logs fill:#4CAF50
     style Metrics fill:#2196F3
