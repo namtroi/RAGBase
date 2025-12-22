@@ -2,12 +2,12 @@ name: AI Worker Tests
 
 on:
   push:
-    branches: [main, mvp/e2e, develop]
+    branches: [main]
     paths:
       - 'apps/ai-worker/**'
       - '.github/workflows/ai-worker-tests.yml'
   pull_request:
-    branches: [main, develop]
+    branches: [main]
     paths:
       - 'apps/ai-worker/**'
 

@@ -2,9 +2,23 @@ name: Docker Build & Security
 
 on:
   push:
-    branches: [main, mvp/e2e]
+    branches: [main]
+    paths:
+      - 'apps/backend/Dockerfile'
+      - 'apps/ai-worker/Dockerfile'
+      - 'docker/**'
+      - 'docker-compose*'
+      - '.github/workflows/docker-build.yml'
+      - '.dockerignore'
   pull_request:
     branches: [main]
+    paths:
+      - 'apps/backend/Dockerfile'
+      - 'apps/ai-worker/Dockerfile'
+      - 'docker/**'
+      - 'docker-compose*'
+      - '.github/workflows/docker-build.yml'
+      - '.dockerignore'
 
 jobs:
   build-backend:

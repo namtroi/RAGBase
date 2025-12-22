@@ -2,9 +2,9 @@ name: Backend Tests
 
 on:
   push:
-    branches: [main, mvp/e2e, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 jobs:
   unit-tests:
