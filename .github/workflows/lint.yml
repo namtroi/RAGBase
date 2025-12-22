@@ -12,6 +12,17 @@ on:
       - 'pnpm-workspace.yaml'
       - '.eslintrc*'
       - 'tsconfig.json'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'tests/**'
+      - '.github/workflows/lint.yml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - '.eslintrc*'
+      - 'tsconfig.json'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -21,6 +32,7 @@ jobs:
   eslint:
     name: ESLint (Backend + Frontend)
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !contains(github.event.head_commit.message, 'Merge pull request'))
     
     steps:
       - uses: actions/checkout@v4
@@ -73,6 +85,7 @@ jobs:
   python-lint:
     name: Python Lint (Ruff + Black)
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !contains(github.event.head_commit.message, 'Merge pull request'))
     
     steps:
       - uses: actions/checkout@v4

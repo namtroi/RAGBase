@@ -6,6 +6,10 @@ on:
     paths:
       - 'apps/ai-worker/**'
       - '.github/workflows/ai-worker-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/ai-worker/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

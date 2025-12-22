@@ -10,6 +10,15 @@ on:
       - 'docker-compose*'
       - '.github/workflows/docker-build.yml'
       - '.dockerignore'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/backend/Dockerfile'
+      - 'apps/ai-worker/Dockerfile'
+      - 'docker/**'
+      - 'docker-compose*'
+      - '.github/workflows/docker-build.yml'
+      - '.dockerignore'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,6 +28,7 @@ jobs:
   build-backend:
     name: Build Backend Image
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !contains(github.event.head_commit.message, 'Merge pull request'))
     permissions:
       contents: read
       security-events: write
@@ -62,6 +72,7 @@ jobs:
   build-ai-worker:
     name: Build AI Worker Image
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !contains(github.event.head_commit.message, 'Merge pull request'))
     permissions:
       contents: read
       security-events: write

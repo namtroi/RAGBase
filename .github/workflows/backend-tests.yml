@@ -11,6 +11,16 @@ on:
       - '.github/workflows/backend-tests.yml'
       - 'package.json'
       - 'pnpm-workspace.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/backend/**'
+      - 'apps/ai-worker/**'
+      - 'packages/**'
+      - 'tests/**'
+      - '.github/workflows/backend-tests.yml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,6 +30,7 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !contains(github.event.head_commit.message, 'Merge pull request'))
     
     steps:
       - uses: actions/checkout@v4
@@ -52,6 +63,7 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !contains(github.event.head_commit.message, 'Merge pull request'))
     
     services:
       postgres:
@@ -119,6 +131,7 @@ jobs:
   e2e-tests:
     name: E2E Tests
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !contains(github.event.head_commit.message, 'Merge pull request'))
     
     steps:
       - uses: actions/checkout@v4
