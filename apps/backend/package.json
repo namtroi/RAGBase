@@ -13,6 +13,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
+    "type-check": "tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
