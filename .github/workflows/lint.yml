@@ -3,6 +3,15 @@ name: Lint & Code Quality
 on:
   push:
     branches: [main]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'tests/**'
+      - '.github/workflows/lint.yml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - '.eslintrc*'
+      - 'tsconfig.json'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

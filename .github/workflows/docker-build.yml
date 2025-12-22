@@ -22,6 +22,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
       
@@ -47,7 +48,7 @@ jobs:
           cache-to: type=gha,mode=max
           
       - name: Run Trivy security scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           image-ref: ragbase/backend:test
           format: 'sarif'
@@ -64,6 +65,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
       
@@ -89,7 +91,7 @@ jobs:
           cache-to: type=gha,mode=max
           
       - name: Run Trivy security scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           image-ref: ragbase/ai-worker:test
           format: 'sarif'
