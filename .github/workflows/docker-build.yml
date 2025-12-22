@@ -1,0 +1,72 @@
+name: Docker Build & Security
+
+on:
+  push:
+    branches: [main, mvp/e2e]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-backend:
+    name: Build Backend Image
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/backend/Dockerfile
+          push: false
+          tags: ragbase/backend:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          
+      - name: Run Trivy security scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ragbase/backend:test
+          format: 'sarif'
+          output: 'trivy-backend.sarif'
+          
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-backend.sarif'
+          
+  build-ai-worker:
+    name: Build AI Worker Image
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Build ai-worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/ai-worker
+          file: ./apps/ai-worker/Dockerfile
+          push: false
+          tags: ragbase/ai-worker:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          
+      - name: Run Trivy security scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ragbase/ai-worker:test
+          format: 'sarif'
+          output: 'trivy-ai-worker.sarif'
+          
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-ai-worker.sarif'
