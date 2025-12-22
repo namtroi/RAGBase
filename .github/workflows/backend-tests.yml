@@ -3,8 +3,18 @@ name: Backend Tests
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+    paths:
+      - 'apps/backend/**'
+      - 'apps/ai-worker/**'
+      - 'packages/**'
+      - 'tests/**'
+      - '.github/workflows/backend-tests.yml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   unit-tests:
