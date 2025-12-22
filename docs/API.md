@@ -1,6 +1,7 @@
-# RAGBase Contracts
+# RAGBase API Contracts
 
-**Phase 1 interfaces. TDD reference.**
+**Phase 1 MVP - Complete** | **TDD Reference & Integration Spec**
+
 
 ---
 
@@ -43,16 +44,12 @@ interface Chunk {
   documentId: string;      // FK → Document
   content: string;         // text content
   chunkIndex: number;      // order in document
-  embedding: number[];     // 384d vector
-  metadata: ChunkMetadata;
-  createdAt: Date;
-}
-
-interface ChunkMetadata {
-  page?: number;           // PDF page
-  heading?: string;        // extracted heading
+  embedding: number[];     // 384d vector (Fastembed)
   charStart: number;       // position in source
   charEnd: number;
+  page?: number;           // PDF page (optional)
+  heading?: string;        // extracted heading (optional)
+  createdAt: Date;
 }
 ```
 
@@ -73,7 +70,7 @@ interface ProcessingJob {
 
 interface ProcessingConfig {
   ocrMode: 'auto' | 'force' | 'never';
-  ocrLanguages: string[];  // ['en', 'vi']
+  ocrLanguages: string[];  // Default: ['en']
 }
 ```
 
@@ -168,7 +165,12 @@ interface QueryResult {
   content: string;
   score: number;           // 0-1 cosine similarity
   documentId: string;
-  metadata: ChunkMetadata;
+  metadata: {
+    charStart: number;
+    charEnd: number;
+    page?: number;
+    heading?: string;
+  };
 }
 ```
 
@@ -288,7 +290,11 @@ interface ChunkingResult {
 interface ChunkData {
   content: string;
   index: number;
-  metadata: ChunkMetadata;
+  metadata: {
+    charStart: number;
+    charEnd: number;
+    heading?: string;
+  };
 }
 ```
 
@@ -297,11 +303,11 @@ interface ChunkData {
 ## 7. Embedding Contract
 
 ```typescript
-type EmbeddingProvider = 'self-hosted' | 'openai';
+type EmbeddingProvider = 'fastembed';
 
 interface EmbeddingConfig {
   provider: EmbeddingProvider;
-  model: string;           // 'Xenova/all-MiniLM-L6-v2'
+  model: string;           // 'all-MiniLM-L6-v2' (via Fastembed)
   dimensions: number;      // 384
   batchSize: number;       // 50
 }
@@ -313,22 +319,4 @@ interface EmbeddingResult {
 }
 ```
 
----
 
-## 8. Dashboard Auth
-
-```typescript
-// Simple password auth for Phase 1
-// POST /api/auth/login
-interface LoginRequest {
-  password: string;
-}
-
-interface LoginResponse {
-  token: string;           // Simple session token
-  expiresAt: string;       // ISO
-}
-
-// All dashboard endpoints require header:
-// Authorization: Bearer <token>
-```
