@@ -35,7 +35,7 @@ services:
   # ai-worker:
   #   build:
   #     context: .
-  #     dockerfile: docker/ai-worker.Dockerfile
+  #     dockerfile: apps/ai-worker/Dockerfile
   #   environment:
   #     - REDIS_URL=redis://redis:6379
   #     - CALLBACK_URL=http://host.docker.internal:3000/internal/callback

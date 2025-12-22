@@ -6,7 +6,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: docker/backend.Dockerfile
+      dockerfile: apps/backend/Dockerfile
     ports:
       - "3000:3000"
     depends_on:
@@ -34,7 +34,7 @@ services:
   ai-worker:
     build:
       context: .
-      dockerfile: docker/ai-worker.Dockerfile
+      dockerfile: apps/ai-worker/Dockerfile
     depends_on:
       redis:
         condition: service_healthy

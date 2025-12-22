@@ -2,7 +2,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: docker/backend.Dockerfile
+      dockerfile: apps/backend/Dockerfile
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -38,7 +38,7 @@ services:
   ai-worker:
     build:
       context: .
-      dockerfile: docker/ai-worker.Dockerfile
+      dockerfile: apps/ai-worker/Dockerfile
     restart: unless-stopped
     environment:
       - REDIS_URL=redis://redis:6379
