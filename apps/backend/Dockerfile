@@ -50,17 +50,18 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/backend/package.json ./apps/backend/
 
-# Install production deps only
+# Copy production dependencies
 ENV CI=true
 RUN pnpm install --frozen-lockfile --prod
 
+# Copy prisma schema for generation
+COPY apps/backend/prisma ./apps/backend/prisma
+
+# Generate Prisma client for production environment
+RUN pnpm --filter @ragbase/backend db:generate
+
 # Copy built artifacts from builder
 COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
-COPY --from=builder /app/apps/backend/prisma ./apps/backend/prisma
-COPY --from=builder /app/node_modules/.pnpm/@prisma+client* ./node_modules/.pnpm/
-
-# Copy generated Prisma client
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 ENV NODE_ENV=production
 EXPOSE 3000
