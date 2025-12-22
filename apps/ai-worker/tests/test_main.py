@@ -61,9 +61,7 @@ class TestProcessEndpoint:
         from src.main import app
 
         with TestClient(app) as client:
-            response = client.post("/process", json={
-                "filePath": "/tmp/test.pdf"
-            })
+            response = client.post("/process", json={"filePath": "/tmp/test.pdf"})
 
             assert response.status_code == 422  # Validation error
 
@@ -74,9 +72,7 @@ class TestProcessEndpoint:
         from src.main import app
 
         with TestClient(app) as client:
-            response = client.post("/process", json={
-                "documentId": "test-123"
-            })
+            response = client.post("/process", json={"documentId": "test-123"})
 
             assert response.status_code == 422  # Validation error
 
@@ -95,13 +91,22 @@ class TestProcessEndpoint:
             processing_time_ms=100,
         )
 
-        with patch("src.main.pdf_processor.process", new_callable=AsyncMock, return_value=mock_result):
-            with patch("src.main.send_callback", new_callable=AsyncMock, return_value=True):
+        with patch(
+            "src.main.pdf_processor.process",
+            new_callable=AsyncMock,
+            return_value=mock_result,
+        ):
+            with patch(
+                "src.main.send_callback", new_callable=AsyncMock, return_value=True
+            ):
                 with TestClient(app) as client:
-                    response = client.post("/process", json={
-                        "documentId": "test-123",
-                        "filePath": "/tmp/test.pdf",
-                    })
+                    response = client.post(
+                        "/process",
+                        json={
+                            "documentId": "test-123",
+                            "filePath": "/tmp/test.pdf",
+                        },
+                    )
 
                     assert response.status_code == 200
                     data = response.json()
@@ -123,13 +128,22 @@ class TestProcessEndpoint:
             processing_time_ms=50,
         )
 
-        with patch("src.main.pdf_processor.process", new_callable=AsyncMock, return_value=mock_result):
-            with patch("src.main.send_callback", new_callable=AsyncMock, return_value=False):
+        with patch(
+            "src.main.pdf_processor.process",
+            new_callable=AsyncMock,
+            return_value=mock_result,
+        ):
+            with patch(
+                "src.main.send_callback", new_callable=AsyncMock, return_value=False
+            ):
                 with TestClient(app) as client:
-                    response = client.post("/process", json={
-                        "documentId": "test-456",
-                        "filePath": "/tmp/test.pdf",
-                    })
+                    response = client.post(
+                        "/process",
+                        json={
+                            "documentId": "test-456",
+                            "filePath": "/tmp/test.pdf",
+                        },
+                    )
 
                     assert response.status_code == 500
                     assert "callback" in response.json()["detail"].lower()

@@ -115,9 +115,7 @@ class PDFProcessor:
 
             # Get page count
             page_count = (
-                len(result.document.pages)
-                if hasattr(result.document, "pages")
-                else 1
+                len(result.document.pages) if hasattr(result.document, "pages") else 1
             )
 
             processing_time_ms = int((time.time() - start_time) * 1000)
@@ -170,11 +168,7 @@ class PDFProcessor:
         try:
             # If very little text was extracted, OCR was likely needed
             text = result.document.export_to_markdown()
-            pages = (
-                result.document.pages
-                if hasattr(result.document, "pages")
-                else []
-            )
+            pages = result.document.pages if hasattr(result.document, "pages") else []
             # Less than 50 chars per page suggests scanned
             chars_per_page = len(text) / max(1, len(pages))
             return chars_per_page < 50

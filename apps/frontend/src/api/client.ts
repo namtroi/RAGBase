@@ -4,7 +4,7 @@ interface ApiConfig {
   apiKey: string;
 }
 
-let config: ApiConfig = {
+const config: ApiConfig = {
   apiKey: localStorage.getItem('apiKey') || '',
 };
 

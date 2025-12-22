@@ -9,6 +9,7 @@ from unittest.mock import patch, AsyncMock
 
 # Import from parent directory
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.consumer import process_job, DocumentWorker
@@ -46,10 +47,14 @@ class TestProcessJob:
             processing_time_ms=1000,
         )
 
-        with patch("src.consumer.pdf_processor.process", new_callable=AsyncMock) as mock_process:
+        with patch(
+            "src.consumer.pdf_processor.process", new_callable=AsyncMock
+        ) as mock_process:
             mock_process.return_value = mock_result
 
-            with patch("src.consumer.send_callback", new_callable=AsyncMock) as mock_callback:
+            with patch(
+                "src.consumer.send_callback", new_callable=AsyncMock
+            ) as mock_callback:
                 mock_callback.return_value = True
 
                 result = await process_job(job, "token")
@@ -92,10 +97,14 @@ class TestProcessJob:
 
         mock_result = ProcessingResult(success=True, markdown="# Test")
 
-        with patch("src.consumer.pdf_processor.process", new_callable=AsyncMock) as mock_process:
+        with patch(
+            "src.consumer.pdf_processor.process", new_callable=AsyncMock
+        ) as mock_process:
             mock_process.return_value = mock_result
 
-            with patch("src.consumer.send_callback", new_callable=AsyncMock) as mock_callback:
+            with patch(
+                "src.consumer.send_callback", new_callable=AsyncMock
+            ) as mock_callback:
                 mock_callback.return_value = False
 
                 with pytest.raises(Exception) as exc_info:
@@ -118,10 +127,14 @@ class TestProcessJob:
 
         mock_result = ProcessingResult(success=True, markdown="# Test")
 
-        with patch("src.consumer.pdf_processor.process", new_callable=AsyncMock) as mock_process:
+        with patch(
+            "src.consumer.pdf_processor.process", new_callable=AsyncMock
+        ) as mock_process:
             mock_process.return_value = mock_result
 
-            with patch("src.consumer.send_callback", new_callable=AsyncMock) as mock_callback:
+            with patch(
+                "src.consumer.send_callback", new_callable=AsyncMock
+            ) as mock_callback:
                 mock_callback.return_value = True
 
                 await process_job(job, "token")
@@ -146,6 +159,7 @@ class TestDocumentWorker:
 
         # Mock the bullmq import to raise ImportError
         import builtins
+
         real_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):

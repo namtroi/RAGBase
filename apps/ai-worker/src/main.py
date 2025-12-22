@@ -46,9 +46,9 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("application_starting")
     logger.info("http_server_ready")  # No queue worker needed - using HTTP dispatch
-    
+
     yield
-    
+
     # Shutdown
     logger.info("application_stopping")
 
@@ -84,7 +84,7 @@ async def readiness_check():
 async def process_document(request: ProcessRequest):
     """
     Process a PDF document dispatched from the backend.
-    
+
     This endpoint is called by the Node.js backend when a PDF job
     needs to be processed. After processing, a callback is sent
     to the backend with the results.
@@ -94,19 +94,19 @@ async def process_document(request: ProcessRequest):
         document_id=request.documentId,
         file_path=request.filePath,
     )
-    
+
     try:
         # Get OCR mode from config
         ocr_mode = "auto"
         if request.config:
             ocr_mode = request.config.ocrMode
-        
+
         # Process the PDF
         result = await pdf_processor.process(request.filePath, ocr_mode)
-        
+
         # Send callback to backend
         callback_success = await send_callback(request.documentId, result)
-        
+
         if not callback_success:
             logger.error(
                 "callback_failed",
@@ -116,14 +116,14 @@ async def process_document(request: ProcessRequest):
                 status_code=500,
                 detail=f"Failed to send callback for {request.documentId}",
             )
-        
+
         logger.info(
             "process_completed",
             document_id=request.documentId,
             success=result.success,
             time_ms=result.processing_time_ms,
         )
-        
+
         return ProcessResponse(
             status="processed",
             documentId=request.documentId,
@@ -131,7 +131,7 @@ async def process_document(request: ProcessRequest):
             processingTimeMs=result.processing_time_ms,
             error=result.error_message if not result.success else None,
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
