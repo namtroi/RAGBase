@@ -5,6 +5,7 @@ export function useDocuments(params?: {
   status?: string;
   limit?: number;
   offset?: number;
+  driveConfigId?: string;
 }) {
   return useQuery({
     queryKey: ['documents', params],

@@ -65,16 +65,12 @@ def test_embed_empty_list(mock_sentence_transformer):
 
 
 def test_singleton_behavior(mock_sentence_transformer):
-    # Verify model is only loaded once if we use a singleton access pattern
-    # For now assuming Embedder class initiates model.
-    # If we implement singleton in the module level or class level, we adjust test.
-    # Plan says "Cache model instance".
-
+    """Verify singleton pattern: model is only loaded once even with multiple instantiations."""
     e1 = Embedder()
     e2 = Embedder()
 
-    # If SentenceTransformer() is called twice, it's NOT singleton at class instantiation level
-    # unless logic checks internal state.
-    # Let's assume the module provides a `get_embedder()` or class has shared state.
-    # For now, let's just check standard usage.
-    pass
+    # Same instance returned
+    assert e1 is e2
+
+    # SentenceTransformer should only be called ONCE despite two Embedder() calls
+    assert mock_sentence_transformer.call_count == 1

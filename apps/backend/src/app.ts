@@ -1,5 +1,6 @@
 import multipart from '@fastify/multipart';
 import Fastify, { FastifyInstance } from 'fastify';
+import { initializeCronJobs, stopAllCronJobs } from './jobs/cron.js';
 import { logger } from './logging/logger.js';
 import { metricsHook, metricsRoute } from './metrics/prometheus.js';
 import { authMiddleware } from './middleware/auth-middleware.js';
@@ -11,6 +12,8 @@ import { contentRoute } from './routes/documents/content-route.js';
 import { listRoute } from './routes/documents/list-route.js';
 import { statusRoute } from './routes/documents/status-route.js';
 import { uploadRoute } from './routes/documents/upload-route.js';
+import { driveConfigRoutes } from './routes/drive/config-routes.js';
+import { driveSyncRoutes } from './routes/drive/sync-routes.js';
 import { healthRoute } from './routes/health-route.js';
 import { callbackRoute } from './routes/internal/callback-route.js';
 import { searchRoute } from './routes/query/search-route.js';
@@ -53,9 +56,13 @@ export async function createApp(): Promise<FastifyInstance> {
   // Internal routes (no auth)
   await callbackRoute(app);
 
-  // Initialize BullMQ worker (if not in test mode)
+  // Initialize BullMQ worker and cron jobs (if not in test mode)
   if (process.env.NODE_ENV !== 'test') {
     initWorker();
+    // Initialize Drive sync cron jobs
+    initializeCronJobs().catch(err => {
+      console.error('Failed to initialize cron jobs:', err);
+    });
   }
 
   // Register protected routes (Auth applied here)
@@ -67,10 +74,15 @@ export async function createApp(): Promise<FastifyInstance> {
     await contentRoute(protectedScope);
     await listRoute(protectedScope);
     await searchRoute(protectedScope);
+
+    // Drive sync routes
+    await driveConfigRoutes(protectedScope);
+    await driveSyncRoutes(protectedScope);
   });
 
   // Cleanup on shutdown
   app.addHook('onClose', async () => {
+    stopAllCronJobs();
     await shutdownWorker();
     await closeQueue();
     await disconnectPrisma();
@@ -78,3 +90,4 @@ export async function createApp(): Promise<FastifyInstance> {
 
   return app;
 }
+

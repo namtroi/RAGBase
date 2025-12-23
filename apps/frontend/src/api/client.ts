@@ -22,12 +22,12 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const isFormData = options.body instanceof FormData;
-  
+
   const headers: Record<string, string> = {
     ...options.headers as Record<string, string>,
     'X-API-Key': config.apiKey,
   };
-  
+
   // Only set Content-Type for non-FormData requests
   // FormData needs browser to auto-set with boundary
   if (!isFormData) {
@@ -55,6 +55,17 @@ export const api = {
     request<T>(endpoint, {
       method: 'POST',
       body: data instanceof FormData ? data : JSON.stringify(data),
+    }),
+
+  patch: <T>(endpoint: string, data?: unknown) =>
+    request<T>(endpoint, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  delete: <T>(endpoint: string) =>
+    request<T>(endpoint, {
+      method: 'DELETE',
     }),
 
   upload: <T>(endpoint: string, file: File) => {

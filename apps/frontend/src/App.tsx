@@ -1,9 +1,10 @@
 import { getApiKey, setApiKey } from '@/api/client';
 import { DocumentList } from '@/components/documents/document-list';
 import { UploadDropzone } from '@/components/documents/upload-dropzone';
+import { DriveSyncTab } from '@/components/drive/DriveSyncTab';
 import { SearchForm } from '@/components/query/search-form';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { FileText, Key, Search, Settings } from 'lucide-react';
+import { FileText, FolderSync, Key, Search, Settings } from 'lucide-react';
 import { useState } from 'react';
 
 const queryClient = new QueryClient({
@@ -15,7 +16,7 @@ const queryClient = new QueryClient({
   },
 });
 
-type Tab = 'documents' | 'query' | 'settings';
+type Tab = 'documents' | 'query' | 'settings' | 'drive';
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<Tab>('documents');
@@ -29,6 +30,7 @@ function AppContent() {
   const tabs = [
     { id: 'documents' as Tab, label: 'Documents', icon: FileText },
     { id: 'query' as Tab, label: 'Search', icon: Search },
+    { id: 'drive' as Tab, label: 'Drive Sync', icon: FolderSync },
     { id: 'settings' as Tab, label: 'Settings', icon: Settings },
   ];
 
@@ -59,11 +61,10 @@ function AppContent() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                  activeTab === tab.id
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === tab.id
                     ? 'border-primary-500 text-primary-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
+                  }`}
               >
                 <tab.icon className="w-4 h-4" />
                 {tab.label}
@@ -97,6 +98,10 @@ function AppContent() {
             </h2>
             <SearchForm />
           </div>
+        )}
+
+        {activeTab === 'drive' && (
+          <DriveSyncTab />
         )}
 
         {activeTab === 'settings' && (

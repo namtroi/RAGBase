@@ -1,5 +1,7 @@
+import { driveApi } from '@/api/endpoints';
 import { useDocuments } from '@/hooks/use-documents';
-import { FileText, RefreshCw } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { FileText, FolderSync, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { DocumentCard } from './document-card';
 
@@ -7,9 +9,17 @@ type StatusFilter = 'all' | 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 
 export function DocumentList() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [folderFilter, setFolderFilter] = useState<string>('all');
+
+  // Fetch Drive configs for filter
+  const { data: configData } = useQuery({
+    queryKey: ['driveConfigs'],
+    queryFn: driveApi.listConfigs,
+  });
 
   const { data, isLoading, refetch, isRefetching } = useDocuments({
     status: statusFilter === 'all' ? undefined : statusFilter,
+    driveConfigId: folderFilter === 'all' ? undefined : folderFilter,
     limit: 20,
   });
 
@@ -38,21 +48,42 @@ export function DocumentList() {
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {filters.map((filter) => (
-          <button
-            key={filter.value}
-            onClick={() => setStatusFilter(filter.value)}
-            className={`px-3 py-1.5 text-sm rounded-full whitespace-nowrap ${
-              statusFilter === filter.value
-                ? 'bg-primary-500 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {filter.label}
-          </button>
-        ))}
+      {/* Filters/Actions Row */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        {/* Status Filters */}
+        <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
+          {filters.map((filter) => (
+            <button
+              key={filter.value}
+              onClick={() => setStatusFilter(filter.value)}
+              className={`px-3 py-1.5 text-sm rounded-full whitespace-nowrap transition-colors ${statusFilter === filter.value
+                  ? 'bg-primary-500 text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Drive Filter */}
+        {configData?.configs && configData.configs.length > 0 && (
+          <div className="flex items-center gap-2">
+            <FolderSync className="w-4 h-4 text-gray-400" />
+            <select
+              value={folderFilter}
+              onChange={(e) => setFolderFilter(e.target.value)}
+              className="text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 bg-white py-1.5 pl-3 pr-8"
+            >
+              <option value="all">All Sources</option>
+              {configData.configs.map((config) => (
+                <option key={config.id} value={config.id}>
+                  {config.folderName}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Document list */}
