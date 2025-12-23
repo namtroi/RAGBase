@@ -35,11 +35,7 @@ services:
     build:
       context: .
       dockerfile: apps/ai-worker/Dockerfile
-    depends_on:
-      redis:
-        condition: service_healthy
     environment:
-      - REDIS_URL=redis://redis:6379
       - CALLBACK_URL=http://backend:3000/internal/callback
       - OCR_ENABLED=${OCR_ENABLED:-false}
       - OCR_MODE=${OCR_MODE:-auto}

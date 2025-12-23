@@ -56,7 +56,7 @@ interface Chunk {
 
 ## 2. Queue Job Payloads
 
-### Node.js → Redis (BullMQ)
+### Backend → Redis (BullMQ)
 
 ```typescript
 // Job pushed to queue

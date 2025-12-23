@@ -6,9 +6,6 @@ pydantic-settings==2.12.0
 httpx==0.28.0
 structlog==24.4.0
 
-# Queue
-redis>=5.0.0
-
 # ====================
 # OPTIONAL DEPENDENCIES
 # ====================
@@ -21,8 +18,6 @@ pymupdf==1.26.0
 # Document conversion (large download ~500MB)
 docling==2.15.0
 
-# BullMQ (requires Node.js bindings)
-bullmq==2.18.1
-
 # OCR (very large ~1GB+)
 # pip install easyocr==1.7.1
+

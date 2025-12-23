@@ -41,14 +41,11 @@ services:
       dockerfile: apps/ai-worker/Dockerfile
     restart: unless-stopped
     environment:
-      - REDIS_URL=redis://redis:6379
       - CALLBACK_URL=http://backend:3000/internal/callback
       - OCR_ENABLED=${OCR_ENABLED:-false}
       - LOG_LEVEL=INFO
       - LOG_FORMAT=json
     depends_on:
-      redis:
-        condition: service_healthy
       backend:
         condition: service_healthy
     healthcheck:

@@ -11,9 +11,6 @@ from typing import Literal
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    # Redis
-    redis_url: str = "redis://localhost:6379"
-
     # Callback
     callback_url: str = "http://localhost:3000/internal/callback"
 
