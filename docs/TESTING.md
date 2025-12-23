@@ -67,7 +67,7 @@ graph TB
 ### Unit Tests (No I/O)
 
 **Test:** Pure functions, validators, business logic  
-**Mock:** Database, Redis, file system, HTTP requests
+**Mock:** Database, file system, HTTP requests
 
 ### Integration Tests (Real DB, Mocked External)
 
@@ -121,7 +121,7 @@ graph TB
 
 **Between tests:**
 - Clean database tables
-- Reset Redis queues
+- Reset queues (backend)
 - Clear file uploads
 
 **Why:** Tests don't affect each other, parallel execution safe
@@ -202,7 +202,7 @@ pytest --cov=src --cov-report=html  # With coverage
 
 | Decision | Rationale | Trade-off |
 |----------|-----------|-----------|
-| **Testcontainers** | Real DB/Redis | Slower than mocks |
+| **Testcontainers** | Real DB/Redis (backend) | Slower than mocks |
 | **Vitest** | Fast, native ESM | Smaller ecosystem |
 | **Mock AI worker** | Fast, deterministic | Not testing real Docling |
 | **79% coverage** | Balance speed/quality | Not 100% (diminishing returns) |

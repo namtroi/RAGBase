@@ -48,7 +48,7 @@
 - **Framework:** Fastify 4.29
 - **ORM:** Prisma 7.2 + PostgreSQL adapter
 - **Validation:** Zod 3.23
-- **Queue:** BullMQ 5.12 + Redis
+- **Queue:** BullMQ 5.12 + Redis (backend only)
 - **Embedding:** Fastembed 2.0 (all-MiniLM-L6-v2, 384d)
 - **Chunking:** LangChain.js 0.3
 - **Logging:** Pino 9.0 (structured JSON)
@@ -87,16 +87,16 @@
    
 2. **`ai-worker`** - Python/FastAPI processor
    - PDF processing via Docling
-   - HTTP callback to backend
+   - HTTP callback to backend (no queue access)
    
 3. **`postgres` + `redis`** - Data layer
    - PostgreSQL: documents + chunks + vectors
-   - Redis: BullMQ job queue
+   - Redis: BullMQ job queue (backend only)
 
 **Key Architecture Decision: HTTP Dispatch Pattern**
-- Backend dispatches PDF jobs to AI worker via HTTP POST
+- Backend owns queue, dispatches PDF jobs to AI worker via HTTP POST
 - AI worker processes and sends callback to backend
-- Avoids race conditions with dual BullMQ consumers
+- Eliminates race conditions (single queue consumer)
 
 > See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed system design
 
@@ -176,32 +176,6 @@
 - **Private Cloud:** VPS (AWS, DigitalOcean, etc.)
 
 > See [ARCHITECTURE.md](./ARCHITECTURE.md) for deployment details
-
----
-
-## 8. Future Roadmap
-
-### Phase 2: Enhanced Processing
-- 🔜 DOCX support (Docling)
-- 🔜 XLSX support (openpyxl)
-- 🔜 CSV support (Node.js)
-- 🔜 Improved OCR (EasyOCR integration)
-
-### Phase 3: Enterprise Features
-- 🔜 JWT authentication + RBAC
-- 🔜 Multi-tenancy
-- 🔜 Webhook notifications
-- 🔜 Advanced retry strategies
-
-### Phase 4: Integrations
-- 🔜 Google Drive sync
-- 🔜 S3 bucket sync
-- 🔜 Webhook-based real-time sync
-
-### Phase 5: Scaling
-- 🔜 Horizontal worker scaling
-- 🔜 Multi-region deployment
-- 🔜 Custom embedding models
 
 ---
 

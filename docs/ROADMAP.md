@@ -35,7 +35,7 @@
 
 **HTTP Dispatch Pattern:**
 - Backend → HTTP POST → AI Worker → Callback
-- Avoids race conditions with dual BullMQ consumers
+- Backend owns BullMQ queue (single consumer)
 
 **Dual-Lane Processing:**
 - **Fast Lane:** JSON/TXT/MD → immediate (synchronous)
@@ -49,7 +49,7 @@
 | **Processing** | Docling → Markdown → Chunks (LangChain) |
 | **Embedding** | Fastembed (all-MiniLM-L6-v2, 384d, self-hosted) |
 | **Storage** | PostgreSQL 16 + pgvector |
-| **Queue** | BullMQ + Redis (HTTP dispatch pattern) |
+| **Queue** | BullMQ + Redis (backend only) |
 | **UI** | React 18 + Tailwind v4 + React Query polling |
 | **Auth** | API Key (X-API-Key header) |
 | **Logging** | Pino (Node.js), structlog (Python) - JSON format |
@@ -63,7 +63,7 @@
 - Node.js 20 + Fastify 4.29
 - Prisma 7.2 + PostgreSQL adapter
 - Fastembed 2.0 (embeddings)
-- BullMQ 5.12 + Redis 7
+- BullMQ 5.12 + Redis 7 (backend queue)
 
 **AI Worker:**
 - Python 3.11 + FastAPI 0.126

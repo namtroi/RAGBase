@@ -26,6 +26,8 @@ services:
       - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-self-hosted}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-Xenova/all-MiniLM-L6-v2}
       - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-50}
+      - PDF_CONCURRENCY=${PDF_CONCURRENCY:-1}
+      - AI_WORKER_URL=http://ai-worker:8000
     networks:
       - internal
     volumes:
@@ -35,15 +37,12 @@ services:
     build:
       context: .
       dockerfile: apps/ai-worker/Dockerfile
-    depends_on:
-      redis:
-        condition: service_healthy
     environment:
-      - REDIS_URL=redis://redis:6379
       - CALLBACK_URL=http://backend:3000/internal/callback
       - OCR_ENABLED=${OCR_ENABLED:-false}
       - OCR_MODE=${OCR_MODE:-auto}
       - OCR_LANGUAGES=${OCR_LANGUAGES:-en}
+      - MAX_WORKERS=${MAX_WORKERS:-1}
     networks:
       - internal
     volumes:

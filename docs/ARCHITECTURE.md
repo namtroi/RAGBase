@@ -28,10 +28,10 @@ graph TB
 
 | Container | Technology | Purpose |
 |-----------|------------|---------|
-| **backend** | Node.js 20 + Fastify 4.29 | API server, validation, queue, fast lane processing |
-| **ai-worker** | Python 3.11 + FastAPI 0.126 | PDF processing (Docling), HTTP callbacks |
+| **backend** | Node.js 20 + Fastify 4.29 | API server, validation, queue consumer, fast lane processing |
+| **ai-worker** | Python 3.11 + FastAPI 0.126 | PDF processing (Docling), HTTP-only (no queue) |
 | **postgres** | PostgreSQL 16 + pgvector | Documents, chunks, vector embeddings |
-| **redis** | Redis 7 | BullMQ job queue |
+| **redis** | Redis 7 | BullMQ job queue (backend only) |
 
 ---
 
@@ -71,7 +71,7 @@ sequenceDiagram
 **Key Points:**
 - Backend owns the queue (single consumer)
 - Backend HTTP dispatches to AI worker
-- AI worker sends callback when done
+- AI worker sends callback when done (no queue access)
 - **Trade-off:** AI worker must be running, but eliminates race conditions
 
 ---
@@ -225,7 +225,7 @@ graph TB
     Scrape --> Prometheus[Prometheus Server]
     
     Health --> Basic['/health - Basic]
-    Health --> Ready['/ready - DB + Redis]
+    Health --> Ready['/ready - DB + Redis (backend)]
     Health --> Live['/live - Process alive]
     
     style Logs fill:#4CAF50

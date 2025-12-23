@@ -15,6 +15,8 @@ services:
       - RATE_LIMIT_MAX=100
       - RATE_LIMIT_WINDOW=1 minute
       - ALERT_WEBHOOK_URL=${ALERT_WEBHOOK_URL}
+      - PDF_CONCURRENCY=${PDF_CONCURRENCY:-1}
+      - AI_WORKER_URL=http://ai-worker:8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -41,14 +43,12 @@ services:
       dockerfile: apps/ai-worker/Dockerfile
     restart: unless-stopped
     environment:
-      - REDIS_URL=redis://redis:6379
       - CALLBACK_URL=http://backend:3000/internal/callback
       - OCR_ENABLED=${OCR_ENABLED:-false}
       - LOG_LEVEL=INFO
       - LOG_FORMAT=json
+      - MAX_WORKERS=${MAX_WORKERS:-1}
     depends_on:
-      redis:
-        condition: service_healthy
       backend:
         condition: service_healthy
     healthcheck:
