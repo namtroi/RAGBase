@@ -1,13 +1,9 @@
 import { FastifyInstance } from 'fastify';
-import { ChunkerService } from '../../services/chunker-service.js';
 import { getPrisma } from '../../services/database.js';
-import { EmbeddingService } from '../../services/embedding-service.js';
 import { QualityGateService } from '../../services/quality-gate-service.js';
 import { CallbackSchema } from '../../validators/callback-validator.js';
 
-const chunker = new ChunkerService({ chunkSize: 1000, chunkOverlap: 200 });
 const qualityGate = new QualityGateService();
-const embedder = new EmbeddingService();
 
 export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
   fastify.post('/internal/callback', async (request, reply) => {
@@ -16,7 +12,7 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
     if (!parsed.success) {
       return reply.status(400).send({
         error: 'VALIDATION_ERROR',
-        message: parsed.error.message,
+        message: parsed.error.issues,
       });
     }
 
@@ -49,10 +45,15 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
     }
 
     // Handle success callback
-    if (success && result) {
+    if (success && result && result.chunks) {
       try {
+        const content = result.processedContent || '';
+        if (!content) {
+          // Should verify content presence
+        }
+
         // Quality gate check
-        const quality = qualityGate.validate(result.markdown);
+        const quality = qualityGate.validate(content);
 
         if (!quality.passed) {
           await prisma.document.update({
@@ -66,30 +67,18 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
           return reply.send({ status: 'acknowledged', result: 'quality_failed' });
         }
 
-        // Chunk the markdown
-        const { chunks } = await chunker.chunk(result.markdown);
+        // Save chunks with pre-computed embeddings
+        // Clear existing chunks first (idempotency)
+        await prisma.chunk.deleteMany({
+          where: { documentId }
+        });
 
-        if (chunks.length === 0) {
-          await prisma.document.update({
-            where: { id: documentId },
-            data: {
-              status: 'FAILED',
-              failReason: 'NO_CONTENT',
-            },
-          });
-
-          return reply.send({ status: 'acknowledged', result: 'no_content' });
-        }
-
-        // Generate embeddings
-        const embeddings = await embedder.embedBatch(chunks.map(c => c.content));
-
-        // Save chunks with embeddings
-        for (let i = 0; i < chunks.length; i++) {
-          const chunk = chunks[i];
-          const embedding = embeddings[i];
+        for (const chunk of result.chunks) {
           // Convert embedding array to PostgreSQL vector string format
-          const embeddingStr = `[${embedding.join(',')}]`;
+          const embeddingStr = `[${chunk.embedding.join(',')}]`;
+
+
+
 
           await prisma.$executeRaw`
             INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, heading, created_at)
@@ -99,26 +88,35 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
               ${chunk.content},
               ${chunk.index},
               ${embeddingStr}::vector,
-              ${chunk.metadata.charStart},
-              ${chunk.metadata.charEnd},
-              ${chunk.metadata.heading || null},
+              ${(chunk.metadata as any)?.charStart || 0},
+              ${(chunk.metadata as any)?.charEnd || 0},
+              null, 
               NOW()
             )
           `;
         }
 
-        // Update document status
+        // Update document status & metadata
         await prisma.document.update({
           where: { id: documentId },
-          data: { status: 'COMPLETED' },
+          data: {
+            status: 'COMPLETED',
+            processedContent: content,
+            processingMetadata: {
+              pageCount: result.pageCount,
+              ocrApplied: result.ocrApplied,
+              processingTimeMs: result.processingTimeMs
+            }
+          },
         });
 
         return reply.send({
           status: 'acknowledged',
           result: 'success',
-          chunksCreated: chunks.length,
+          chunksCreated: result.chunks.length,
         });
       } catch (err: any) {
+        request.log.error(err);
         await prisma.document.update({
           where: { id: documentId },
           data: {
@@ -134,9 +132,10 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
       }
     }
 
+    // Fallback if chunks are missing (should not happen in normal Phase 2 flow)
     return reply.status(400).send({
       error: 'INVALID_CALLBACK',
-      message: 'Callback must have either result or error',
+      message: 'Callback must have result.chunks',
     });
   });
 }

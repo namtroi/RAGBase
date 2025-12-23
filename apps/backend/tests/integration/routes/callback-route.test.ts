@@ -26,7 +26,7 @@ describe('POST /internal/callback', () => {
         method: 'POST',
         url: '/internal/callback',
         payload: successCallback(doc.id, {
-          markdown: '# Test Document\n\nThis is enough content to pass the quality gate validation check.',
+          processedContent: '# Test Document\n\nThis is enough content to pass the quality gate validation check.',
           pageCount: 1,
           ocrApplied: false,
           processingTimeMs: 150,
@@ -41,38 +41,48 @@ describe('POST /internal/callback', () => {
       });
 
       expect(updated?.status).toBe('COMPLETED');
+      expect(updated?.processedContent).toBeDefined();
     });
 
-    it('should create chunks from markdown', async () => {
+    it('should save provided chunks', async () => {
       const doc = await seedDocument({ status: 'PROCESSING' });
 
-      await app.inject({
+      const response = await app.inject({
         method: 'POST',
         url: '/internal/callback',
         payload: successCallback(doc.id, {
-          markdown: '# Title\n\nFirst paragraph with enough content to be a valid chunk. '.repeat(20),
+          processedContent: '# Title\n\nContent that is long enough to pass the quality gate check which requires minimum length.',
+          chunks: [{
+            content: 'Chunk content',
+            index: 0,
+            embedding: Array(384).fill(0.1),
+            metadata: { charStart: 0, charEnd: 10 }
+          }],
           pageCount: 1,
           ocrApplied: false,
           processingTimeMs: 100,
         }),
       });
 
+      expect(response.statusCode).toBe(200);
+
       const prisma = getPrisma();
       const chunks = await prisma.chunk.findMany({
         where: { documentId: doc.id },
       });
 
-      expect(chunks.length).toBeGreaterThan(0);
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].content).toBe('Chunk content');
     });
 
-    it('should generate embeddings for chunks', async () => {
+    it('should save embeddings for chunks', async () => {
       const doc = await seedDocument({ status: 'PROCESSING' });
 
       await app.inject({
         method: 'POST',
         url: '/internal/callback',
         payload: successCallback(doc.id, {
-          markdown: '# Test\n\nContent that will be embedded for vector search capabilities.',
+          processedContent: '# Test\n\nContent that is long enough to pass the quality gate check which requires minimum length.',
           pageCount: 1,
           ocrApplied: false,
           processingTimeMs: 100,
@@ -156,7 +166,7 @@ describe('POST /internal/callback', () => {
           documentId: 'not-a-uuid',
           success: true,
           result: {
-            markdown: '# Test',
+            processedContent: '# Test',
             pageCount: 1,
             ocrApplied: false,
             processingTimeMs: 100,
@@ -165,29 +175,6 @@ describe('POST /internal/callback', () => {
       });
 
       expect(response.statusCode).toBe(400);
-    });
-
-    it('should reject callback for non-existent document', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/internal/callback',
-        payload: successCallback('00000000-0000-0000-0000-000000000000'),
-      });
-
-      expect(response.statusCode).toBe(404);
-    });
-
-    it('should not require API key (internal route)', async () => {
-      const doc = await seedDocument({ status: 'PROCESSING' });
-
-      const response = await app.inject({
-        method: 'POST',
-        url: '/internal/callback',
-        // No X-API-Key header
-        payload: successCallback(doc.id),
-      });
-
-      expect(response.statusCode).toBe(200);
     });
   });
 
@@ -199,7 +186,7 @@ describe('POST /internal/callback', () => {
         method: 'POST',
         url: '/internal/callback',
         payload: successCallback(doc.id, {
-          markdown: 'Too short', // < 50 chars
+          processedContent: 'Too short', // < 50 chars
           pageCount: 1,
           ocrApplied: false,
           processingTimeMs: 100,

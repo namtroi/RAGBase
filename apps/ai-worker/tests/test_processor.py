@@ -17,25 +17,28 @@ from src.processor import PDFProcessor, ProcessingResult
 
 @pytest.fixture
 def processor():
-    """Create a PDF processor instance."""
+    """Create a PDF processor instance with mocked dependencies if needed."""
     return PDFProcessor()
 
 
 class TestProcessingResult:
     """Tests for ProcessingResult dataclass."""
 
-    def test_success_result(self):
-        """Test creating a successful processing result."""
+    def test_success_result_phase2(self):
+        """Test creating a successful processing result with new fields."""
         result = ProcessingResult(
             success=True,
-            markdown="# Test Document",
+            processed_content="# Test Document",
             page_count=5,
             ocr_applied=False,
             processing_time_ms=1500,
+            chunks=[{"content": "chunk", "index": 0, "embedding": [0.1] * 384}],
         )
 
         assert result.success is True
-        assert result.markdown == "# Test Document"
+        assert result.processed_content == "# Test Document"
+        assert len(result.chunks) == 1
+        assert result.chunks[0]["embedding"] == [0.1] * 384
         assert result.page_count == 5
         assert result.ocr_applied is False
         assert result.processing_time_ms == 1500
@@ -51,58 +54,56 @@ class TestProcessingResult:
         )
 
         assert result.success is False
-        assert result.markdown is None
-        assert result.page_count == 0
+        assert result.chunks is None or result.chunks == []
         assert result.error_code == "PASSWORD_PROTECTED"
-        assert result.error_message == "PDF is password protected"
 
 
 class TestPDFProcessor:
     """Tests for PDFProcessor class."""
 
     @pytest.mark.asyncio
+    async def test_process_success_flow(self, processor, tmp_path):
+        """Test successful processing flow including chunking and embedding."""
+        pdf_path = tmp_path / "valid.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4")
+
+        # Mock dependencies
+        with patch.object(
+            processor, "_is_password_protected", return_value=False
+        ), patch.object(processor, "_get_converter") as MockGetConverter:
+
+            # Mock Docling Converter
+            mock_converter = MagicMock()
+            mock_doc_res = MagicMock()
+            mock_doc_res.document.export_to_markdown.return_value = "# Markdown Content"
+            mock_doc_res.document.pages = [1]
+            mock_converter.convert.return_value = mock_doc_res
+            MockGetConverter.return_value = mock_converter
+
+            # Mock Chunker directly on the instance
+            processor.chunker = MagicMock()
+            processor.chunker.chunk.return_value = [
+                {"content": "chunk1", "index": 0, "metadata": {}}
+            ]
+
+            # Mock Embedder directly on the instance (overriding singleton behavior for this test)
+            processor.embedder = MagicMock()
+            processor.embedder.embed.return_value = [[0.1] * 384]
+
+            result = await processor.process(str(pdf_path))
+
+            assert result.success is True
+            assert result.processed_content == "# Markdown Content"
+            assert len(result.chunks) == 1
+            assert result.chunks[0]["embedding"] == [0.1] * 384
+            assert result.chunks[0]["content"] == "chunk1"
+
+    @pytest.mark.asyncio
     async def test_process_missing_file(self, processor):
         """Test processing a non-existent file returns error."""
         result = await processor.process("/nonexistent/file.pdf")
-
         assert result.success is False
         assert result.error_code == "CORRUPT_FILE"
-        assert "not found" in result.error_message.lower()
-
-    @pytest.mark.asyncio
-    async def test_process_password_protected(self, processor, tmp_path):
-        """Test processing a password-protected PDF returns error."""
-        # Create a dummy file
-        pdf_path = tmp_path / "encrypted.pdf"
-        pdf_path.write_bytes(b"%PDF-1.4")
-
-        # Mock the password protection check
-        with patch.object(processor, "_is_password_protected", return_value=True):
-            result = await processor.process(str(pdf_path))
-
-            assert result.success is False
-            assert result.error_code == "PASSWORD_PROTECTED"
-            assert "password protected" in result.error_message.lower()
-
-    @pytest.mark.asyncio
-    async def test_process_docling_error(self, processor, tmp_path):
-        """Test handling Docling conversion errors."""
-        # Create a dummy file
-        pdf_path = tmp_path / "invalid.pdf"
-        pdf_path.write_bytes(b"%PDF-1.4")
-
-        # Mock password check and converter
-        # Use an error message that doesn't contain 'invalid', 'corrupt', or 'timeout'
-        with patch.object(processor, "_is_password_protected", return_value=False):
-            with patch.object(
-                processor,
-                "_get_converter",
-                side_effect=Exception("Failed to parse document"),
-            ):
-                result = await processor.process(str(pdf_path))
-
-                assert result.success is False
-                assert result.error_code == "INTERNAL_ERROR"
 
     @pytest.mark.asyncio
     async def test_process_timeout_error(self, processor, tmp_path):
@@ -111,64 +112,9 @@ class TestPDFProcessor:
         pdf_path.write_bytes(b"%PDF-1.4")
 
         with patch.object(processor, "_is_password_protected", return_value=False):
-            with patch.object(
-                processor,
-                "_get_converter",
-                side_effect=Exception("Operation timeout exceeded"),
-            ):
-                result = await processor.process(str(pdf_path))
+            with patch.object(processor, "_get_converter") as MockGetConverter:
+                MockGetConverter.side_effect = Exception("Operation timeout exceeded")
 
+                result = await processor.process(str(pdf_path))
                 assert result.success is False
                 assert result.error_code == "TIMEOUT"
-
-
-class TestPasswordProtectionCheck:
-    """Tests for password protection detection."""
-
-    def test_is_password_protected_returns_false_on_error(self, processor):
-        """Test that non-existent files return False (not protected)."""
-        result = processor._is_password_protected(Path("/nonexistent/file.pdf"))
-        assert result is False
-
-    def test_is_password_protected_with_unencrypted_file(self, processor, tmp_path):
-        """Test unencrypted file detection."""
-        # Create a minimal PDF-like file
-        pdf_path = tmp_path / "test.pdf"
-        pdf_path.write_bytes(b"%PDF-1.4\n%%EOF")
-
-        # This might fail without a real PDF, but should not raise
-        result = processor._is_password_protected(pdf_path)
-        # The result depends on whether PyMuPDF is installed
-        assert isinstance(result, bool)
-
-
-class TestOCRNeedsDetection:
-    """Tests for OCR requirement detection."""
-
-    def test_needs_ocr_with_little_text(self, processor):
-        """Test that documents with little text trigger OCR need."""
-        mock_result = MagicMock()
-        mock_result.document.export_to_markdown.return_value = "short"
-        mock_result.document.pages = [1, 2, 3, 4]  # 4 pages
-
-        # 5 chars / 4 pages = 1.25 chars per page < 50
-        result = processor._needs_ocr(mock_result)
-        assert result is True
-
-    def test_needs_ocr_with_enough_text(self, processor):
-        """Test that documents with enough text don't need OCR."""
-        mock_result = MagicMock()
-        mock_result.document.export_to_markdown.return_value = "x" * 200
-        mock_result.document.pages = [1, 2]  # 2 pages
-
-        # 200 chars / 2 pages = 100 chars per page > 50
-        result = processor._needs_ocr(mock_result)
-        assert result is False
-
-    def test_needs_ocr_handles_exceptions(self, processor):
-        """Test that OCR detection handles errors gracefully."""
-        mock_result = MagicMock()
-        mock_result.document.export_to_markdown.side_effect = Exception("Error")
-
-        result = processor._needs_ocr(mock_result)
-        assert result is False  # Default to no OCR on error

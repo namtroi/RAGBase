@@ -85,10 +85,11 @@ class TestProcessEndpoint:
 
         mock_result = ProcessingResult(
             success=True,
-            markdown="# Test Document",
+            processed_content="# Test Document",
             page_count=1,
             ocr_applied=False,
             processing_time_ms=100,
+            chunks=[{"content": "chunk", "index": 0, "embedding": [0.1] * 384}],
         )
 
         with patch(
@@ -123,9 +124,10 @@ class TestProcessEndpoint:
 
         mock_result = ProcessingResult(
             success=True,
-            markdown="# Test",
+            processed_content="# Test",
             page_count=1,
             processing_time_ms=50,
+            chunks=[],
         )
 
         with patch(

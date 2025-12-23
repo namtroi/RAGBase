@@ -27,6 +27,14 @@ class Settings(BaseSettings):
         1  # Concurrent PDF processing workers (default: 1 for thread-safety)
     )
 
+    # Embedding
+    embedding_model: str = "BAAI/bge-small-en-v1.5"
+    embedding_dimension: int = 384
+
+    # Chunking
+    chunk_size: int = 1000
+    chunk_overlap: int = 200
+
     @field_validator("max_workers", mode="before")
     @classmethod
     def validate_max_workers(cls, v):

@@ -1,6 +1,15 @@
 // Callback payload types (mirror CONTRACT.md)
+interface Chunk {
+  content: string;
+  index: number;
+  embedding: number[];
+  metadata?: Record<string, unknown>;
+}
+
 interface ProcessingResult {
-  markdown: string;
+  markdown?: string; // Legacy support in mock if needed, or remove
+  processedContent: string;
+  chunks: Chunk[];
   pageCount: number;
   ocrApplied: boolean;
   processingTimeMs: number;
@@ -22,11 +31,23 @@ interface CallbackPayload {
  * Create success callback payload
  */
 export function successCallback(documentId: string, options?: Partial<ProcessingResult>): CallbackPayload {
+  const content = options?.processedContent || options?.markdown || '# Test Document\n\nThis is test content extracted from PDF.';
+
+  // Default simple chunking if not provided
+  const chunks = options?.chunks || [{
+    content: content,
+    index: 0,
+    embedding: Array(384).fill(0.1),
+    metadata: { charStart: 0, charEnd: content.length }
+  }];
+
   return {
     documentId,
     success: true,
     result: {
-      markdown: '# Test Document\n\nThis is test content extracted from PDF.',
+      processedContent: content,
+      // markdown: content, // Legacy
+      chunks: chunks,
       pageCount: 1,
       ocrApplied: false,
       processingTimeMs: 150,
