@@ -5,6 +5,7 @@ Handles OCR detection and password-protected PDFs.
 """
 
 import asyncio
+import gc
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,10 +34,28 @@ class PDFProcessor:
     """PDF processor using Docling for conversion to Markdown."""
 
     def __init__(self):
-        self._converter = None
+        self._converters: dict = {}  # Cache converters by OCR mode
+        self._semaphore: asyncio.Semaphore | None = None
+
+    def _get_semaphore(self) -> asyncio.Semaphore:
+        """Get or create semaphore for limiting concurrent processing."""
+        if self._semaphore is None:
+            max_workers = max(1, settings.max_workers)
+            self._semaphore = asyncio.Semaphore(max_workers)
+            logger.info("semaphore_created", max_workers=max_workers)
+        return self._semaphore
 
     def _get_converter(self, ocr_mode: str):
-        """Create Docling converter with appropriate OCR settings."""
+        """Get or create cached Docling converter for the OCR mode.
+
+        Converters are cached by OCR mode to avoid reloading models
+        on every request, which saves ~1.5GB RAM per reload.
+        """
+        if ocr_mode in self._converters:
+            return self._converters[ocr_mode]
+
+        logger.info("creating_converter", ocr_mode=ocr_mode)
+
         from docling.datamodel.base_models import InputFormat
         from docling.datamodel.pipeline_options import PdfPipelineOptions
         from docling.document_converter import DocumentConverter, PdfFormatOption
@@ -60,17 +79,36 @@ class PDFProcessor:
         # Docling 2.15.0 API: wrap pipeline_options in PdfFormatOption
         pdf_format_option = PdfFormatOption(pipeline_options=pipeline_options)
 
-        return DocumentConverter(
+        converter = DocumentConverter(
             allowed_formats=[InputFormat.PDF],
             format_options={InputFormat.PDF: pdf_format_option},
         )
+
+        self._converters[ocr_mode] = converter
+        logger.info("converter_cached", ocr_mode=ocr_mode)
+
+        return converter
 
     async def process(
         self,
         file_path: str,
         ocr_mode: str = "auto",
     ) -> ProcessingResult:
-        """Process PDF file and return markdown."""
+        """Process PDF file and return markdown.
+
+        Uses semaphore to limit concurrent processing and prevent
+        thread-safety issues with Docling/tqdm.
+        """
+        # Acquire semaphore to limit concurrent processing
+        async with self._get_semaphore():
+            return await self._process_internal(file_path, ocr_mode)
+
+    async def _process_internal(
+        self,
+        file_path: str,
+        ocr_mode: str = "auto",
+    ) -> ProcessingResult:
+        """Internal processing logic, called within semaphore context."""
         start_time = time.time()
         path = Path(file_path)
 
@@ -150,6 +188,12 @@ class PDFProcessor:
                 error_code=error_code,
                 error_message=str(e),
             )
+
+        finally:
+            # Force garbage collection to release file-specific memory
+            # This keeps RAM usage stable instead of accumulating
+            gc.collect()
+            logger.debug("gc_collected", path=file_path)
 
     def _is_password_protected(self, path: Path) -> bool:
         """Check if PDF is password protected using PyMuPDF."""

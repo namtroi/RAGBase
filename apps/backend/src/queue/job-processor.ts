@@ -1,6 +1,7 @@
 import { UnrecoverableError, Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 import { getPrisma } from '../services/database.js';
+import { getPdfConcurrency } from './concurrency-config.js';
 import { ProcessingJob } from './processing-queue.js';
 
 const PERMANENT_ERRORS = [
@@ -25,11 +26,11 @@ export function createJobProcessor(connection: Redis): Worker<ProcessingJob> {
         });
 
         job.log(`Processing document ${job.data.documentId}`);
-        
+
         // Dispatch PDF to Python worker via HTTP
         if (job.data.format === 'pdf') {
           const aiWorkerUrl = process.env.AI_WORKER_URL || 'http://localhost:8000';
-          
+
           const response = await fetch(`${aiWorkerUrl}/process`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -39,24 +40,24 @@ export function createJobProcessor(connection: Redis): Worker<ProcessingJob> {
               config: job.data.config,
             }),
           });
-          
+
           if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Python worker failed: ${response.status} - ${errorText}`);
           }
-          
+
           // Job completed - Python will send callback when processing done
           return { dispatched: true, documentId: job.data.documentId };
         }
-        
+
         // Non-PDF formats: mark as completed (no processing needed in Python)
         await prisma.document.update({
           where: { id: job.data.documentId },
           data: { status: 'COMPLETED' },
         });
-        
+
         return { processed: true, documentId: job.data.documentId };
-        
+
       } catch (error) {
         // Nếu document không tồn tại, không retry
         if ((error as any)?.code === 'P2025') {
@@ -67,7 +68,7 @@ export function createJobProcessor(connection: Redis): Worker<ProcessingJob> {
     },
     {
       connection,
-      concurrency: 5,
+      concurrency: getPdfConcurrency(),
       lockDuration: 300000,
     }
   );
@@ -86,8 +87,8 @@ export function createJobProcessor(connection: Redis): Worker<ProcessingJob> {
       );
 
       // Fix: Check cả UnrecoverableError
-      const shouldMarkFailed = 
-        isPermanent || 
+      const shouldMarkFailed =
+        isPermanent ||
         err instanceof UnrecoverableError ||
         job.attemptsMade >= (job.opts.attempts ?? 3);
 
