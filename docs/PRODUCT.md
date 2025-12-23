@@ -3,7 +3,7 @@
 **Slogan:** _The "Set & Forget" Data Pipeline for Enterprise RAG._  
 **(Open Source | Self-Hosted | Structure-Aware | Production-Ready)**
 
-**Status:** Phase 1 MVP Complete (2025-12-21)
+**Status:** Phase 1 MVP Complete (2025-12-21) 
 
 ---
 
