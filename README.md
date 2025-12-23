@@ -2,11 +2,6 @@
 
 **Open-source ETL for RAG** | Self-hosted | TDD | Production-ready
 
-[![Backend Tests](https://github.com/namtroi/RAGBase/actions/workflows/backend-tests.yml/badge.svg)](https://github.com/namtroi/RAGBase/actions/workflows/backend-tests.yml)
-[![AI Worker Tests](https://github.com/namtroi/RAGBase/actions/workflows/ai-worker-tests.yml/badge.svg)](https://github.com/namtroi/RAGBase/actions/workflows/ai-worker-tests.yml)
-[![Docker Build](https://github.com/namtroi/RAGBase/actions/workflows/docker-build.yml/badge.svg)](https://github.com/namtroi/RAGBase/actions/workflows/docker-build.yml)
-[![Lint](https://github.com/namtroi/RAGBase/actions/workflows/lint.yml/badge.svg)](https://github.com/namtroi/RAGBase/actions/workflows/lint.yml)
-
 Convert PDFs, JSON, TXT → Vector embeddings for semantic search.
 
 ---

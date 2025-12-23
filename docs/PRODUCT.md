@@ -179,12 +179,12 @@
 
 ---
 
-## 9. Documentation
+## 8. Documentation
 
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System design & data flow
 - **[ROADMAP.md](./ROADMAP.md)** - Product roadmap & future features
 - **[API.md](./API.md)** - API specifications
-- **[TEST_STRATEGY.md](./TEST_STRATEGY.md)** - Testing approach
+- **[TESTING.md](./TESTING.md)** - Testing approach
 - **[plans/](../plans/)** - Implementation plans & phase details
 
 ---

@@ -395,12 +395,14 @@ sequenceDiagram
 - `UPLOAD_DIR` - File storage path
 - `AI_WORKER_URL` - AI worker endpoint
 - `CALLBACK_URL` - Callback endpoint
+- `PDF_CONCURRENCY` - PDF processing concurrency (default: 1)
 - `NODE_ENV` - Environment (development/production)
 
 **AI Worker:**
 - `PORT` - Server port
 - `CALLBACK_URL` - Backend callback endpoint
 - `OCR_MODE` - OCR behavior (auto/force/never)
+- `MAX_WORKERS` - Concurrent PDF processing workers (default: 1)
 
 > See `.env.example` for complete list
 
