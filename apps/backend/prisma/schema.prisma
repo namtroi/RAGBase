@@ -28,6 +28,17 @@ enum ProcessingLane {
   heavy
 }
 
+enum SourceType {
+  MANUAL
+  DRIVE
+}
+
+enum SyncStatus {
+  IDLE
+  SYNCING
+  ERROR
+}
+
 model Document {
   id          String         @id @default(uuid())
   filename    String
@@ -47,8 +58,17 @@ model Document {
   processedContent    String?   @db.Text @map("processed_content")
   processingMetadata  Json?     @map("processing_metadata")
 
-  chunks      Chunk[]
+  // Phase 2E: Drive Sync
+  sourceType      SourceType    @default(MANUAL) @map("source_type")
+  driveFileId     String?       @unique @map("drive_file_id")
+  driveConfigId   String?       @map("drive_config_id")
+  lastSyncedAt    DateTime?     @map("last_synced_at")
 
+  chunks        Chunk[]
+  driveConfig   DriveConfig?  @relation(fields: [driveConfigId], references: [id], onDelete: SetNull)
+
+  @@index([sourceType])
+  @@index([driveConfigId])
   @@map("documents")
 }
 
@@ -68,4 +88,24 @@ model Chunk {
 
   @@unique([documentId, chunkIndex])
   @@map("chunks")
+}
+
+model DriveConfig {
+  id            String      @id @default(uuid())
+  folderId      String      @unique @map("folder_id")
+  folderName    String      @map("folder_name")
+  syncCron      String      @default("0 */6 * * *") @map("sync_cron")
+  recursive     Boolean     @default(true)
+  enabled       Boolean     @default(true)
+  lastSyncedAt  DateTime?   @map("last_synced_at")
+  pageToken     String?     @map("page_token")
+  syncStatus    SyncStatus  @default(IDLE) @map("sync_status")
+  syncError     String?     @map("sync_error")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  documents     Document[]
+
+  @@index([enabled])
+  @@map("drive_configs")
 }

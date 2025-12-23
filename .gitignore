@@ -102,3 +102,6 @@ apps/backend/local_cache/
 #Python
 venv/
 .venv
+
+#Google Drive Sync
+service-account.json
