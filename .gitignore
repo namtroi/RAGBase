@@ -105,3 +105,4 @@ venv/
 
 #Google Drive Sync
 service-account.json
+htmlcov/

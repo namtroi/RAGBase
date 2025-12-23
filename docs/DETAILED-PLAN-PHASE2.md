@@ -426,26 +426,16 @@ POST   /api/drive/sync/:configId/trigger - Manual sync
 
 ---
 
-## Part 2G: Re-embed Migration
-
-**Scope:** Migrate Phase 1 data to new embedding model.
-
-### 2G.1 Create Migration Script
-
-**New file:** `apps/backend/src/scripts/migrate-embeddings.ts`
-
-**Process:**
-1. Query all documents with chunks
-2. Re-process through AI Worker
-3. Update chunks with new embeddings
-4. Verify retrieval quality
+## Part 2G: Re-embed Migration (DEPRECATED)
+**Status:** SKIPPED
+**Reason:** User opted to reset development data instead of migrating.
 
 ---
 
 ## Progress Tracking
 
 | Part | Status | Started | Completed |
-|------|--------|---------|-----------|
+|------|--------|---------|-----------|s
 | 2A | ⬜ Not Started | - | - |
 | 2B | ⬜ Not Started | - | - |
 | 2C | ⬜ Not Started | - | - |
