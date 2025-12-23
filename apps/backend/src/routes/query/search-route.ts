@@ -1,9 +1,9 @@
 import { getPrismaClient } from '@/services/database.js';
-import { EmbeddingService } from '@/services/embedding-service.js';
+import { EmbeddingClient } from '@/services/embedding-client.js';
 import { QuerySchema } from '@/validators/index.js';
 import { FastifyInstance } from 'fastify';
 
-const embeddingService = new EmbeddingService();
+const embeddingClient = new EmbeddingClient();
 
 export async function searchRoute(fastify: FastifyInstance): Promise<void> {
   fastify.post('/api/query', async (request, reply) => {
@@ -18,10 +18,10 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
 
     const { query, topK } = input.data;
 
-    // Generate embedding for query with error handling
+    // Generate embedding for query via AI Worker
     let queryEmbedding: number[];
     try {
-      queryEmbedding = await embeddingService.embed(query);
+      queryEmbedding = await embeddingClient.embed(query);
     } catch (error: any) {
       return reply.status(503).send({
         error: 'EMBEDDING_SERVICE_ERROR',

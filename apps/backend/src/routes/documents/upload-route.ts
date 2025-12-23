@@ -1,9 +1,10 @@
 import { getProcessingQueue } from '@/queue/processing-queue.js';
 import { getPrismaClient } from '@/services/database.js';
-import { ChunkerService, EmbeddingService, HashService } from '@/services/index.js';
-import { detectFormat, getProcessingLane, validateUpload } from '@/validators/index.js';
+import { HashService } from '@/services/index.js';
+import { detectFormat } from '@/validators/index.js';
+import { validateUpload } from '@/validators/upload-validator.js';
 import { FastifyInstance } from 'fastify';
-import { mkdir, readFile, rm, writeFile } from 'fs/promises';
+import { mkdir, rm, writeFile } from 'fs/promises';
 import path, { basename } from 'path';
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || '/tmp/uploads';
@@ -14,7 +15,7 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
   fastify.post('/api/documents', async (request, reply) => {
     try {
       console.log('📤 Upload request received');
-      
+
       const data = await request.file();
 
       if (!data) {
@@ -93,8 +94,8 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
         });
       }
 
-      // Determine processing lane
-      const lane = getProcessingLane(format);
+      // All files now use heavy lane (processed through queue)
+      const lane = 'heavy';
       console.log('🛣️ Processing lane:', lane);
 
       // Use MD5 hash only for unique storage (prevents path traversal)
@@ -139,83 +140,18 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
         throw error;
       }
 
-      // Process based on lane
-      if (lane === 'fast') {
-        // Fast lane: Process immediately (JSON, TXT, MD)
-        console.log('⚡ Fast lane processing - reading file...');
-
-        try {
-          // 1. Read file content
-          const fileContent = await readFile(filePath, 'utf-8');
-          console.log(`✅ File read: ${fileContent.length} characters`);
-
-          // 2. Chunk the content
-          const chunker = new ChunkerService();
-          const { chunks } = await chunker.chunk(fileContent);
-          console.log(`✅ Created ${chunks.length} chunks`);
-
-          // 3. Generate embeddings for all chunks
-          const embedder = new EmbeddingService();
-          const texts = chunks.map((c) => c.content);
-          const embeddings = await embedder.embedBatch(texts);
-          console.log(`✅ Generated ${embeddings.length} embeddings`);
-
-          // 4. Store chunks in database with embeddings
-          for (let i = 0; i < chunks.length; i++) {
-            const chunk = chunks[i];
-            const embedding = embeddings[i];
-            // Convert embedding array to PostgreSQL vector string format
-            const embeddingStr = `[${embedding.join(',')}]`;
-
-            await prisma.$executeRaw`
-              INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, heading, created_at)
-              VALUES (
-                gen_random_uuid(),
-                ${document.id},
-                ${chunk.content},
-                ${chunk.index},
-                ${embeddingStr}::vector,
-                ${chunk.metadata.charStart},
-                ${chunk.metadata.charEnd},
-                ${chunk.metadata.heading || null},
-                NOW()
-              )
-            `;
-          }
-          console.log(`✅ Stored ${chunks.length} chunks in database`);
-
-          // 5. Update document status to COMPLETED
-          await prisma.document.update({
-            where: { id: document.id },
-            data: { status: 'COMPLETED' },
-          });
-          console.log('✅ Document marked as COMPLETED');
-
-        } catch (error) {
-          console.error('❌ Fast lane processing error:', error);
-          await prisma.document.update({
-            where: { id: document.id },
-            data: {
-              status: 'FAILED',
-              failReason: error instanceof Error ? error.message : 'Processing failed',
-            },
-          }).catch(console.error);
-          throw error;
-        }
-      } else {
-        // Heavy lane: Queue for processing (PDF)
-        console.log('📬 Adding to queue...');
-        await getProcessingQueue().add('process', {
-          documentId: document.id,
-          filePath: filePath,
-          format: format as any,
-          config: {
-            ocrMode: 'auto',
-            ocrLanguages: ['en'],
-          },
-        });
-        console.log('✅ Queued successfully');
-      }
+      // Queue for processing (all formats now go through queue)
+      console.log('📬 Adding to queue...');
+      await getProcessingQueue().add('process', {
+        documentId: document.id,
+        filePath: filePath,
+        format: format as any,
+        config: {
+          ocrMode: 'auto',
+          ocrLanguages: ['en'],
+        },
+      });
+      console.log('✅ Queued successfully');
 
       console.log('🎉 Upload complete, returning 201');
       return reply.status(201).send({
