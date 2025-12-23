@@ -19,6 +19,7 @@ export async function setup() {
   // Set env vars for tests
   process.env.DATABASE_URL = postgresContainer.getConnectionUri();
   process.env.REDIS_URL = redisContainer.getConnectionUrl();
+  process.env.API_KEY = 'test-api-key';
 
   console.log('✅ PostgreSQL:', process.env.DATABASE_URL);
   console.log('✅ Redis:', process.env.REDIS_URL);

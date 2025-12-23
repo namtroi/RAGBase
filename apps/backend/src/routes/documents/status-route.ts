@@ -41,6 +41,7 @@ export async function statusRoute(fastify: FastifyInstance): Promise<void> {
       retryCount: document.retryCount,
       failReason: document.failReason || undefined,
       chunkCount: document.status === 'COMPLETED' ? document._count.chunks : undefined,
+      hasProcessedContent: !!document.processedContent,
       createdAt: document.createdAt.toISOString(),
       updatedAt: document.updatedAt.toISOString(),
     });
