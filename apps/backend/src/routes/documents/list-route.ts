@@ -45,6 +45,7 @@ export async function listRoute(fastify: FastifyInstance): Promise<void> {
         status: doc.status,
         chunkCount: doc._count.chunks || undefined,
         createdAt: doc.createdAt.toISOString(),
+        hasProcessedContent: doc.status === 'COMPLETED',
       })),
       total,
     });

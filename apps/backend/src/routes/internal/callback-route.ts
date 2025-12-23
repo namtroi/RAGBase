@@ -48,6 +48,7 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
     if (success && result && result.chunks) {
       try {
         const content = result.processedContent || '';
+        console.log(`📥 Callback received for ${documentId}: Content length = ${content.length}`);
         if (!content) {
           // Should verify content presence
         }

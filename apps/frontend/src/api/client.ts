@@ -19,7 +19,8 @@ export function getApiKey(): string {
 
 async function request<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  responseType: 'json' | 'blob' = 'json'
 ): Promise<T> {
   const isFormData = options.body instanceof FormData;
 
@@ -42,6 +43,10 @@ async function request<T>(
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.message || `HTTP ${response.status}`);
+  }
+
+  if (responseType === 'blob') {
+    return response.blob() as Promise<T>;
   }
 
   return response.json();
@@ -76,4 +81,6 @@ export const api = {
       body: formData,
     });
   },
+
+  download: (endpoint: string) => request<Blob>(endpoint, {}, 'blob'),
 };

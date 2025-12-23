@@ -61,6 +61,9 @@ export const documentsApi = {
   getContent: (id: string, format: 'markdown' | 'json' = 'markdown') =>
     api.get<{ content: string | unknown }>(`/documents/${id}/content?format=${format}`),
 
+  downloadContent: (id: string, format: 'markdown' | 'json') =>
+    api.download(`/documents/${id}/content?format=${format}`),
+
   upload: (file: File) =>
     api.upload<{ id: string; filename: string; status: string; format: string; lane: string }>(
       '/documents',
