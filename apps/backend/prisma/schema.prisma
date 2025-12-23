@@ -43,6 +43,10 @@ model Document {
   createdAt   DateTime       @default(now()) @map("created_at")
   updatedAt   DateTime       @updatedAt @map("updated_at")
 
+  // Phase 2: Content Export
+  processedContent    String?   @db.Text @map("processed_content")
+  processingMetadata  Json?     @map("processing_metadata")
+
   chunks      Chunk[]
 
   @@map("documents")

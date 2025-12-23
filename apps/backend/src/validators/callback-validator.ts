@@ -1,7 +1,13 @@
 import { z } from 'zod';
 
 const ProcessingResultSchema = z.object({
-  markdown: z.string(),
+  processedContent: z.string().optional(),
+  chunks: z.array(z.object({
+    content: z.string(),
+    index: z.number(),
+    embedding: z.array(z.number()), // Expect 384d
+    metadata: z.record(z.unknown()).optional()
+  })).optional(),
   pageCount: z.number().int().positive(),
   ocrApplied: z.boolean(),
   processingTimeMs: z.number().positive(),

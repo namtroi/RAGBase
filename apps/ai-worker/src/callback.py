@@ -23,7 +23,8 @@ async def send_callback(
             "documentId": document_id,
             "success": True,
             "result": {
-                "markdown": result.markdown,
+                "processedContent": result.processed_content,
+                "chunks": result.chunks,
                 "pageCount": result.page_count,
                 "ocrApplied": result.ocr_applied,
                 "processingTimeMs": result.processing_time_ms,
@@ -40,11 +41,11 @@ async def send_callback(
         }
 
     try:
-        # Increased timeout for large documents (482 pages can have huge markdown)
+        # Increased timeout for large documents
         timeout = httpx.Timeout(
             connect=10.0,
-            read=120.0,  # 2 minutes for response
-            write=120.0,  # 2 minutes for sending large payload
+            read=120.0,
+            write=120.0,
             pool=10.0,
         )
         async with httpx.AsyncClient(timeout=timeout) as client:

@@ -1,17 +1,19 @@
 # apps/ai-worker/src/processor.py
 """
 PDF processor using Docling for document conversion.
-Handles OCR detection and password-protected PDFs.
+Handles OCR detection, chunking, and embedding.
 """
 
 import asyncio
 import gc
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
+from .chunker import Chunker
 from .config import settings
+from .embedder import Embedder
 from .logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -22,7 +24,10 @@ class ProcessingResult:
     """Result of PDF processing operation."""
 
     success: bool
-    markdown: Optional[str] = None
+    processed_content: Optional[str] = None  # Full markdown output
+    chunks: Optional[List[Dict[str, Any]]] = field(
+        default_factory=list
+    )  # Pre-chunked + embedded
     page_count: int = 0
     ocr_applied: bool = False
     processing_time_ms: int = 0
@@ -37,6 +42,10 @@ class PDFProcessor:
         self._converters: dict = {}  # Cache converters by OCR mode
         self._semaphore: asyncio.Semaphore | None = None
 
+        # Initialize helper modules
+        self.chunker = Chunker()
+        self.embedder = Embedder()
+
     def _get_semaphore(self) -> asyncio.Semaphore:
         """Get or create semaphore for limiting concurrent processing."""
         if self._semaphore is None:
@@ -46,11 +55,7 @@ class PDFProcessor:
         return self._semaphore
 
     def _get_converter(self, ocr_mode: str):
-        """Get or create cached Docling converter for the OCR mode.
-
-        Converters are cached by OCR mode to avoid reloading models
-        on every request, which saves ~1.5GB RAM per reload.
-        """
+        """Get or create cached Docling converter for the OCR mode."""
         if ocr_mode in self._converters:
             return self._converters[ocr_mode]
 
@@ -63,7 +68,6 @@ class PDFProcessor:
         pipeline_options = PdfPipelineOptions()
 
         if ocr_mode == "force" or (ocr_mode == "auto" and settings.ocr_enabled):
-            # OCR is enabled - configure if easyocr is available
             try:
                 from docling.datamodel.pipeline_options import EasyOcrOptions
 
@@ -76,7 +80,6 @@ class PDFProcessor:
         else:
             pipeline_options.do_ocr = False
 
-        # Docling 2.15.0 API: wrap pipeline_options in PdfFormatOption
         pdf_format_option = PdfFormatOption(pipeline_options=pipeline_options)
 
         converter = DocumentConverter(
@@ -93,13 +96,9 @@ class PDFProcessor:
         self,
         file_path: str,
         ocr_mode: str = "auto",
+        **kwargs,  # Accept extra kwargs like document_id/format but ignore logic-wise here
     ) -> ProcessingResult:
-        """Process PDF file and return markdown.
-
-        Uses semaphore to limit concurrent processing and prevent
-        thread-safety issues with Docling/tqdm.
-        """
-        # Acquire semaphore to limit concurrent processing
+        """Process PDF file and return markdown."""
         async with self._get_semaphore():
             return await self._process_internal(file_path, ocr_mode)
 
@@ -121,7 +120,6 @@ class PDFProcessor:
             )
 
         try:
-            # Check for password protection
             if self._is_password_protected(path):
                 logger.warning("password_protected", path=file_path)
                 return ProcessingResult(
@@ -130,45 +128,44 @@ class PDFProcessor:
                     error_message="PDF is password protected. Remove password and re-upload.",
                 )
 
-            # Get converter with OCR settings
             converter = self._get_converter(ocr_mode)
 
-            # Convert PDF (run in thread pool for async compatibility)
+            # Convert PDF
             result = await asyncio.to_thread(converter.convert, str(path))
 
-            # Check if OCR was actually applied
             ocr_applied = ocr_mode == "force" or (
                 ocr_mode == "auto" and self._needs_ocr(result)
             )
 
-            # Export to markdown
+            # 1. Get Markdown
             markdown = result.document.export_to_markdown()
 
-            # Save markdown to file for quality review
-            output_dir = Path("/tmp/markdown_output")
-            output_dir.mkdir(exist_ok=True)
-            output_file = output_dir / f"{path.stem}.md"
-            output_file.write_text(markdown, encoding="utf-8")
-            logger.info("markdown_saved", output_path=str(output_file))
+            # 2. Chunking
+            chunks = self.chunker.chunk(markdown)
 
-            # Get page count
+            # 3. Embedding
+            if chunks:
+                texts = [c["content"] for c in chunks]
+                embeddings = self.embedder.embed(texts)
+                for i, chunk in enumerate(chunks):
+                    chunk["embedding"] = embeddings[i]
+
             page_count = (
                 len(result.document.pages) if hasattr(result.document, "pages") else 1
             )
-
             processing_time_ms = int((time.time() - start_time) * 1000)
 
             logger.info(
                 "processing_complete",
                 path=file_path,
-                page_count=page_count,
-                ocr_applied=ocr_applied,
+                chunks=len(chunks),
                 time_ms=processing_time_ms,
             )
 
             return ProcessingResult(
                 success=True,
-                markdown=markdown,
+                processed_content=markdown,
+                chunks=chunks,
                 page_count=page_count,
                 ocr_applied=ocr_applied,
                 processing_time_ms=processing_time_ms,
@@ -176,7 +173,6 @@ class PDFProcessor:
 
         except Exception as e:
             logger.exception("processing_error", path=file_path, error=str(e))
-
             error_code = "INTERNAL_ERROR"
             if "timeout" in str(e).lower():
                 error_code = "TIMEOUT"
@@ -190,30 +186,21 @@ class PDFProcessor:
             )
 
         finally:
-            # Force garbage collection to release file-specific memory
-            # This keeps RAM usage stable instead of accumulating
             gc.collect()
-            logger.debug("gc_collected", path=file_path)
 
     def _is_password_protected(self, path: Path) -> bool:
-        """Check if PDF is password protected using PyMuPDF."""
         try:
-            import fitz  # PyMuPDF
+            import fitz
 
-            doc = fitz.open(str(path))
-            is_encrypted = doc.is_encrypted
-            doc.close()
-            return is_encrypted
+            with fitz.open(str(path)) as doc:
+                return doc.is_encrypted
         except Exception:
             return False
 
     def _needs_ocr(self, result) -> bool:
-        """Determine if OCR was needed based on text extraction."""
         try:
-            # If very little text was extracted, OCR was likely needed
             text = result.document.export_to_markdown()
             pages = result.document.pages if hasattr(result.document, "pages") else []
-            # Less than 50 chars per page suggests scanned
             chars_per_page = len(text) / max(1, len(pages))
             return chars_per_page < 50
         except Exception:
