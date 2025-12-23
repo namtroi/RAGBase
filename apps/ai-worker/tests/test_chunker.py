@@ -41,13 +41,9 @@ More content here.
 """
     chunks = chunker.chunk(md_text)
 
-    # Chunk 0 should capture "Section One" context
-    # LangChain MarkdownHeaderTextSplitter logic depends on how we implement.
-    # If we use RecursiveCharacterTextSplitter.from_tiktoken_encoder, no headings.
-    # If we use MarkdownHeaderTextSplitter, we get metadata.
-
-    # We will assume we implement header extraction logic.
-    pass
+    # Currently we don't have header extraction enabled in current implementation
+    # Just verify it splits successfully
+    assert len(chunks) > 0
 
 
 def test_chunk_metadata_structure():
