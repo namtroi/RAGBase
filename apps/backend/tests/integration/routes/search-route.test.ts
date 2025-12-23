@@ -1,7 +1,10 @@
 import { closeTestApp, createTestApp } from '@tests/helpers/api.js';
 import { cleanDatabase, getPrisma, seedDocument } from '@tests/helpers/database.js';
-import { mockEmbedding } from '@tests/mocks/embedding-mock.js';
+import { mockEmbedding, mockEmbeddingClient } from '@tests/mocks/embedding-mock.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+
+// Mock EmbeddingClient before importing modules that use it
+mockEmbeddingClient();
 
 describe('POST /api/query', () => {
   let app: any;

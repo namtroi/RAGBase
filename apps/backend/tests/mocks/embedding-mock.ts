@@ -71,3 +71,16 @@ export const KNOWN_EMBEDDINGS = {
   'test document content': mockEmbedding('test document content'),
   'search query': mockEmbedding('search query'),
 };
+
+/**
+ * Mock the EmbeddingClient (calls AI Worker for embeddings)
+ * This replaces the HTTP call with deterministic mock embeddings
+ */
+export function mockEmbeddingClient() {
+  vi.mock('@/services/embedding-client.js', () => ({
+    EmbeddingClient: vi.fn().mockImplementation(() => ({
+      embed: vi.fn(async (text: string) => mockEmbedding(text)),
+      embedBatch: vi.fn(async (texts: string[]) => texts.map(mockEmbedding)),
+    })),
+  }));
+}

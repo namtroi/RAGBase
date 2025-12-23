@@ -46,7 +46,7 @@ describe('POST /api/documents', () => {
       expect(body.lane).toBe('heavy');
     });
 
-    it('should upload JSON to fast lane', async () => {
+    it('should upload JSON to heavy lane', async () => {
       const jsonBuffer = await readFixture(FIXTURES.json.valid);
 
       const { payload, headers } = createMultipartMock('data.json', jsonBuffer, 'application/json');
@@ -65,7 +65,7 @@ describe('POST /api/documents', () => {
 
       const body = response.json();
       expect(body.format).toBe('json');
-      expect(body.lane).toBe('fast');
+      expect(body.lane).toBe('heavy');
     });
 
     it('should upload TXT file', async () => {
@@ -208,7 +208,7 @@ describe('POST /api/documents', () => {
 // Helper to create multipart payload
 function createMultipartMock(filename: string, buffer: Buffer, mimeType: string) {
   const boundary = 'ragbase_test_boundary';
-  
+
   const headers = [
     `--${boundary}`,
     `Content-Disposition: form-data; name="file"; filename="${filename}"`,

@@ -7,6 +7,7 @@ import { configureRateLimit } from './middleware/rate-limit.js';
 import { configureSecurity, securityHooks } from './middleware/security.js';
 import { closeQueue } from './queue/processing-queue.js';
 import { initWorker, shutdownWorker } from './queue/worker-init.js';
+import { contentRoute } from './routes/documents/content-route.js';
 import { listRoute } from './routes/documents/list-route.js';
 import { statusRoute } from './routes/documents/status-route.js';
 import { uploadRoute } from './routes/documents/upload-route.js';
@@ -60,9 +61,10 @@ export async function createApp(): Promise<FastifyInstance> {
   // Register protected routes (Auth applied here)
   await app.register(async (protectedScope) => {
     protectedScope.addHook('onRequest', authMiddleware);
-    
+
     await uploadRoute(protectedScope);
     await statusRoute(protectedScope);
+    await contentRoute(protectedScope);
     await listRoute(protectedScope);
     await searchRoute(protectedScope);
   });

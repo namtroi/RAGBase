@@ -1,8 +1,8 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { API_KEY, getTestApp, setupE2E, teardownE2E } from '@tests/e2e/setup/e2e-setup.js';
 import { cleanDatabase } from '@tests/helpers/database.js';
 import { FIXTURES, readFixture } from '@tests/helpers/fixtures.js';
 import { ERRORS } from '@tests/mocks/python-worker-mock.js';
-import { API_KEY, getTestApp, setupE2E, teardownE2E } from '@tests/e2e/setup/e2e-setup.js';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 describe('E2E: Error Handling', () => {
   beforeAll(async () => {
@@ -82,7 +82,13 @@ describe('E2E: Error Handling', () => {
           documentId,
           success: true,
           result: {
-            markdown: 'Too short',
+            processedContent: 'Too short',
+            chunks: [{
+              content: 'Too short',
+              index: 0,
+              embedding: Array(384).fill(0.1),
+              metadata: { charStart: 0, charEnd: 9 }
+            }],
             pageCount: 1,
             ocrApplied: false,
             processingTimeMs: 100,
@@ -119,6 +125,7 @@ describe('E2E: Error Handling', () => {
       const { id: documentId } = uploadResponse.json();
 
       // Simulate callback with noisy content (>80% special chars)
+      const noisyContent = '!@#$%^&*(){}[]|\\/:;"\'<>,.?~`!@#$%^&*(){}[]|' + 'AB'.repeat(5);
       await app.inject({
         method: 'POST',
         url: '/internal/callback',
@@ -126,9 +133,13 @@ describe('E2E: Error Handling', () => {
           documentId,
           success: true,
           result: {
-            // Need >50 chars total, >80% special chars to trigger EXCESSIVE_NOISE
-            // 45 special chars + 10 alphanumeric = 55 total chars, 82% noise
-            markdown: '!@#$%^&*(){}[]|\\/:;"\'<>,.?~`!@#$%^&*(){}[]|' + 'AB'.repeat(5),
+            processedContent: noisyContent,
+            chunks: [{
+              content: noisyContent,
+              index: 0,
+              embedding: Array(384).fill(0.1),
+              metadata: { charStart: 0, charEnd: noisyContent.length }
+            }],
             pageCount: 1,
             ocrApplied: true,
             processingTimeMs: 500,

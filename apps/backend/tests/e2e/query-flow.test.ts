@@ -1,9 +1,12 @@
 import { API_KEY, getTestApp, setupE2E, teardownE2E } from '@tests/e2e/setup/e2e-setup.js';
 import { cleanDatabase, getPrisma, seedDocument } from '@tests/helpers/database.js';
 import { FIXTURES, readFixture } from '@tests/helpers/fixtures.js';
-import { mockEmbedding } from '@tests/mocks/embedding-mock.js';
+import { mockEmbedding, mockEmbeddingClient } from '@tests/mocks/embedding-mock.js';
 import { successCallback } from '@tests/mocks/python-worker-mock.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+
+// Mock EmbeddingClient before importing modules that use it
+mockEmbeddingClient();
 
 describe('E2E: Query Flow', () => {
   beforeAll(async () => {
