@@ -80,6 +80,34 @@ async def readiness_check():
     }
 
 
+class EmbedRequest(BaseModel):
+    texts: List[str]
+
+
+class EmbedResponse(BaseModel):
+    embeddings: List[List[float]]
+
+
+@app.post("/embed", response_model=EmbedResponse)
+async def embed_texts(request: EmbedRequest):
+    """
+    Generate embeddings for a list of texts.
+    Used by backend for query embedding.
+    """
+    from .embedder import Embedder
+
+    if not request.texts:
+        return EmbedResponse(embeddings=[])
+
+    try:
+        embedder = Embedder()
+        embeddings = embedder.embed(request.texts)
+        return EmbedResponse(embeddings=embeddings)
+    except Exception as e:
+        logger.exception("embed_error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/process", response_model=ProcessResponse)
 async def process_document(request: ProcessRequest):
     """

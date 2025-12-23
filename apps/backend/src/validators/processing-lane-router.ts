@@ -1,25 +1,16 @@
 import type { FileFormat, ProcessingLane } from '@prisma/client';
 
+// All file formats now go through the heavy (queue) processing lane
+// Fast lane has been removed - AI Worker handles all processing
 export const LANE_CONFIG = {
-  fast: ['json', 'txt', 'md'] as FileFormat[],
-  heavy: ['pdf'] as FileFormat[],
+  heavy: ['pdf', 'json', 'txt', 'md'] as FileFormat[],
 } as const;
 
-const FORMAT_TO_LANE = new Map<FileFormat, ProcessingLane>();
-
-// Build lookup map
-for (const format of LANE_CONFIG.fast) {
-  FORMAT_TO_LANE.set(format, 'fast');
-}
-for (const format of LANE_CONFIG.heavy) {
-  FORMAT_TO_LANE.set(format, 'heavy');
-}
-
-export function getProcessingLane(format: FileFormat): ProcessingLane {
-  const lane = FORMAT_TO_LANE.get(format);
-  if (!lane) {
-    // Default to heavy for unknown (should never happen with proper validation)
-    return 'heavy';
-  }
-  return lane;
+/**
+ * Get processing lane for a file format.
+ * All formats now use 'heavy' lane (processed through AI Worker queue)
+ */
+export function getProcessingLane(_format: FileFormat): ProcessingLane {
+  // All formats go to heavy lane (queue -> AI Worker)
+  return 'heavy';
 }
