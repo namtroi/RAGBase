@@ -54,12 +54,14 @@ interface Chunk {
 
 ---
 
-## 2. Queue Job Payloads
+## 2. Processing Flow Contracts
 
-### Backend → Redis (BullMQ)
+### Backend → BullMQ → Node.js Worker → Python AI Worker (HTTP)
+
+> BullMQ Worker picks job from queue, then dispatches `POST /process` to Python AI Worker.
 
 ```typescript
-// Job pushed to queue
+// Job in BullMQ queue (picked by Node.js Worker)
 interface ProcessingJob {
   documentId: string;
   filePath: string;
