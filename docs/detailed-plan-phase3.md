@@ -13,7 +13,7 @@
 | **3C** | Hard Delete API | Single + bulk delete endpoints | ✅ Complete |
 | **3D** | Retry Failed API | Re-queue failed documents | ✅ Complete |
 | **3E** | Enhanced List API | Filters, sorting, counts | ✅ Complete |
-| **3F** | Query Filter Update | Exclude inactive from search | ⬜ Pending |
+| **3F** | Query Filter Update | Exclude inactive from search | ✅ Complete |
 | **3G** | Re-link Logic | Auto re-link when re-adding Drive folder | ⬜ Pending |
 | **3H** | Frontend Data Grid | Enhanced document list UI | ⬜ Pending |
 | **3I** | Bulk Operations UI | Selection + action handlers | ⬜ Pending |
@@ -278,9 +278,9 @@ GET /api/documents?
 
 ---
 
-## Part 3F: Query Filter Update ⬜
+## Part 3F: Query Filter Update ✅
 
-**Status:** Pending  
+**Status:** Complete  
 **Implementation:** `apps/backend/src/routes/query-route.ts`
 
 ### TDD Steps:
