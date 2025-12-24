@@ -14,7 +14,7 @@
 | **3D** | Retry Failed API | Re-queue failed documents | ✅ Complete |
 | **3E** | Enhanced List API | Filters, sorting, counts | ✅ Complete |
 | **3F** | Query Filter Update | Exclude inactive from search | ✅ Complete |
-| **3G** | Re-link Logic | Auto re-link when re-adding Drive folder | ⬜ Pending |
+| **3G** | Re-link Logic | Auto re-link when re-adding Drive folder | ✅ Complete |
 | **3H** | Frontend Data Grid | Enhanced document list UI | ⬜ Pending |
 | **3I** | Bulk Operations UI | Selection + action handlers | ⬜ Pending |
 
@@ -304,9 +304,9 @@ GET /api/documents?
 
 ---
 
-## Part 3G: Re-link Logic ⬜
+## Part 3G: Re-link Logic ✅
 
-**Status:** Pending  
+**Status:** Complete  
 **Implementation:** `apps/backend/src/services/sync-service.ts`
 
 ### TDD Steps:

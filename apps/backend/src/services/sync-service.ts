@@ -235,6 +235,37 @@ export class SyncService {
      * Add a new file from Drive
      */
     private async addFile(configId: string, file: { id: string; name: string; mimeType: string; size: number; md5Checksum?: string }): Promise<void> {
+        // 1. Global Lookup by driveFileId
+        const existingByDriveId = await this.prisma.document.findUnique({
+            where: { driveFileId: file.id },
+        });
+
+        if (existingByDriveId) {
+            // Case: found existing by driveFileId
+            const needsProcessing = file.md5Checksum && file.md5Checksum !== existingByDriveId.md5Hash;
+
+            if (needsProcessing) {
+                // Proceded to re-processing via updateFile
+                await this.updateFile(existingByDriveId.id, file, configId);
+            } else {
+                // Update config info and status (if it was FAILED/REMOVED)
+                await this.prisma.document.update({
+                    where: { id: existingByDriveId.id },
+                    data: {
+                        driveConfigId: configId,
+                        connectionState: 'LINKED',
+                        status: existingByDriveId.status === 'FAILED' && existingByDriveId.failReason === 'REMOVED_FROM_DRIVE'
+                            ? 'COMPLETED'
+                            : existingByDriveId.status,
+                        failReason: existingByDriveId.failReason === 'REMOVED_FROM_DRIVE' ? null : existingByDriveId.failReason,
+                        lastSyncedAt: new Date(),
+                    },
+                });
+            }
+            return;
+        }
+
+        // 2. Case: not found by driveFileId - proceed with existing logic
         // Detect format
         const format = detectFormat({ filename: file.name, mimeType: file.mimeType });
         if (!format) {
@@ -250,19 +281,20 @@ export class SyncService {
         const fileBuffer = await readFile(filePath);
         const md5Hash = file.md5Checksum || HashService.md5(fileBuffer);
 
-        // Check for duplicate
-        const existing = await this.prisma.document.findUnique({
+        // 3. Check for duplicate by md5Hash
+        const existingByHash = await this.prisma.document.findUnique({
             where: { md5Hash },
         });
 
-        if (existing) {
+        if (existingByHash) {
             // Update existing to link to this drive file
             await this.prisma.document.update({
-                where: { id: existing.id },
+                where: { id: existingByHash.id },
                 data: {
                     driveFileId: file.id,
                     driveConfigId: configId,
                     sourceType: 'DRIVE',
+                    connectionState: 'LINKED',
                     lastSyncedAt: new Date(),
                 },
             });
@@ -271,7 +303,7 @@ export class SyncService {
             return;
         }
 
-        // Create document
+        // 4. Create new document
         const document = await this.prisma.document.create({
             data: {
                 filename: file.name,
@@ -283,6 +315,7 @@ export class SyncService {
                 filePath,
                 md5Hash,
                 sourceType: 'DRIVE',
+                connectionState: 'LINKED',
                 driveFileId: file.id,
                 driveConfigId: configId,
                 lastSyncedAt: new Date(),
@@ -301,7 +334,7 @@ export class SyncService {
     /**
      * Update an existing file from Drive
      */
-    private async updateFile(documentId: string, file: { id: string; name: string; mimeType: string; size: number; md5Checksum?: string }): Promise<void> {
+    private async updateFile(documentId: string, file: { id: string; name: string; mimeType: string; size: number; md5Checksum?: string }, configId?: string): Promise<void> {
         // Download new version
         const filePath = path.join(UPLOAD_DIR, `drive_${file.id}`);
         await this.driveService.downloadFile(file.id, filePath);
@@ -323,6 +356,8 @@ export class SyncService {
                 processingMetadata: Prisma.JsonNull,
                 retryCount: 0,
                 failReason: null,
+                connectionState: 'LINKED',
+                driveConfigId: configId, // Update config ID if provided during re-link
                 lastSyncedAt: new Date(),
             },
         });
