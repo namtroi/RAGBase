@@ -8,6 +8,7 @@ import { BulkActionBar } from './bulk-action-bar';
 import { DeleteConfirmModal } from './delete-confirm-modal';
 import { DocumentCard } from './document-card';
 import { DocumentFilters, FilterState } from './document-filters';
+import { Pagination } from './pagination';
 
 const defaultFilters: FilterState = {
   search: '',
@@ -23,6 +24,8 @@ export function DocumentList() {
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [folderFilter, setFolderFilter] = useState<string>('all');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const selection = useSelection();
 
   // Fetch Drive configs for filter
@@ -41,7 +44,8 @@ export function DocumentList() {
     sortBy: filters.sortBy,
     sortOrder: filters.sortOrder,
     driveConfigId: folderFilter === 'all' ? undefined : folderFilter,
-    limit: 50,
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
   };
 
   const { data, isLoading, refetch, isRefetching } = useDocuments(queryParams);
@@ -79,7 +83,10 @@ export function DocumentList() {
       {/* Filters */}
       <DocumentFilters
         filters={filters}
-        onChange={setFilters}
+        onChange={(newFilters) => {
+          setFilters(newFilters);
+          setPage(1);
+        }}
         counts={data?.counts}
       />
 
@@ -89,7 +96,10 @@ export function DocumentList() {
           <FolderSync className="w-4 h-4 text-gray-400" />
           <select
             value={folderFilter}
-            onChange={(e) => setFolderFilter(e.target.value)}
+            onChange={(e) => {
+              setFolderFilter(e.target.value);
+              setPage(1);
+            }}
             className="text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 bg-white py-1.5 pl-3 pr-8"
           >
             <option value="all">All Folders</option>
@@ -150,11 +160,18 @@ export function DocumentList() {
         </div>
       )}
 
-      {/* Total count */}
-      {data && (
-        <p className="text-sm text-gray-500">
-          Showing {data.documents.length} of {data.total} documents
-        </p>
+      {/* Pagination */}
+      {data && data.total > 0 && (
+        <Pagination
+          total={data.total}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       )}
 
       {/* Bulk Action Bar */}
