@@ -3,13 +3,13 @@
 **Slogan:** _The "Set & Forget" Data Pipeline for Enterprise RAG._  
 **(Open Source | Self-Hosted | Structure-Aware | Production-Ready)**
 
-**Status:** Phase 1 MVP Complete (2025-12-21)
+**Status:** Phase 2 Complete (2025-12-23)
 
 ---
 
 ## 1. Overview & Philosophy
 
-**RAGBase** is an open-source ETL system that converts unstructured data (PDFs, JSON, TXT) into structured knowledge for vector databases.
+**RAGBase** is an open-source ETL system that converts unstructured data (PDFs, JSON, TXT, Markdown) into structured knowledge for vector databases.
 
 **Core Philosophy: "Bring Your Own Infrastructure"**
 
@@ -21,7 +21,6 @@
 **Development Methodology: Test-Driven Development (TDD)**
 
 - Tests written first, then implementation
-- 79% test coverage (3,688 lines of tests)
 - Contracts define interfaces before code
 - See [api.md](./api.md) for API specifications
 
@@ -29,48 +28,46 @@
 
 ## 2. Supported File Formats
 
-| Format | Lane | Processor | Status |
-|--------|------|-----------|--------|
-| `.json`, `.txt`, `.md` | Fast | Node.js (immediate) | ✅ Phase 1 |
-| `.pdf` (digital) | Heavy | Python/Docling | ✅ Phase 1 |
-| `.pdf` (scanned) | Heavy | Docling + OCR | ✅ Phase 1 |
-| `.docx` | Future | Docling | 🔜 Phase 2 |
-| `.xlsx` | Future | Python (openpyxl) | 🔜 Phase 2 |
-| `.csv` | Future | Node.js | 🔜 Phase 2 |
+| Format | Processor | Status |
+|--------|-----------|--------|
+| `.pdf` (digital) | Python/Docling | ✅ Phase 1 |
+| `.pdf` (scanned) | Docling + OCR | ✅ Phase 1 |
+| `.json`, `.txt`, `.md` | Python/TextProcessor | ✅ Phase 2 |
+| `.docx` | Docling | 🔜 Phase 3 |
 
-**Not Supported:** `.doc`, `.ppt`, `.pptx`, standalone images
+**Processing:** All formats go through BullMQ queue → Python AI Worker (unified pipeline).
 
 ---
 
-## 3. Tech Stack (Phase 1 MVP)
+## 3. Tech Stack
 
 ### Backend (Node.js/TypeScript)
 - **Framework:** Fastify 4.29
 - **ORM:** Prisma 7.2 + PostgreSQL adapter
 - **Validation:** Zod 3.23
-- **Queue:** BullMQ 5.12 + Redis (backend only)
-- **Embedding:** Fastembed 2.0 (all-MiniLM-L6-v2, 384d)
-- **Chunking:** LangChain.js 0.3
+- **Queue:** BullMQ 5.12 + Redis
+- **Real-time:** Server-Sent Events (SSE)
 - **Logging:** Pino 9.0 (structured JSON)
 - **Metrics:** Prometheus (prom-client 15.1)
-- **Security:** Helmet, CORS, rate limiting (100 req/min)
+- **Security:** Helmet, CORS, rate limiting
 
 ### AI Worker (Python/FastAPI)
 - **Runtime:** Python 3.11+
 - **Framework:** FastAPI 0.126
 - **PDF Processing:** Docling 2.15 (IBM)
-- **HTTP Client:** httpx 0.28 (callbacks)
-- **Logging:** structlog 24.4
+- **Text Processing:** TextProcessor (MD/TXT/JSON)
+- **Embedding:** sentence-transformers (bge-small-en-v1.5, 384d)
+- **Chunking:** LangChain 0.3 (markdown-aware)
+- **HTTP Client:** httpx 0.28
 
 ### Frontend (React/TypeScript)
 - **Framework:** React 18 + TypeScript 5
 - **Build:** Vite 7
 - **Styling:** Tailwind CSS v4
-- **Data Fetching:** React Query (polling every 2-3s)
-- **HTTP:** Native fetch API
+- **Data Fetching:** React Query + SSE (real-time updates)
 
 ### Storage
-- **Database:** PostgreSQL 16+ with pgvector extension
+- **Database:** PostgreSQL 16+ with pgvector
 - **Vector Search:** Cosine similarity (384d embeddings)
 - **Cache/Queue:** Redis 7+
 
@@ -82,21 +79,24 @@
 
 1. **`backend`** - Node.js/Fastify orchestrator
    - API routes, validation, queue management
-   - Fast lane processing (JSON/TXT/MD)
    - HTTP dispatch to AI worker
+   - SSE real-time events
+   - Google Drive sync
    
 2. **`ai-worker`** - Python/FastAPI processor
-   - PDF processing via Docling
-   - HTTP callback to backend (no queue access)
+   - PDF processing (Docling + OCR)
+   - Text processing (MD/TXT/JSON)
+   - Embedding + Chunking (Python-first)
+   - HTTP callback to backend
    
 3. **`postgres` + `redis`** - Data layer
-   - PostgreSQL: documents + chunks + vectors
-   - Redis: BullMQ job queue (backend only)
+   - PostgreSQL: documents + chunks + vectors + DriveConfig
+   - Redis: BullMQ job queue
 
-**Key Architecture Decision: HTTP Dispatch Pattern**
-- Backend owns queue, dispatches PDF jobs to AI worker via HTTP POST
-- AI worker processes and sends callback to backend
-- Eliminates race conditions (single queue consumer)
+**Key Architecture: Unified Processing Pipeline (Phase 2)**
+- All formats go through queue → AI Worker
+- AI Worker handles processing + embedding + chunking
+- Eliminates code duplication (single source of truth)
 
 > See [architecture.md](./architecture.md) for detailed system design
 
@@ -104,24 +104,20 @@
 
 ## 5. Processing Pipeline
 
-### Fast Lane (JSON/TXT/MD)
-1. Upload → Validation → MD5 dedup
-2. **Immediate processing** (synchronous):
-   - Read file content
-   - Chunk text (1000 chars, 200 overlap)
-   - Generate embeddings (Fastembed)
-   - Store chunks + vectors in PostgreSQL
-3. Status: PENDING → COMPLETED (seconds)
+### Unified Pipeline (Phase 2)
 
-### Heavy Lane (PDF)
-1. Upload → Validation → MD5 dedup
-2. **Queue for async processing**:
-   - Add to BullMQ queue
-   - Backend HTTP dispatches to AI worker
-   - AI worker processes with Docling
-   - AI worker sends callback with markdown
-   - Backend chunks + embeds + stores
-3. Status: PENDING → PROCESSING → COMPLETED (minutes)
+```
+Upload (any format) → Queue → Job Processor
+    → HTTP Dispatch to AI Worker
+        → Route by format:
+            - PDF → Docling (with OCR)
+            - MD/TXT/JSON → TextProcessor
+        → Chunk (LangChain)
+        → Embed (bge-small-en-v1.5)
+        → HTTP Callback to Backend
+    → Store processedContent + chunks + vectors
+    → SSE event to Frontend
+```
 
 ### Quality Gate
 - Reject if extracted text < 50 chars
@@ -130,16 +126,23 @@
 
 ---
 
-## 6. Key Features (Phase 1)
+## 6. Key Features
 
-### Core Functionality
+### Phase 1 (MVP)
 - ✅ File upload (multipart/form-data)
 - ✅ Duplicate detection (MD5 hash)
-- ✅ Dual-lane processing (fast vs heavy)
+- ✅ PDF processing with OCR
 - ✅ Vector embeddings (self-hosted)
 - ✅ Semantic search (pgvector)
 - ✅ Document status tracking
-- ✅ Real-time UI updates (polling)
+
+### Phase 2 (Current)
+- ✅ **Unified Processing Pipeline** - All formats via Python AI Worker
+- ✅ **Multi-format Support** - PDF, JSON, TXT, MD
+- ✅ **SSE Real-time Updates** - Replaced polling with Server-Sent Events
+- ✅ **Content Export** - Download processed Markdown/JSON
+- ✅ **Google Drive Sync** - Multi-folder auto-sync with Changes API
+- ✅ **Upgraded Embedding** - bge-small-en-v1.5 (~10% better retrieval)
 
 ### Production Features
 - ✅ Structured logging (Pino/structlog)
@@ -147,20 +150,44 @@
 - ✅ Health checks (/health, /ready, /live)
 - ✅ Rate limiting (100 req/min)
 - ✅ Security headers (Helmet)
-- ✅ CORS configuration
-- ✅ Graceful shutdown
 - ✅ API key authentication
-
-### Testing
-- ✅ Unit tests (843 lines)
-- ✅ Integration tests (1,329 lines)
-- ✅ E2E tests (803 lines)
-- ✅ Python tests (713 lines)
-- ✅ Total: 79% test coverage
 
 ---
 
-## 7. Deployment
+## 7. Google Drive Sync (Phase 2)
+
+**Features:**
+- Multi-folder support (DriveConfig model)
+- Incremental sync with Changes API
+- MD5 deduplication before download
+- Cron-based auto-sync (configurable per folder)
+- Soft delete for removed files
+- Service Account auth (no user OAuth)
+
+**Sync Behavior:**
+- New files → Download + Process + Store
+- Modified files → Re-download + Re-process + Replace vectors
+- Deleted files → Mark as ARCHIVED (soft delete)
+
+---
+
+## 8. Real-time Updates (Phase 2)
+
+**SSE Events:**
+- `document:created` - New document uploaded
+- `document:status` - Processing completed/failed
+- `sync:start` - Drive sync started
+- `sync:complete` - Drive sync finished
+- `sync:error` - Drive sync failed
+
+**Frontend Integration:**
+- EventProvider with auto-reconnect
+- React Query cache invalidation on events
+- No more polling (instant updates)
+
+---
+
+## 9. Deployment
 
 ### Resource Requirements
 
@@ -175,19 +202,15 @@
 - **Local/On-Premise:** Air-gapped, internal server
 - **Private Cloud:** VPS (AWS, DigitalOcean, etc.)
 
-> See [architecture.md](./architecture.md) for deployment details
-
 ---
 
-## 8. Documentation
+## 10. Documentation
 
 - **[architecture.md](./architecture.md)** - System design & data flow
-- **[roadmap.md](./roadmap.md)** - Product roadmap & future features
 - **[api.md](./api.md)** - API specifications
-- **[testing.md](./testing.md)** - Testing approach
-- **[plans/](../plans/)** - Implementation plans & phase details
+- **[detailed-plan-phase2.md](./detailed-plan-phase2.md)** - Phase 2 implementation details
+- **[roadmap.md](./roadmap.md)** - Product roadmap & future features
 
 ---
 
-**Phase 1 MVP Status:** ✅ **COMPLETE** (2025-12-21)  
-**Total Code:** 4,668 lines production + 3,688 lines tests = 8,356 lines
+**Phase 2 Status:** ✅ **COMPLETE** (2025-12-23)

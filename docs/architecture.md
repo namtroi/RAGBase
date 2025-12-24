@@ -1,6 +1,6 @@
 # RAGBase Architecture
 
-**Phase 2 Complete** | **Last Updated:** 2024-12-23
+**Phase 2 Complete** | **Last Updated:** 2025-12-23
 
 High-level system design & key architectural decisions.
 
@@ -307,7 +307,7 @@ sequenceDiagram
 
 ---
 
-**Phase 2 Status:** ✅ COMPLETE (2024-12-23)
+**Phase 2 Status:** ✅ COMPLETE (2025-12-23)
 
 **Documentation:**
 - [product.md](./product.md) - Product overview
