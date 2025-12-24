@@ -1,6 +1,6 @@
 # RAGBase API Contracts
 
-**Phase 1 MVP - Complete** | **TDD Reference & Integration Spec**
+**Phase 2 Complete** | **TDD Reference & Integration Spec**
 
 ---
 
@@ -13,10 +13,11 @@ type DocumentStatus =
   | 'PENDING'     // Uploaded, waiting queue
   | 'PROCESSING'  // In worker
   | 'COMPLETED'   // Success
-  | 'FAILED';     // Gave up after retries
+  | 'FAILED'      // Gave up after retries
+  | 'ARCHIVED';   // Soft deleted (Drive sync)
 
 type FileFormat = 'pdf' | 'json' | 'txt' | 'md';
-type ProcessingLane = 'fast' | 'heavy';
+type SourceType = 'MANUAL' | 'DRIVE';
 
 interface Document {
   id: string;              // UUID
@@ -24,12 +25,21 @@ interface Document {
   mimeType: string;
   fileSize: number;        // bytes
   format: FileFormat;
-  lane: ProcessingLane;
+  lane: 'heavy';           // Always 'heavy' in Phase 2
   status: DocumentStatus;
   filePath: string;        // local storage path
   md5Hash: string;         // dedup
   retryCount: number;      // max 3
   failReason?: string;
+  
+  // Phase 2 Fields
+  processedContent?: string;    // Markdown output
+  processingMetadata?: Json;    // Processing stats
+  sourceType: SourceType;       // MANUAL or DRIVE
+  driveFileId?: string;         // Google Drive file ID
+  driveConfigId?: string;       // FK → DriveConfig
+  lastSyncedAt?: Date;
+  
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,12 +53,31 @@ interface Chunk {
   documentId: string;      // FK → Document
   content: string;         // text content
   chunkIndex: number;      // order in document
-  embedding: number[];     // 384d vector (Fastembed)
+  embedding: number[];     // 384d vector (sentence-transformers)
   charStart: number;       // position in source
   charEnd: number;
   page?: number;           // PDF page (optional)
   heading?: string;        // extracted heading (optional)
   createdAt: Date;
+}
+```
+
+### DriveConfig (NEW)
+
+```typescript
+interface DriveConfig {
+  id: string;
+  folderId: string;        // Google Drive folder ID
+  folderName: string;
+  syncCron: string;        // Default: "0 */6 * * *"
+  recursive: boolean;      // Default: true
+  enabled: boolean;        // Default: true
+  lastSyncedAt?: Date;
+  pageToken?: string;      // Changes API token
+  syncStatus: 'IDLE' | 'SYNCING' | 'ERROR';
+  syncError?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
@@ -58,20 +87,22 @@ interface Chunk {
 
 ### Backend → BullMQ → Node.js Worker → Python AI Worker (HTTP)
 
-> BullMQ Worker picks job from queue, then dispatches `POST /process` to Python AI Worker.
+> All files (PDF, JSON, TXT, MD) go through queue. AI Worker handles processing + embedding.
 
 ```typescript
 // Job in BullMQ queue (picked by Node.js Worker)
 interface ProcessingJob {
   documentId: string;
   filePath: string;
-  format: FileFormat;
+  format: FileFormat;      // Routing: PDF→Docling, others→TextProcessor
   config: ProcessingConfig;
 }
 
 interface ProcessingConfig {
   ocrMode: 'auto' | 'force' | 'never';
   ocrLanguages: string[];  // Default: ['en']
+  chunkSize: number;       // Default: 1000
+  chunkOverlap: number;    // Default: 200
 }
 ```
 
@@ -87,10 +118,23 @@ interface ProcessingCallback {
 }
 
 interface ProcessingResult {
-  markdown: string;        // Docling output
+  processedContent: string;    // Markdown output
+  chunks: ChunkData[];         // Pre-chunked + embedded
   pageCount: number;
   ocrApplied: boolean;
   processingTimeMs: number;
+}
+
+interface ChunkData {
+  content: string;
+  index: number;
+  embedding: number[];         // 384d vector (computed in Python)
+  metadata: {
+    charStart: number;
+    charEnd: number;
+    heading?: string;
+    page?: number;             // PDF only
+  };
 }
 
 interface ProcessingError {
@@ -123,13 +167,14 @@ interface UploadResponse {
   filename: string;
   status: 'PENDING';
   format: FileFormat;
-  lane: ProcessingLane;
+  lane: 'heavy';           // Always heavy in Phase 2
 }
 
 // Errors
 // 400: { error: 'INVALID_FORMAT', message: '...' }
 // 400: { error: 'FILE_TOO_LARGE', message: '...' }
 // 401: { error: 'UNAUTHORIZED' }
+// 409: { error: 'DUPLICATE_FILE' }
 ```
 
 ### Status
@@ -144,6 +189,7 @@ interface DocumentStatusResponse {
   retryCount: number;
   failReason?: string;
   chunkCount?: number;     // if COMPLETED
+  sourceType: SourceType;
   createdAt: string;       // ISO
   updatedAt: string;
 }
@@ -178,7 +224,7 @@ interface QueryResult {
 ### List Documents
 
 ```typescript
-// GET /api/documents?status=COMPLETED&limit=20&offset=0
+// GET /api/documents?status=COMPLETED&limit=20&offset=0&driveConfigId=xxx
 
 interface ListResponse {
   documents: DocumentSummary[];
@@ -189,135 +235,155 @@ interface DocumentSummary {
   id: string;
   filename: string;
   status: DocumentStatus;
+  sourceType: SourceType;
   chunkCount?: number;
   createdAt: string;
 }
 ```
 
----
-
-## 4. Validation Schemas (Zod)
+### Content Export (NEW)
 
 ```typescript
-import { z } from 'zod';
+// GET /api/documents/:id/content?format=markdown|json
 
-// Upload validation
-export const UploadSchema = z.object({
-  ocrMode: z.enum(['auto', 'force', 'never']).default('auto'),
-});
+// format=markdown → Content-Type: text/markdown
+// format=json → Content-Type: application/json
 
-// Query validation
-export const QuerySchema = z.object({
-  query: z.string().min(1).max(1000).trim(),
-  topK: z.number().int().min(1).max(100).default(5),
-});
-
-// List validation
-export const ListQuerySchema = z.object({
-  status: z.enum(['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED']).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  offset: z.coerce.number().int().min(0).default(0),
-});
-
-// Callback validation (internal)
-export const CallbackSchema = z.object({
-  documentId: z.string().uuid(),
-  success: z.boolean(),
-  result: z.object({
-    markdown: z.string(),
-    pageCount: z.number().int().positive(),
-    ocrApplied: z.boolean(),
-    processingTimeMs: z.number().positive(),
-  }).optional(),
-  error: z.object({
-    code: z.enum([
-      'PASSWORD_PROTECTED',
-      'CORRUPT_FILE', 
-      'UNSUPPORTED_FORMAT',
-      'OCR_FAILED',
-      'TIMEOUT',
-      'INTERNAL_ERROR',
-    ]),
-    message: z.string(),
-  }).optional(),
-});
-```
-
----
-
-## 5. File Routing Rules
-
-```typescript
-// Determine processing lane
-function getProcessingLane(mimeType: string, ext: string): ProcessingLane {
-  const fastFormats = ['json', 'txt', 'md'];
-  return fastFormats.includes(ext) ? 'fast' : 'heavy';
+interface ContentJsonResponse {
+  id: string;
+  filename: string;
+  processedContent: string;
+  chunks: {
+    id: string;
+    content: string;
+    index: number;
+    metadata: {
+      charStart: number;
+      charEnd: number;
+      heading?: string;
+    };
+  }[];
+  processingMetadata: {
+    pageCount?: number;
+    ocrApplied?: boolean;
+    processingTimeMs: number;
+  };
 }
 
-// Format detection
-const FORMAT_MAP: Record<string, FileFormat> = {
-  'application/pdf': 'pdf',
-  'application/json': 'json',
-  'text/plain': 'txt',
-  'text/markdown': 'md',
-};
+// Errors
+// 400: Invalid format
+// 404: Document not found
+// 409: Document not yet processed (status != COMPLETED)
+```
 
-// Rejection rules
-const REJECTION_RULES = {
-  maxFileSizeMB: 50,
-  allowedFormats: ['pdf', 'json', 'txt', 'md'],
-  minTextLength: 50,       // after extraction
-  maxNoiseRatio: 0.8,      // reject if > 80% noise
-};
+### SSE Events (NEW)
+
+```typescript
+// GET /api/events?apiKey=xxx
+// Content-Type: text/event-stream
+
+// Events:
+// - document:created: New document uploaded
+// - document:status: Processing completed/failed
+// - sync:start: Drive sync started
+// - sync:complete: Drive sync finished
+// - sync:error: Drive sync failed
+
+interface SSEEvent {
+  type: string;
+  payload: unknown;
+  timestamp: string;       // ISO
+}
+
+// Errors
+// 401: Invalid API key
+```
+
+### Drive Sync (NEW)
+
+```typescript
+// POST /api/drive/configs
+interface AddFolderRequest {
+  folderId: string;
+  folderName: string;
+  syncCron?: string;       // Default: "0 */6 * * *"
+  recursive?: boolean;     // Default: true
+}
+
+// GET /api/drive/configs
+interface DriveConfigListResponse {
+  configs: DriveConfig[];
+}
+
+// PATCH /api/drive/configs/:id
+interface UpdateFolderRequest {
+  folderName?: string;
+  syncCron?: string;
+  recursive?: boolean;
+  enabled?: boolean;
+}
+
+// DELETE /api/drive/configs/:id
+// Returns 204 No Content
+
+// POST /api/drive/sync/:configId/trigger
+// Returns 202 Accepted (sync started)
 ```
 
 ---
 
-## 6. Chunking Contract
+## 4. Embedding Contract
+
+```typescript
+type EmbeddingProvider = 'sentence-transformers';  // Python
+
+interface EmbeddingConfig {
+  provider: EmbeddingProvider;
+  model: string;           // 'BAAI/bge-small-en-v1.5'
+  dimensions: number;      // 384
+}
+
+// Embeddings computed in Python AI Worker
+// Sent via callback with chunks
+```
+
+---
+
+## 5. Chunking Contract
 
 ```typescript
 interface ChunkingConfig {
   chunkSize: number;       // 1000 chars
   chunkOverlap: number;    // 200 chars
-  format: 'markdown';      // markdown-aware splitting
+  format: 'markdown';      // markdown-aware splitting (LangChain)
 }
 
-// Input: processed markdown from Docling
-// Output: array of text chunks with metadata
-interface ChunkingResult {
-  chunks: ChunkData[];
-}
-
-interface ChunkData {
-  content: string;
-  index: number;
-  metadata: {
-    charStart: number;
-    charEnd: number;
-    heading?: string;
-  };
-}
+// Chunking performed in Python AI Worker
+// TextProcessor for MD/TXT/JSON, PDFProcessor for PDF
 ```
 
 ---
 
-## 7. Embedding Contract
+## 6. File Routing (Phase 2)
 
 ```typescript
-type EmbeddingProvider = 'fastembed';
+// All files go through queue → AI Worker
+// AI Worker routes internally:
+// - PDF → Docling (with OCR support)
+// - MD → TextProcessor (as-is)
+// - TXT → TextProcessor (wrap with heading)
+// - JSON → TextProcessor (pretty print in code block)
 
-interface EmbeddingConfig {
-  provider: EmbeddingProvider;
-  model: string;           // 'all-MiniLM-L6-v2' (via Fastembed)
-  dimensions: number;      // 384
-  batchSize: number;       // 50
-}
-
-// Input: array of text chunks
-// Output: array of 384d vectors
-interface EmbeddingResult {
-  embeddings: number[][];  // [chunks.length][384]
-}
+const REJECTION_RULES = {
+  maxFileSizeMB: 50,       // Manual upload
+  maxDriveFileSizeMB: 100, // Drive sync
+  allowedFormats: ['pdf', 'json', 'txt', 'md'],
+  minTextLength: 50,
+  maxNoiseRatio: 0.8,
+};
 ```
 
+---
+
+**Phase 2 Status:** ✅ COMPLETE (Dec 23, 2024)
 

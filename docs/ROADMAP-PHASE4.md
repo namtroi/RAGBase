@@ -1,338 +1,170 @@
-# Phase 4: Multi-tenant SaaS + Supabase Auth + Stripe
+# Phase 3: Format Expansion + Chunking Optimization
 
-**Goal:** Production SaaS platform with Supabase authentication, Stripe billing, per-user Drive access, API keys, and data export.
-
----
-
-## Scope
-
-| Feature | Details |
-|---------|---------|
-| **User Management** | Supabase Auth (email/password, social OAuth ready) |
-| **Authentication** | JWT tokens (issued by Supabase) |
-| **Authorization** | Single role: **User** (full access to their own data) |
-| **Multi-tenant** | Row-level isolation via `tenantId = Supabase user.id` |
-| **Subscriptions** | Stripe integration (Free/Pro/Enterprise tiers) |
-| **Drive OAuth** | Per-user Google Drive access (not service account) |
-| **Database Access** | API-based only (no direct DB exposure) |
-| **API Keys** | User-generated keys for programmatic access |
-| **Data Export** | JSON archive export (GDPR compliance) |
+**Goal:** Support 6 new document formats with format-aware chunking strategies for optimal RAG quality.
 
 ---
 
-## Architecture
+## New Formats
 
-### **Auth Flow**
-
-1. User registers/logs in via Supabase Auth
-2. Supabase issues JWT token
-3. Frontend sends JWT in `Authorization: Bearer {token}` header
-4. Backend verifies JWT with Supabase SDK
-5. Extract `user.id` → becomes `tenantId`
-6. All database queries filtered by `tenantId`
-
-**Security:** Backend never stores passwords; Supabase handles all auth.
-
-### **Data Access Pattern**
-
-**API-based access only:**
-- User Frontend → Backend REST API → PostgreSQL + pgvector
-- JWT verification middleware on all routes
-- Quota check before resource-consuming operations
-- Audit logging for analytics
-
-**Why not direct DB access?**
-- Security (no DB credentials exposed)
-- Quota enforcement (impossible with direct access)
-- Audit trail (track all operations)
-- Caching layer (easy to add)
+- ✅ `.docx` (Word documents)
+- ✅ `.xlsx` (Excel spreadsheets)
+- ✅ `.csv` (CSV files)
+- ✅ `.pptx` (PowerPoint presentations)
+- ✅ `.html` (Web pages)
+- ✅ `.epub` (E-books)
 
 ---
 
-## Database Scaling Strategy
+## Processing Strategy by Format
 
-### **Phase 4A: Single DB (<10K users)**
-
-**Approach:** Single PostgreSQL instance with tenant filtering
-
-**Performance (1000 users):**
-- Total data: ~1.3GB (100K docs, 500K chunks)
-- Query latency: <50ms with proper indexes
-- Vector search: 10-50ms
-- Connections: 50-100 concurrent
-
-**Specs:**
-- Instance: Supabase Pro or AWS RDS db.t4g.medium
-- RAM: 4GB, Storage: 50GB SSD
-- Cost: $50-100/month
-
-**Required indexes:**
-- `tenant_id` on all tables
-- Composite: `(tenant_id, status)` for filtering
-- HNSW vector index for similarity search
-
-**Upgrade trigger:** Users >10K OR DB >100GB OR latency >200ms
+| Format | Processor | Chunking Strategy | Rationale |
+|--------|-----------|-------------------|-----------|
+| **DOCX** | Docling | Markdown header-based | Same pipeline as PDF, respect document structure |
+| **XLSX** | openpyxl | Hybrid table chunking | Small tables (≤50 rows) = single chunk, large tables = row-based with repeated headers |
+| **CSV** | pandas | Row-based with headers | Each chunk includes column headers for context |
+| **PPTX** | Docling | Slide-based | 1 slide = 1 chunk, group small slides (<200 chars) to avoid fragmentation |
+| **HTML** | BeautifulSoup | Section-aware | Respect semantic HTML (`<section>`, `<article>`, `<div>`) |
+| **EPUB** | ebooklib | Chapter-based | 1 chapter = 1 chunk, split large chapters (>2000 chars) using overlap strategy |
 
 ---
 
-### **Phase 4B: Sharding (10K-100K+ users)**
+## Format-Aware Chunking Concept
 
-**Approach:** Hash-based horizontal sharding
+### **Why Format-Aware vs Semantic?**
 
-**Strategy:**
-- 10 shards initially (add more as needed)
-- Shard selection: `hash(user.id) % shard_count`
-- Each shard: ~10K users, ~10GB data
-- Deterministic routing (same user always hits same shard)
+**Format-aware (CHOSEN):**
+- Leverage natural document structure (headings, slides, chapters, tables)
+- Deterministic, predictable output
+- Fast processing (no LLM required)
+- Easy to debug/tune per format
 
-**Benefits:**
-- Query latency stays <50ms regardless of total users
-- Horizontal scaling (add shards)
-- Isolated performance between shards
-
-**Cost (100K users):**
-
-| Architecture | Instances | Cost/month |
-|--------------|-----------|------------|
-| Single DB | 1 | $500+ (degrading) |
-| **Sharding (10)** | **10** | **$2K-5K** |
-| DB per tenant | 100K | $500K+ ❌ |
+**Semantic chunking (REJECTED):**
+- LLM-based boundary detection (slow, expensive)
+- Non-deterministic (same doc → different chunks)
+- Adds complexity + latency
+- Not worth trade-off for this phase
 
 ---
 
-## Pricing Tiers
+## Chunking Strategies Details
 
-### **Free Tier**
-- Documents: 50/month, Storage: 500MB
-- Drive: 1 folder, Formats: PDF/TXT/JSON/MD
-- Queries: 100/day, Rate limit: 50 req/hour
+### **1. DOCX (Word Documents)**
 
-### **Pro Tier ($19-29/month)**
-- Documents: 1,000/month, Storage: 10GB
-- Drive: 10 folders, Formats: All
-- Queries: Unlimited, Rate limit: 500 req/hour
-- Priority processing: 2x faster
+**Approach:** Same as PDF (Docling → markdown → header-based splitting)
 
-### **Enterprise ($99-199/month)**
-- Documents: Unlimited, Storage: 100GB+
-- Drive: Unlimited, Formats: All + custom
-- Queries: Unlimited, Rate limit: 5,000 req/hour
-- Dedicated workers, SLA: 99.9%, Priority support
+**Steps:**
+1. Docling converts DOCX → markdown (preserve heading hierarchy)
+2. LangChain `MarkdownHeaderTextSplitter` chunks by headings
+3. Default params: 1000 chars, 200 overlap
+
+**Benefits:** Respects document structure, maintains context
 
 ---
 
-## Supabase Integration
+### **2. XLSX (Excel Spreadsheets)**
 
-### **User Metadata Storage**
+**Approach:** Hybrid strategy based on table size
 
-Store subscription info in Supabase `user_metadata`:
-- `subscription`: free/pro/enterprise
-- `stripeCustomerId`: Stripe customer ID
-- `stripeSubscriptionId`: Active subscription
-- `subscriptionStatus`: active/canceled/past_due
-- `quotas`: Object with limits (documents, storage, queries, folders)
+**Logic:**
+- **Small tables (≤50 rows):** Serialize entire table as single chunk
+- **Large tables (>50 rows):** Row-based chunking with headers repeated in each chunk
 
-**Benefits:** No user table in backend, single source of truth.
+**Multi-sheet handling:**
+- Process each sheet independently
+- Metadata includes: `sheetName`, `sheetIndex`, `totalSheets`, `rowRange`
 
-### **JWT Verification**
+**Rationale:** Balance context (keep small tables intact) vs chunk size limits (split large tables)
 
-Backend verifies JWT using Supabase SDK:
-- Extract token from `Authorization` header
-- Call `supabase.auth.getUser(token)`
-- Get user ID, email, and metadata
-- Attach to request context for downstream use
+**Params:**
+- `max_rows_per_chunk`: 50
+- `small_table_threshold`: 50
 
 ---
 
-## Stripe Subscription Integration
+### **3. CSV Files**
 
-### **Upgrade Flow**
+**Approach:** Row-based chunking with column headers
 
-1. User clicks "Upgrade" in frontend
-2. Backend creates Stripe Checkout Session
-3. User redirects to Stripe payment page
-4. User completes payment
-5. Stripe sends webhook to Supabase Edge Function
-6. Edge Function updates user metadata with new subscription
+**Logic:**
+- Group rows into chunks (default: 20 rows/chunk)
+- Include column headers in EVERY chunk
+- Preserve row context via metadata
 
-### **Webhook Handling**
+**Rationale:** Headers provide essential context for RAG retrieval
 
-**Events to handle:**
-- `customer.subscription.created` → Set subscription tier
-- `customer.subscription.updated` → Update tier/status
-- `customer.subscription.deleted` → Downgrade to free
-- `invoice.payment_failed` → Mark past_due
-
-**Implementation:** Supabase Edge Function (Deno runtime)
-- Verify Stripe webhook signature
-- Update Supabase user metadata
-- No backend involvement (serverless)
-
-### **Customer Portal**
-
-Stripe pre-built portal for:
-- View invoices
-- Update payment method
-- Cancel subscription
-- View billing history
-
-**Backend creates portal link:** `stripe.billingPortal.sessions.create()`
+**Params:**
+- `rows_per_chunk`: 20
+- `include_headers`: true
 
 ---
 
-## Quota Enforcement
+### **4. PPTX (PowerPoint Presentations)**
 
-### **Strategy:** Middleware check before every request
+**Approach:** Slide-based chunking
 
-**Quotas tracked:**
-- Documents uploaded this month
-- Storage used (bytes)
-- Queries today
-- Drive folders synced
+**Logic:**
+- Default: 1 slide = 1 chunk
+- Group small slides (<200 chars) to avoid fragmentation
+- Metadata: slide number, slide title
 
-### **Enforcement points:**
-- Upload: Check document count + storage
-- Query: Check daily query count
-- Drive sync: Check folder limit
+**Rationale:** Slides are semantic units, grouping small slides improves context
 
-### **Query logging:**
-- Store query in `QueryLog` table
-- Track per-user daily count
-- Use for quota + analytics
+**Params:**
+- `group_small_slides`: true
+- `min_slide_chars`: 200
 
 ---
 
-## Database Schema (High-Level)
+### **5. HTML (Web Pages)**
 
-### **Existing models (add tenantId):**
-- `Document`: Add `tenantId` index
-- `Chunk`: Add `tenantId` (denormalized for fast filtering)
-- `DriveConfig`: Add `tenantId`, `refreshToken` (per-user OAuth)
+**Approach:** Section-aware chunking
 
-### **New models:**
-- `ApiKey`: User-generated API keys (hashed)
-- `QueryLog`: Query history for quota tracking
+**Logic:**
+- Respect semantic HTML structure (`<section>`, `<article>`, `<div>`)
+- Extract clean text (strip navigation, ads, footers)
+- Fall back to character-based if no semantic structure
 
-### **Indexing strategy:**
-- Primary: `tenantId` on all tables
-- Composite: `(tenantId, status)`, `(tenantId, createdAt)`
-- Vector: HNSW on embedding column
+**Rationale:** HTML already has semantic boundaries, use them
 
----
-
-## API Endpoints
-
-### **Documents**
-- `POST /api/documents` - Upload (quota check)
-- `GET /api/documents` - List (filtered by tenant)
-- `GET /api/documents/:id` - Detail
-- `DELETE /api/documents/:id` - Delete
-- `GET /api/documents/:id/content` - Download processed
-
-### **Drive Sync**
-- `POST /api/drive/authorize` - Start OAuth flow
-- `GET /api/drive/callback` - OAuth callback
-- `POST /api/drive/configs` - Add folder
-- `GET /api/drive/configs` - List folders
-- `POST /api/drive/sync/:id/trigger` - Manual sync
-
-### **Search**
-- `POST /api/query` - Semantic search (quota check)
-
-### **Billing**
-- `POST /api/billing/checkout` - Create Stripe session
-- `GET /api/billing/portal` - Customer portal link
-- `GET /api/billing/usage` - Usage stats
-
-### **API Keys**
-- `POST /api/keys` - Generate new key
-- `GET /api/keys` - List user's keys
-- `DELETE /api/keys/:id` - Revoke key
-
-### **Export**
-- `POST /api/export` - Request data export
-- `GET /api/export/:id` - Check export status
+**Params:**
+- `chunk_size`: 1000
+- `chunk_overlap`: 200
 
 ---
 
-## Google Drive OAuth
+### **6. EPUB (E-books)**
 
-### **Per-User OAuth (not Service Account)**
+**Approach:** Chapter-based chunking
 
-**Why per-user:**
-- Each user authorizes their own Drive
-- Users control what folders to share
-- Better security (no shared credentials)
-- No credential rotation needed
+**Logic:**
+- Default: 1 chapter = 1 chunk
+- Split large chapters (>2000 chars) using markdown overlap strategy
+- Preserve chapter metadata (title, index)
 
-**Flow:**
-1. User clicks "Connect Google Drive"
-2. Backend generates OAuth URL with `state=userId`
-3. User authorizes on Google
-4. Google redirects to callback with code
-5. Backend exchanges code for tokens
-6. Store `refresh_token` in DriveConfig
+**Rationale:** Chapters are natural semantic units in books
 
-**Scope:** `https://www.googleapis.com/auth/drive.readonly`
+**Params:**
+- `max_chapter_size`: 2000
+- `split_large_chapters`: true
 
 ---
 
-## API Key Management
+## Chunking Quality Metrics
 
-### **Purpose**
-Allow programmatic access from external apps (chatbots, mobile apps).
+### **Purpose:** Track chunking effectiveness for future optimization
 
-### **Features:**
-- User creates keys from dashboard
-- Each key has friendly name
-- Show plaintext ONCE on creation
-- Store bcrypt hash in DB
-- Track last used timestamp
-- Optional expiration date
-- Revoke anytime
+### **Metadata per chunk:**
+- `token_count`: Number of tokens (for quota/size tracking)
+- `char_count`: Character count
+- `has_title`: Boolean (heading present?)
+- `chunk_type`: Enum (table/slide/chapter/section/markdown_section)
+- `source_page`: Page number (PDF) or slide number (PPTX)
+- `completeness`: Enum (full/partial/fragment)
 
-### **Authentication:**
-Backend supports both:
-- `Authorization: Bearer {jwt}` - Frontend/dashboard
-- `Authorization: sk_xxx...` - External apps
-
-### **Rate limiting per API key:**
-- Free: 50 req/hour
-- Pro: 500 req/hour
-- Enterprise: 5000 req/hour
-
----
-
-## Data Export
-
-### **Purpose**
-GDPR compliance, no vendor lock-in, user trust.
-
-### **Export format:**
-
-**JSON Archive (ZIP):**
-- `documents.json` - Metadata + processed content
-- `chunks.json` - All chunks with metadata
-- `embeddings.npy` - NumPy vectors (optional)
-- `drive_configs.json` - Folder settings
-
-### **Frequency limits:**
-- Free: 1/month
-- Pro: 1/week
-- Enterprise: Unlimited
-
-### **Workflow:**
-1. User requests export → Job queued
-2. Backend generates files asynchronously
-3. Upload ZIP to S3 (presigned URL)
-4. Email download link to user
-5. Link expires after 7 days
-
-### **Benefits:**
-- GDPR Article 20 compliance (data portability)
-- No vendor lock-in
-- User backup option
-- Compatible with other RAG systems
+### **Use cases:**
+- Identify low-quality chunks (fragments, no context)
+- Adjust chunking params per format based on metrics
+- Analytics dashboard showing chunk distribution
 
 ---
 
@@ -340,20 +172,73 @@ GDPR compliance, no vendor lock-in, user trust.
 
 ### **Environment Variables:**
 
-**Supabase:**
-- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+**Format-specific chunking:**
+- `CHUNK_SIZE_DEFAULT`: 1000
+- `CHUNK_OVERLAP_DEFAULT`: 200
+- `EXCEL_MAX_ROWS_PER_CHUNK`: 50
+- `EXCEL_SMALL_TABLE_THRESHOLD`: 50
+- `CSV_ROWS_PER_CHUNK`: 20
+- `PPTX_MIN_SLIDE_CHARS`: 200
+- `EPUB_MAX_CHAPTER_SIZE`: 2000
 
-**Stripe:**
-- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
-- `STRIPE_PRICE_PRO`, `STRIPE_PRICE_ENTERPRISE`
+**Processing (same as Phase 2):**
+- `EMBEDDING_MODEL`: BAAI/bge-small-en-v1.5
+- `EMBEDDING_DIMENSION`: 384
 
-**Google Drive OAuth:**
-- `GOOGLE_OAUTH_CLIENT_ID`
-- `GOOGLE_OAUTH_CLIENT_SECRET`
-- `GOOGLE_OAUTH_REDIRECT_URI`
+---
 
-**Data Export:**
-- `EXPORT_S3_BUCKET`, `EXPORT_LINK_EXPIRY_DAYS`
+## Python Dependencies (New)
+
+**Document processing libraries:**
+- `openpyxl>=3.1.2` - Excel file parsing
+- `beautifulsoup4>=4.12.3` - HTML parsing
+- `lxml>=5.1.0` - HTML/XML parsing backend
+- `ebooklib>=0.18` - EPUB parsing
+- `pandas>=2.2.0` - CSV/tabular data (efficient)
+
+**Existing dependencies:**
+- `sentence-transformers>=2.3.0`
+- `torch>=2.0.0` (CPU)
+- `langchain>=1.0.0`
+- `docling>=2.15.0`
+
+---
+
+## Implementation Strategy
+
+### **Phase 3A: Add format processors (one at a time)**
+
+**Order (simplest → most complex):**
+1. CSV (easiest - pure tabular)
+2. HTML (moderate - BeautifulSoup straightforward)
+3. EPUB (moderate - chapter extraction)
+4. DOCX (leverage existing Docling)
+5. PPTX (leverage existing Docling)
+6. XLSX (most complex - hybrid strategy)
+
+**Per-format checklist:**
+- Add processor function
+- Implement chunking strategy
+- Add metadata extraction
+- Unit tests (sample files)
+- Integration tests (upload → process → query)
+
+### **Phase 3B: Quality metrics collection**
+
+- Add metadata fields to chunk schema
+- Populate metadata during chunking
+- Create analytics queries
+
+---
+
+## Database Schema Changes
+
+### **Chunk model additions:**
+- `chunkType` (String?): table/slide/chapter/section
+- `completeness` (String?): full/partial/fragment
+- `hasTitle` (Boolean?): Heading present
+
+**No breaking changes** - all fields nullable, backward compatible.
 
 ---
 
@@ -361,54 +246,54 @@ GDPR compliance, no vendor lock-in, user trust.
 
 | Decision | Rationale |
 |----------|-----------|
-| **Supabase Auth** | No password handling, social OAuth ready |
-| **Single User role** | Simplify for Phase 4, RBAC deferred |
-| **Stripe billing** | Industry standard, pre-built portal |
-| **Per-user Drive OAuth** | Better security than service account |
-| **API-based access only** | Security + quota enforcement |
-| **Row-level multi-tenancy** | Simple, scales to 10K users |
-| **Sharding at 10K+** | Horizontal scaling, predictable latency |
-| **bcrypt API keys** | Password-level security |
-| **JSON export format** | Portable, human-readable |
-| **Supabase Edge Functions** | Serverless webhooks, no backend overhead |
+| **Format-aware chunking** | Faster, deterministic, easier to debug than semantic |
+| **No semantic chunking** | Too complex for Phase 3, deferred to future |
+| **DOCX = PDF pipeline** | Leverage existing Docling investment |
+| **Hybrid Excel strategy** | Balance context vs size constraints |
+| **Multi-sheet processing** | Each sheet independent with metadata |
+| **Slide-based PPTX** | Natural semantic unit, group small slides |
+| **Section-aware HTML** | Use existing semantic structure |
+| **Chapter-based EPUB** | Books already have natural chapters |
+| **Quality metrics** | Enable future optimization, low overhead |
+| **No chunk preview API** | System handles automatically, reduces scope |
 
 ---
 
-## Implementation Order
+## Testing Strategy
 
-1. **Supabase setup** - Project, auth config
-2. **JWT middleware** - Backend verification
-3. **TenantId filtering** - Add to all queries
-4. **Stripe integration** - Products, checkout, webhooks
-5. **Quota enforcement** - Middleware
-6. **Drive OAuth** - Replace service account
-7. **API Keys** - Generate, verify, revoke
-8. **Data Export** - Async job, S3 upload
+### **Per-format tests:**
+- Sample files (small/medium/large)
+- Edge cases (empty sheets, malformed HTML, encrypted EPUB)
+- Chunking quality (verify boundaries, metadata)
+- E2E (upload → query → results)
+
+### **Regression tests:**
+- Phase 1/2 formats still work (PDF, TXT, JSON, MD)
+- Embedding quality unchanged
+- API compatibility
 
 ---
 
 ## Success Criteria
 
-**Phase 4 complete when:**
-- ✅ User registration/login via Supabase
-- ✅ JWT verification on all routes
-- ✅ Multi-tenant isolation (no cross-tenant access)
-- ✅ Stripe subscription working (all 3 tiers)
-- ✅ Quota enforcement functional
-- ✅ Per-user Drive OAuth replacing service account
-- ✅ API keys working for external apps
-- ✅ Data export functional (GDPR ready)
-- ✅ Zero regression in Phase 1-3 functionality
+**Phase 3 complete when:**
+- ✅ All 6 formats processing end-to-end
+- ✅ Format-aware chunking strategies implemented
+- ✅ Quality metrics collected in database
+- ✅ Zero regression in Phase 1/2 formats
 - ✅ Tests passing (unit + integration + E2E)
+- ✅ Documentation updated (API.md, ARCHITECTURE.md)
 
 ---
 
-## Migration from Phase 3
+## Trade-offs
 
-**No migration needed** - Phase 1-3 for testing only.
+| Aspect | Format-aware | Semantic (rejected) | Impact |
+|--------|--------------|---------------------|--------|
+| **Quality** | Good (80-85%) | Better (90%+) | Acceptable for Phase 3 |
+| **Speed** | Fast (<1s/doc) | Slow (5-10s/doc) | 10x faster |
+| **Determinism** | Deterministic | Non-deterministic | Easier debugging |
+| **Complexity** | Low (format parsers) | High (LLM integration) | Faster to ship |
+| **Cost** | $0 (self-hosted) | $0.01-0.05/doc (LLM) | Zero operational cost |
 
-**Production starts fresh:**
-1. Create Supabase project
-2. Configure Stripe products
-3. Deploy backend with new environment
-4. First user registers → first tenant
+**Conclusion:** Format-aware is optimal trade-off for Phase 3. Semantic chunking deferred to Phase 5+.
