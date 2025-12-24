@@ -11,7 +11,7 @@
 | **3A** | Database Migration | Add `isActive`, `connectionState` columns | ✅ Complete |
 | **3B** | Toggle Availability API | Single + bulk toggle endpoints | ✅ Complete |
 | **3C** | Hard Delete API | Single + bulk delete endpoints | ✅ Complete |
-| **3D** | Retry Failed API | Re-queue failed documents | ⬜ Pending |
+| **3D** | Retry Failed API | Re-queue failed documents | ✅ Complete |
 | **3E** | Enhanced List API | Filters, sorting, counts | ⬜ Pending |
 | **3F** | Query Filter Update | Exclude inactive from search | ⬜ Pending |
 | **3G** | Re-link Logic | Auto re-link when re-adding Drive folder | ⬜ Pending |
@@ -172,9 +172,9 @@ Response: { deleted: number, failed: [{ id, reason }] }
 
 ---
 
-## Part 3D: Retry Failed API ⬜
+## Part 3D: Retry Failed API ✅
 
-**Status:** Pending  
+**Status:** Complete  
 **Implementation:** `apps/backend/src/routes/documents/retry-route.ts`
 
 ### TDD Steps:

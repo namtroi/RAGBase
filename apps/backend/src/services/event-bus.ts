@@ -12,6 +12,7 @@ export type EventType =
     | 'document:status'
     | 'document:availability'  // Phase 3: availability toggled
     | 'document:deleted'       // Phase 3: document deleted
+    | 'document:retry'         // Phase 3: retry triggered
     | 'bulk:completed'         // Phase 3: bulk operation completed
     | 'sync:start'
     | 'sync:complete'

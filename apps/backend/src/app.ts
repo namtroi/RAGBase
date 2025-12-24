@@ -14,6 +14,7 @@ import { statusRoute } from './routes/documents/status-route.js';
 import { uploadRoute } from './routes/documents/upload-route.js';
 import { availabilityRoute } from './routes/documents/availability-route.js';
 import { deleteRoute } from './routes/documents/delete-route.js';
+import { retryRoute } from './routes/documents/retry-route.js';
 import { driveConfigRoutes } from './routes/drive/config-routes.js';
 import { driveSyncRoutes } from './routes/drive/sync-routes.js';
 import { healthRoute } from './routes/health-route.js';
@@ -78,6 +79,7 @@ export async function createApp(): Promise<FastifyInstance> {
     await listRoute(protectedScope);
     await availabilityRoute(protectedScope);
     await deleteRoute(protectedScope);
+    await retryRoute(protectedScope);
     await searchRoute(protectedScope);
 
     // Drive sync routes
