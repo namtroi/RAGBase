@@ -9,7 +9,7 @@
 | Part | Name | Description | Status |
 |------|------|-------------|--------|
 | **3A** | Database Migration | Add `isActive`, `connectionState` columns | ✅ Complete |
-| **3B** | Toggle Availability API | Single + bulk toggle endpoints | ⬜ Pending |
+| **3B** | Toggle Availability API | Single + bulk toggle endpoints | ✅ Complete |
 | **3C** | Hard Delete API | Single + bulk delete endpoints | ⬜ Pending |
 | **3D** | Retry Failed API | Re-queue failed documents | ⬜ Pending |
 | **3E** | Enhanced List API | Filters, sorting, counts | ⬜ Pending |
@@ -63,9 +63,9 @@
 
 ---
 
-## Part 3B: Toggle Availability API ⬜
+## Part 3B: Toggle Availability API ✅
 
-**Status:** Pending  
+**Status:** Complete  
 **Implementation:** `apps/backend/src/routes/documents/availability-route.ts`
 
 ### TDD Steps:

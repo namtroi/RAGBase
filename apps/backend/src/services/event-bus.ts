@@ -10,6 +10,9 @@ import { EventEmitter } from 'events';
 export type EventType =
     | 'document:created'
     | 'document:status'
+    | 'document:availability'  // Phase 3: availability toggled
+    | 'document:deleted'       // Phase 3: document deleted
+    | 'bulk:completed'         // Phase 3: bulk operation completed
     | 'sync:start'
     | 'sync:complete'
     | 'sync:error'
