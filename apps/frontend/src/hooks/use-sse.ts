@@ -43,6 +43,16 @@ export function useSSE(url: string | null, options: UseSSEOptions = {}): UseSSER
     const retriesRef = useRef(0);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    // Use refs for stable handler references
+    const onEventRef = useRef(onEvent);
+    const onErrorRef = useRef(onError);
+
+    // Update refs on every render
+    useEffect(() => {
+        onEventRef.current = onEvent;
+        onErrorRef.current = onError;
+    }, [onEvent, onError]);
+
     const connect = useCallback(() => {
         // Skip if no URL (no API key)
         if (!url) return;
@@ -65,7 +75,7 @@ export function useSSE(url: string | null, options: UseSSEOptions = {}): UseSSER
             try {
                 const event: ServerEvent = JSON.parse(e.data);
                 setLastEvent(event);
-                onEvent?.(event);
+                onEventRef.current?.(event);
             } catch {
                 // Ignore heartbeat comments (start with :)
             }
@@ -74,7 +84,7 @@ export function useSSE(url: string | null, options: UseSSEOptions = {}): UseSSER
         eventSource.onerror = (e) => {
             setIsConnected(false);
             setError(e);
-            onError?.(e);
+            onErrorRef.current?.(e);
             eventSource.close();
 
             // Auto-reconnect with exponential backoff
@@ -87,7 +97,7 @@ export function useSSE(url: string | null, options: UseSSEOptions = {}): UseSSER
                 }, delay);
             }
         };
-    }, [url, onEvent, onError, reconnectDelay, maxRetries]);
+    }, [url, reconnectDelay, maxRetries]);
 
     const reconnect = useCallback(() => {
         retriesRef.current = 0;
@@ -107,7 +117,7 @@ export function useSSE(url: string | null, options: UseSSEOptions = {}): UseSSER
                 clearTimeout(reconnectTimeoutRef.current);
             }
         };
-    }, [connect]);
+    }, [connect, url]);
 
     return { isConnected, lastEvent, error, reconnect };
 }

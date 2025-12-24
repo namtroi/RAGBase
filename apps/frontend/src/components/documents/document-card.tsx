@@ -1,13 +1,24 @@
 import { Document, documentsApi } from '@/api/endpoints';
-import { Calendar, Download, FileText, FolderSync, Hash, Loader2 } from 'lucide-react';
+import clsx from 'clsx';
+import { Calendar, Download, FileText, FolderSync, HardDrive, Hash, Link2, Loader2 } from 'lucide-react';
 import { useState } from 'react';
+import { AvailabilityToggle } from './availability-toggle';
 import { StatusBadge } from './status-badge';
 
 interface DocumentCardProps {
   document: Document;
+  isSelected?: boolean;
+  onSelect?: () => void;
 }
 
-export function DocumentCard({ document }: DocumentCardProps) {
+function formatFileSize(bytes?: number): string {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function DocumentCard({ document, isSelected, onSelect }: DocumentCardProps) {
   const [downloading, setDownloading] = useState<'markdown' | 'json' | null>(null);
 
   const handleDownload = async (format: 'markdown' | 'json') => {
@@ -24,24 +35,43 @@ export function DocumentCard({ document }: DocumentCardProps) {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Download failed', err);
-      // alert('Failed to download content'); // Removed to avoid annoying alerts, log is enough
     } finally {
       setDownloading(null);
     }
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+    <div
+      className={clsx(
+        'bg-white border rounded-lg p-4 hover:shadow-md transition-shadow',
+        isSelected ? 'border-primary-500 ring-2 ring-primary-100' : 'border-gray-200'
+      )}
+    >
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-start gap-3 flex-1 min-w-0">
+          {/* Selection checkbox */}
+          {onSelect && (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={onSelect}
+              className="w-4 h-4 mt-1 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
+            />
+          )}
           <FileText className="w-5 h-5 text-gray-400 shrink-0 mt-0.5" />
           <div className="min-w-0 flex-1">
             <h3 className="font-medium text-gray-900 truncate">{document.filename}</h3>
-            <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
+            <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-gray-500">
               <span className="flex items-center gap-1">
                 <Hash className="w-3 h-3" />
                 <span className="font-mono">{document.id.slice(0, 8)}...</span>
               </span>
+              {document.fileSize && (
+                <span className="flex items-center gap-1">
+                  <HardDrive className="w-3 h-3" />
+                  {formatFileSize(document.fileSize)}
+                </span>
+              )}
               {document.chunkCount !== undefined && (
                 <span>{document.chunkCount} chunks</span>
               )}
@@ -53,6 +83,12 @@ export function DocumentCard({ document }: DocumentCardProps) {
                 <span className="flex items-center gap-1 text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
                   <FolderSync className="w-3 h-3" />
                   Drive
+                </span>
+              )}
+              {document.connectionState === 'LINKED' && (
+                <span className="flex items-center gap-1 text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">
+                  <Link2 className="w-3 h-3" />
+                  Linked
                 </span>
               )}
             </div>
@@ -78,7 +114,17 @@ export function DocumentCard({ document }: DocumentCardProps) {
             )}
           </div>
         </div>
-        <StatusBadge status={document.status} />
+        <div className="flex items-center gap-3 shrink-0">
+          {/* Availability Toggle - only for COMPLETED docs */}
+          {document.status === 'COMPLETED' && document.isActive !== undefined && (
+            <AvailabilityToggle
+              documentId={document.id}
+              isActive={document.isActive}
+              disabled={document.status !== 'COMPLETED'}
+            />
+          )}
+          <StatusBadge status={document.status} />
+        </div>
       </div>
       {document.failReason && (
         <div className="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded">

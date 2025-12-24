@@ -51,6 +51,8 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
         c.heading,
         1 - (c.embedding <=> ${JSON.stringify(queryEmbedding)}::vector) as similarity
       FROM chunks c
+      JOIN documents d ON c.document_id = d.id
+      WHERE d.status = 'COMPLETED' AND d.is_active = true
       ORDER BY c.embedding <=> ${JSON.stringify(queryEmbedding)}::vector
       LIMIT ${topK}
     `;

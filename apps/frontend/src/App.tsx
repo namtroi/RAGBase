@@ -105,7 +105,7 @@ function AppContent() {
         )}
 
         {activeTab === 'settings' && (
-          <div className="max-w-md">
+          <div className="max-w-md mx-auto">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
               Settings
             </h2>

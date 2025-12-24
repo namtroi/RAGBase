@@ -10,13 +10,13 @@
 |------|------|-------------|--------|
 | **3A** | Database Migration | Add `isActive`, `connectionState` columns | ✅ Complete |
 | **3B** | Toggle Availability API | Single + bulk toggle endpoints | ✅ Complete |
-| **3C** | Hard Delete API | Single + bulk delete endpoints | ⬜ Pending |
-| **3D** | Retry Failed API | Re-queue failed documents | ⬜ Pending |
-| **3E** | Enhanced List API | Filters, sorting, counts | ⬜ Pending |
-| **3F** | Query Filter Update | Exclude inactive from search | ⬜ Pending |
-| **3G** | Re-link Logic | Auto re-link when re-adding Drive folder | ⬜ Pending |
-| **3H** | Frontend Data Grid | Enhanced document list UI | ⬜ Pending |
-| **3I** | Bulk Operations UI | Selection + action handlers | ⬜ Pending |
+| **3C** | Hard Delete API | Single + bulk delete endpoints | ✅ Complete |
+| **3D** | Retry Failed API | Re-queue failed documents | ✅ Complete |
+| **3E** | Enhanced List API | Filters, sorting, counts | ✅ Complete |
+| **3F** | Query Filter Update | Exclude inactive from search | ✅ Complete |
+| **3G** | Re-link Logic | Auto re-link when re-adding Drive folder | ✅ Complete |
+| **3H** | Frontend Data Grid | Enhanced document list UI | ✅ Complete |
+| **3I** | Bulk Operations UI | Selection + action handlers | ✅ Complete |
 
 ---
 
@@ -120,9 +120,9 @@ Response: { updated: number, failed: [{ id, reason }] }
 
 ---
 
-## Part 3C: Hard Delete API ⬜
+## Part 3C: Hard Delete API ✅
 
-**Status:** Pending  
+**Status:** Complete  
 **Implementation:** `apps/backend/src/routes/documents/delete-route.ts`
 
 ### TDD Steps:
@@ -172,9 +172,9 @@ Response: { deleted: number, failed: [{ id, reason }] }
 
 ---
 
-## Part 3D: Retry Failed API ⬜
+## Part 3D: Retry Failed API ✅
 
-**Status:** Pending  
+**Status:** Complete  
 **Implementation:** `apps/backend/src/routes/documents/retry-route.ts`
 
 ### TDD Steps:
@@ -205,9 +205,9 @@ Response: { id, status: 'PENDING' }
 
 ---
 
-## Part 3E: Enhanced List API ⬜
+## Part 3E: Enhanced List API ✅
 
-**Status:** Pending  
+**Status:** Complete  
 **Implementation:** `apps/backend/src/routes/documents/list-route.ts`
 
 ### TDD Steps:
@@ -278,9 +278,9 @@ GET /api/documents?
 
 ---
 
-## Part 3F: Query Filter Update ⬜
+## Part 3F: Query Filter Update ✅
 
-**Status:** Pending  
+**Status:** Complete  
 **Implementation:** `apps/backend/src/routes/query-route.ts`
 
 ### TDD Steps:
@@ -304,9 +304,9 @@ GET /api/documents?
 
 ---
 
-## Part 3G: Re-link Logic ⬜
+## Part 3G: Re-link Logic ✅
 
-**Status:** Pending  
+**Status:** Complete  
 **Implementation:** `apps/backend/src/services/sync-service.ts`
 
 ### TDD Steps:
@@ -351,9 +351,9 @@ GET /api/documents?
 
 ---
 
-## Part 3H: Frontend Data Grid ⬜
+## Part 3H: Frontend Data Grid ✅
 
-**Status:** Pending  
+**Status:** Complete  
 **Implementation:** `apps/frontend/src/components/documents/*`
 
 ### Components:
@@ -394,9 +394,9 @@ GET /api/documents?
 
 ---
 
-## Part 3I: Bulk Operations UI ⬜
+## Part 3I: Bulk Operations UI ✅
 
-**Status:** Pending  
+**Status:** Complete  
 **Implementation:** `apps/frontend/src/components/documents/*`
 
 ### Components:
@@ -499,5 +499,5 @@ Dependencies:
 
 ---
 
-**Phase 3 Status:** ⬜ NOT STARTED
+**Phase 3 Status:** ✅ COMPLETE
 

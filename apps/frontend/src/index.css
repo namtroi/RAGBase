@@ -9,6 +9,10 @@
 }
 
 @layer base {
+  html {
+    scrollbar-gutter: stable;
+  }
+
   body {
     background-color: var(--color-gray-50);
     color: var(--color-gray-900);

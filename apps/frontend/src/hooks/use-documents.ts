@@ -1,12 +1,7 @@
-import { documentsApi } from '@/api/endpoints';
+import { documentsApi, ListParams } from '@/api/endpoints';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-export function useDocuments(params?: {
-  status?: string;
-  limit?: number;
-  offset?: number;
-  driveConfigId?: string;
-}) {
+export function useDocuments(params?: ListParams) {
   // SSE handles real-time updates via EventProvider
   return useQuery({
     queryKey: ['documents', params],

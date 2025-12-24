@@ -28,3 +28,23 @@ export type BulkToggleAvailabilityInput = z.infer<typeof BulkToggleAvailabilityS
 export const DocumentIdParamsSchema = z.object({
   id: z.string().uuid(),
 });
+
+// Bulk delete
+export const BulkDeleteSchema = z.object({
+  documentIds: z
+    .array(z.string().uuid())
+    .min(1, 'At least one document ID required')
+    .max(100, 'Maximum 100 documents per request'),
+});
+
+export type BulkDeleteInput = z.infer<typeof BulkDeleteSchema>;
+
+// Bulk retry (same schema as bulk delete)
+export const BulkRetrySchema = z.object({
+  documentIds: z
+    .array(z.string().uuid())
+    .min(1, 'At least one document ID required')
+    .max(100, 'Maximum 100 documents per request'),
+});
+
+export type BulkRetryInput = z.infer<typeof BulkRetrySchema>;

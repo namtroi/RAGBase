@@ -1,15 +1,32 @@
 import { driveApi } from '@/api/endpoints';
 import { useDocuments } from '@/hooks/use-documents';
+import { useSelection } from '@/hooks/use-selection';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, FolderSync, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
+import { BulkActionBar } from './bulk-action-bar';
+import { DeleteConfirmModal } from './delete-confirm-modal';
 import { DocumentCard } from './document-card';
+import { DocumentFilters, FilterState } from './document-filters';
+import { Pagination } from './pagination';
 
-type StatusFilter = 'all' | 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+const defaultFilters: FilterState = {
+  search: '',
+  status: '',
+  isActive: '',
+  connectionState: '',
+  sourceType: '',
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+};
 
 export function DocumentList() {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [folderFilter, setFolderFilter] = useState<string>('all');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const selection = useSelection();
 
   // Fetch Drive configs for filter
   const { data: configData } = useQuery({
@@ -17,19 +34,34 @@ export function DocumentList() {
     queryFn: driveApi.listConfigs,
   });
 
-  const { data, isLoading, refetch, isRefetching } = useDocuments({
-    status: statusFilter === 'all' ? undefined : statusFilter,
+  // Build query params from filters
+  const queryParams = {
+    status: filters.status || undefined,
+    isActive: filters.isActive ? filters.isActive === 'true' : undefined,
+    connectionState: filters.connectionState as 'STANDALONE' | 'LINKED' | undefined || undefined,
+    sourceType: filters.sourceType as 'MANUAL' | 'DRIVE' | undefined || undefined,
+    search: filters.search || undefined,
+    sortBy: filters.sortBy,
+    sortOrder: filters.sortOrder,
     driveConfigId: folderFilter === 'all' ? undefined : folderFilter,
-    limit: 20,
-  });
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
+  };
 
-  const filters: { label: string; value: StatusFilter }[] = [
-    { label: 'All', value: 'all' },
-    { label: 'Pending', value: 'PENDING' },
-    { label: 'Processing', value: 'PROCESSING' },
-    { label: 'Completed', value: 'COMPLETED' },
-    { label: 'Failed', value: 'FAILED' },
-  ];
+  const { data, isLoading, refetch, isRefetching } = useDocuments(queryParams);
+
+  const allIds = data?.documents.map((d) => d.id) || [];
+  const isAllSelected = allIds.length > 0 && allIds.every((id) => selection.isSelected(id));
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      selection.selectNone();
+    } else {
+      selection.selectAll(allIds);
+    }
+  };
+
+  const selectedDocuments = data?.documents.filter((d) => selection.isSelected(d.id)) || [];
 
   return (
     <div className="space-y-4">
@@ -48,43 +80,62 @@ export function DocumentList() {
         </button>
       </div>
 
-      {/* Filters/Actions Row */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        {/* Status Filters */}
-        <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
-          {filters.map((filter) => (
-            <button
-              key={filter.value}
-              onClick={() => setStatusFilter(filter.value)}
-              className={`px-3 py-1.5 text-sm rounded-full whitespace-nowrap transition-colors ${statusFilter === filter.value
-                  ? 'bg-primary-500 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
+      {/* Filters */}
+      <DocumentFilters
+        filters={filters}
+        onChange={(newFilters) => {
+          setFilters(newFilters);
+          setPage(1);
+        }}
+        counts={data?.counts}
+      />
 
-        {/* Drive Filter */}
-        {configData?.configs && configData.configs.length > 0 && (
-          <div className="flex items-center gap-2">
-            <FolderSync className="w-4 h-4 text-gray-400" />
-            <select
-              value={folderFilter}
-              onChange={(e) => setFolderFilter(e.target.value)}
-              className="text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 bg-white py-1.5 pl-3 pr-8"
-            >
-              <option value="all">All Sources</option>
-              {configData.configs.map((config) => (
-                <option key={config.id} value={config.id}>
-                  {config.folderName}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
+      {/* Drive Filter (additional) */}
+      {configData?.configs && configData.configs.length > 0 && (
+        <div className="flex items-center gap-2">
+          <FolderSync className="w-4 h-4 text-gray-400" />
+          <select
+            value={folderFilter}
+            onChange={(e) => {
+              setFolderFilter(e.target.value);
+              setPage(1);
+            }}
+            className="text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 bg-white py-1.5 pl-3 pr-8"
+          >
+            <option value="all">All Folders</option>
+            {configData.configs.map((config) => (
+              <option key={config.id} value={config.id}>
+                {config.folderName}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Status Counts Summary */}
+      {data?.counts && (
+        <div className="flex gap-4 text-xs text-gray-500">
+          <span>Total: {data.total}</span>
+          <span className="text-green-600">Active: {data.counts.active}</span>
+          <span className="text-yellow-600">Inactive: {data.counts.inactive}</span>
+          <span className="text-red-600">Failed: {data.counts.failed}</span>
+        </div>
+      )}
+
+      {/* Select All */}
+      {data && data.documents.length > 0 && (
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={isAllSelected}
+            onChange={handleSelectAll}
+            className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
+          />
+          <span className="text-sm text-gray-600">
+            Select all ({data.documents.length})
+          </span>
+        </div>
+      )}
 
       {/* Document list */}
       {isLoading ? (
@@ -99,17 +150,45 @@ export function DocumentList() {
       ) : (
         <div className="space-y-3">
           {data?.documents.map((doc) => (
-            <DocumentCard key={doc.id} document={doc} />
+            <DocumentCard
+              key={doc.id}
+              document={doc}
+              isSelected={selection.isSelected(doc.id)}
+              onSelect={() => selection.toggle(doc.id)}
+            />
           ))}
         </div>
       )}
 
-      {/* Total count */}
-      {data && (
-        <p className="text-sm text-gray-500">
-          Showing {data.documents.length} of {data.total} documents
-        </p>
+      {/* Pagination */}
+      {data && data.total > 0 && (
+        <Pagination
+          total={data.total}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       )}
+
+      {/* Bulk Action Bar */}
+      <BulkActionBar
+        selectedIds={Array.from(selection.selected)}
+        selectedDocuments={selectedDocuments}
+        onClear={selection.selectNone}
+        onDeleteConfirm={() => setShowDeleteModal(true)}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        documents={selectedDocuments}
+        onSuccess={selection.selectNone}
+      />
     </div>
   );
 }

@@ -178,4 +178,70 @@ describe('POST /api/query', () => {
       expect(response.json().results).toHaveLength(0);
     });
   });
+
+  describe('search filtering', () => {
+    async function insertChunk(docId: string, content: string) {
+      const prisma = getPrisma();
+      const embedding = mockEmbedding(content);
+      await prisma.$executeRaw`
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, created_at)
+        VALUES (gen_random_uuid(), ${docId}, ${content}, 0, ${JSON.stringify(embedding)}::vector, 0, ${content.length}, NOW())
+      `;
+    }
+
+    it('should exclude inactive documents from search', async () => {
+      const activeDoc = await seedDocument({ status: 'COMPLETED', isActive: true, md5Hash: 'active' });
+      const inactiveDoc = await seedDocument({ status: 'COMPLETED', isActive: false, md5Hash: 'inactive' });
+
+      await insertChunk(activeDoc.id, 'Active document content');
+      await insertChunk(inactiveDoc.id, 'Inactive document content');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/query',
+        headers: { 'X-API-Key': API_KEY },
+        payload: { query: 'content', topK: 10 },
+      });
+
+      const body = response.json();
+      expect(body.results).toHaveLength(1);
+      expect(body.results[0].documentId).toBe(activeDoc.id);
+    });
+
+    it('should exclude non-COMPLETED documents from search', async () => {
+      const completedDoc = await seedDocument({ status: 'COMPLETED', md5Hash: 'completed' });
+      const failedDoc = await seedDocument({ status: 'FAILED', md5Hash: 'failed' });
+      const pendingDoc = await seedDocument({ status: 'PENDING', md5Hash: 'pending' });
+
+      await insertChunk(completedDoc.id, 'Completed content');
+      await insertChunk(failedDoc.id, 'Failed content');
+      await insertChunk(pendingDoc.id, 'Pending content');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/query',
+        headers: { 'X-API-Key': API_KEY },
+        payload: { query: 'content', topK: 10 },
+      });
+
+      const body = response.json();
+      // Only the completed document should return results
+      expect(body.results).toHaveLength(1);
+      expect(body.results[0].documentId).toBe(completedDoc.id);
+    });
+
+    it('should only return results when document is both active and completed', async () => {
+      const doc = await seedDocument({ status: 'FAILED', isActive: true, md5Hash: 'failed-active' });
+      await insertChunk(doc.id, 'Failed active content');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/query',
+        headers: { 'X-API-Key': API_KEY },
+        payload: { query: 'content', topK: 10 },
+      });
+
+      expect(response.json().results).toHaveLength(0);
+    });
+  });
 });
