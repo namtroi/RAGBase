@@ -240,6 +240,12 @@ export async function driveConfigRoutes(fastify: FastifyInstance): Promise<void>
         }
 
         // Delete config (documents will have driveConfigId set to null due to onDelete: SetNull)
+        // First, update connectionState to STANDALONE for all linked documents
+        await prisma.document.updateMany({
+            where: { driveConfigId: params.data.id },
+            data: { connectionState: 'STANDALONE' },
+        });
+
         await prisma.driveConfig.delete({
             where: { id: params.data.id },
         });
