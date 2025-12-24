@@ -1,382 +1,103 @@
 # Phase 2 Detailed Implementation Plan
 
-**Python-First + Drive Sync** | **TDD Approach**
+**Python-First + Drive Sync + Real-time Updates** | **TDD Approach**
 
 ---
 
 ## Overview
 
-| Part | Name | Description | Dependencies |
-|------|------|-------------|--------------|
-| **2A** | Python Embedding & Chunking | AI Worker generates embeddings + chunks | None |
-| **2B** | Backend Callback Update | Accept embeddings from Python | 2A |
-| **2C** | Kill Fast Lane | Route all files through queue | 2B |
-| **2D** | Content Export | Download processed markdown/JSON | 2B |
-| **2E** | Drive Sync - Backend | DriveConfig model, sync API, cron | 2C |
-| **2F** | Drive Sync - Frontend | UI for Drive folder management | 2E |
-| **2G** | Re-embed Migration | Migrate Phase 1 data to new model | 2C |
+| Part | Name | Description | Status |
+|------|------|-------------|--------|
+| **2A** | Python Embedding & Chunking | AI Worker generates embeddings + chunks | ✅ Complete |
+| **2B** | Backend Callback Update | Accept embeddings from Python | ✅ Complete |
+| **2C** | Kill Fast Lane | Route all files through queue | ✅ Complete |
+| **2D** | Content Export | Download processed markdown/JSON | ✅ Complete |
+| **2E** | Drive Sync - Backend | DriveConfig model, sync API, cron | ✅ Complete |
+| **2F** | Drive Sync - Frontend | UI for Drive folder management | ✅ Complete |
+| **2G** | Re-embed Migration | Migrate Phase 1 data to new model | ⏭️ Skipped |
+| **2H** | SSE Real-time Updates | Replace polling with Server-Sent Events | ✅ Complete |
+| **2I** | Multi-format Processing | Support JSON/MD/TXT in AI Worker | ✅ Complete |
 
 ---
 
-## Part 2A: Python Embedding & Chunking
+## Part 2A: Python Embedding & Chunking ✅
 
-**Scope:** AI Worker generates embeddings + chunks, sends to backend.
+**Status:** Complete  
+**Implementation:** `apps/ai-worker/src/embedder.py`, `apps/ai-worker/src/chunker.py`
 
-### 2A.1 Install Dependencies
-
-**Files:** `apps/ai-worker/requirements.txt`, `requirements-prod.txt`
-
-**Add:**
-```
-sentence-transformers>=2.3.0
-langchain>=0.3.0
-langchain-text-splitters>=0.3.0
-```
-
-**Tests:** Build succeeds, imports work
+### Key Changes:
+- ✅ Installed `sentence-transformers>=2.3.0`, `langchain>=0.3.0`
+- ✅ Created `Embedder` class using `BAAI/bge-small-en-v1.5` (384d)
+- ✅ Created `Chunker` class with markdown-aware splitting (1000 chars, 200 overlap)
+- ✅ Updated `PDFProcessor` to chunk → embed → callback
+- ✅ All tests passing
 
 ---
 
-### 2A.2 Create Embedder Module
+## Part 2B: Backend Callback Update ✅
 
-**New file:** `apps/ai-worker/src/embedder.py`
+**Status:** Complete  
+**Implementation:** `apps/backend/src/routes/internal/callback-route.ts`
 
-**Functionality:**
-- Load `BAAI/bge-small-en-v1.5` model (384d)
-- `embed(texts: list[str]) -> list[list[float]]`
-- Singleton pattern for model caching
-- Env config: `EMBEDDING_MODEL`, `EMBEDDING_DIMENSION`
-
-**Tests (write first):**
-```python
-# tests/test_embedder.py
-def test_embed_returns_384_dimensions():
-    result = embedder.embed(["hello world"])
-    assert len(result[0]) == 384
-
-def test_embed_batch_consistency():
-    single = embedder.embed(["hello"])
-    batch = embedder.embed(["hello", "world"])
-    assert single[0] == batch[0]
-
-def test_embed_empty_list():
-    result = embedder.embed([])
-    assert result == []
-```
+### Key Changes:
+- ✅ Updated callback schema to accept `processedContent` + `chunks[].embedding`
+- ✅ Removed Fastembed embedding logic from backend
+- ✅ Store pre-computed embeddings directly from Python
+- ✅ Added `processedContent` field to Document model
+- ✅ Increased `bodyLimit` to 100MB for large PDF callbacks
 
 ---
 
-### 2A.3 Create Chunker Module
+## Part 2C: Kill Fast Lane ✅
 
-**New file:** `apps/ai-worker/src/chunker.py`
+**Status:** Complete  
+**Implementation:** `apps/backend/src/queue/job-processor.ts`
 
-**Functionality:**
-- Markdown-aware splitting (LangChain `MarkdownTextSplitter`)
-- Config: `chunk_size=1000`, `overlap=200`
-- Output: `[{ content, index, metadata: { charStart, charEnd, heading? } }]`
+### Key Changes:
+- ✅ Removed fast lane logic entirely
+- ✅ All files (PDF, JSON, TXT, MD) now go through BullMQ queue
+- ✅ Removed Fastembed dependency from `package.json`
+- ✅ All documents use `lane: 'heavy'`
 
-**Tests (write first):**
-```python
-# tests/test_chunker.py
-def test_chunk_respects_size():
-    result = chunker.chunk("x" * 2000)
-    for chunk in result:
-        assert len(chunk["content"]) <= 1000 + 200  # size + overlap
+---
 
-def test_chunk_overlap():
-    result = chunker.chunk("x" * 2000)
-    # Check overlap between consecutive chunks
-    assert result[0]["content"][-200:] in result[1]["content"]
+## Part 2D: Content Export ✅
 
-def test_chunk_heading_extraction():
-    md = "# Header\n\nContent here"
-    result = chunker.chunk(md)
-    assert result[0]["metadata"]["heading"] == "Header"
+**Status:** Complete  
+**Implementation:** `apps/backend/src/routes/documents/content-route.ts`
+
+### Endpoint:
+```
+GET /api/documents/:id/content?format=markdown|json
 ```
 
----
-
-### 2A.4 Update Processor
-
-**Modify:** `apps/ai-worker/src/processor.py`
-
-**Changes:**
-- After Docling conversion → call chunker → call embedder
-- Return `processedContent` + `chunks` with embeddings
-
-**Tests (write first):**
-```python
-# tests/test_processor.py (update existing)
-def test_processor_returns_chunks_with_embeddings():
-    result = processor.process_pdf("test.pdf")
-    assert "chunks" in result
-    assert all("embedding" in c for c in result["chunks"])
-    assert len(result["chunks"][0]["embedding"]) == 384
-
-def test_processor_returns_processed_content():
-    result = processor.process_pdf("test.pdf")
-    assert "processedContent" in result
-    assert isinstance(result["processedContent"], str)
-```
+### Features:
+- ✅ Returns 404 for non-existent documents
+- ✅ Returns 409 for non-completed documents
+- ✅ Markdown format: raw text with proper headers
+- ✅ JSON format: includes chunks with metadata
+- ✅ Frontend download buttons working
 
 ---
 
-### 2A.5 Update Callback Payload
-
-**Modify:** `apps/ai-worker/src/callback.py`
-
-**Changes:**
-- Add `processedContent` to payload
-- Add `embedding` field to each chunk
-
-**Tests (write first):**
-```python
-# tests/test_callback.py (update existing)
-def test_callback_includes_embeddings():
-    payload = callback.build_payload(result)
-    assert "chunks" in payload["result"]
-    assert all("embedding" in c for c in payload["result"]["chunks"])
-
-def test_callback_includes_processed_content():
-    payload = callback.build_payload(result)
-    assert "processedContent" in payload["result"]
-```
-
----
-
-## Part 2B: Backend Callback Update
-
-**Scope:** Backend accepts pre-computed embeddings, removes Node.js embedding.
-
-### 2B.1 Update Callback Schema
-
-**Modify:** `apps/backend/src/schemas/callback.ts`
-
-**Changes:**
-```typescript
-// Add to CallbackResultSchema
-processedContent: z.string(),
-chunks: z.array(z.object({
-  content: z.string(),
-  index: z.number(),
-  embedding: z.array(z.number()).length(384),  // NEW
-  metadata: z.object({...})
-}))
-```
-
-**Tests:**
-```typescript
-// tests/unit/schemas/callback.test.ts
-test('validates payload with embeddings', () => {
-  const valid = CallbackSchema.safeParse(payloadWithEmbeddings);
-  expect(valid.success).toBe(true);
-});
-
-test('rejects payload without embeddings', () => {
-  const invalid = CallbackSchema.safeParse(payloadWithoutEmbeddings);
-  expect(invalid.success).toBe(false);
-});
-```
-
----
-
-### 2B.2 Update Callback Handler
-
-**Modify:** `apps/backend/src/routes/internal/callback.ts`
-
-**Changes:**
-- Remove Fastembed embedding call
-- Use `chunks[].embedding` directly
-- Store `processedContent` in Document
-
-**Tests:**
-```typescript
-// tests/integration/callback.test.ts
-test('stores embeddings from callback', async () => {
-  await callbackHandler(payloadWithEmbeddings);
-  const chunks = await db.chunk.findMany({ where: { documentId } });
-  expect(chunks[0].embedding).toHaveLength(384);
-});
-
-test('stores processedContent', async () => {
-  await callbackHandler(payloadWithEmbeddings);
-  const doc = await db.document.findUnique({ where: { id: documentId } });
-  expect(doc.processedContent).toBeDefined();
-});
-```
-
----
-
-### 2B.3 Update Document Model
-
-**Modify:** `apps/backend/prisma/schema.prisma`
-
-**Add fields:**
-```prisma
-processedContent    String?   @db.Text
-processingMetadata  Json?
-```
-
-**Run:** `pnpm db:push` or `prisma migrate dev`
-
----
-
-## Part 2C: Kill Fast Lane
-
-**Scope:** Route ALL files through queue.
-
-### 2C.1 Remove Fast Lane Logic
-
-**Modify:**
-- `apps/backend/src/routes/documents/upload.ts`
-- `apps/backend/src/services/processor.ts`
-
-**Changes:**
-- Remove `lane === 'fast'` branch
-- All uploads → queue
-- Set `lane = 'heavy'` for all documents
-
-**Tests:**
-```typescript
-test('JSON file goes to queue', async () => {
-  const res = await upload('test.json');
-  expect(res.status).toBe('PENDING');
-  expect(res.lane).toBe('heavy');
-});
-
-test('fast lane code path removed', () => {
-  expect(processor.processSync).toBeUndefined();
-});
-```
-
----
-
-### 2C.2 Remove Node.js Fastembed
-
-**Modify:** `apps/backend/package.json`
-
-**Remove:** `fastembed` dependency
-
-**Delete:** Embedding service code in backend
-
----
-
-## Part 2D: Content Export
-
-**Scope:** New endpoint to download processed content.
-
-### 2D.1 Create Content Endpoint
-
-**New file:** `apps/backend/src/routes/documents/content.ts`
-
-**Endpoint:** `GET /api/documents/:id/content?format=markdown|json`
-
-**Tests:**
-```typescript
-test('returns 404 for non-existent document', async () => {
-  const res = await request.get('/api/documents/invalid/content?format=markdown');
-  expect(res.status).toBe(404);
-});
-
-test('returns 409 for non-completed document', async () => {
-  // Create PENDING document
-  const res = await request.get(`/api/documents/${pendingDoc.id}/content?format=markdown`);
-  expect(res.status).toBe(409);
-});
-
-test('returns markdown content', async () => {
-  const res = await request.get(`/api/documents/${completedDoc.id}/content?format=markdown`);
-  expect(res.headers['content-type']).toContain('text/markdown');
-});
-
-test('returns JSON with chunks', async () => {
-  const res = await request.get(`/api/documents/${completedDoc.id}/content?format=json`);
-  expect(res.body.chunks).toBeDefined();
-});
-```
-
----
-
-### 2D.2 Update Document Response
-
-**Modify:** `apps/backend/src/routes/documents/status.ts`
-
-**Add field:** `hasProcessedContent: boolean`
-
----
-
-## Part 2E: Drive Sync - Backend
-
-**Scope:** DriveConfig model, sync logic, API endpoints.
-
-### 2E.1 Create DriveConfig Model
-
-**Modify:** `apps/backend/prisma/schema.prisma`
-
-```prisma
-model DriveConfig {
-  id            String    @id @default(uuid())
-  folderId      String    @unique
-  folderName    String
-  syncCron      String    @default("0 */6 * * *")
-  recursive     Boolean   @default(true)
-  enabled       Boolean   @default(true)
-  lastSyncedAt  DateTime?
-  pageToken     String?
-  syncStatus    String    @default("IDLE")
-  syncError     String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  documents     Document[]
-  
-  @@index([enabled])
-}
-```
-
-**Update Document model:**
-```prisma
-sourceType      String    @default("MANUAL")
-driveFileId     String?   @unique
-driveConfigId   String?
-lastSyncedAt    DateTime?
-driveConfig     DriveConfig? @relation(fields: [driveConfigId], references: [id], onDelete: SetNull)
-
-@@index([sourceType])
-@@index([driveConfigId])
-```
-
----
-
-### 2E.2 Create Drive Service
-
-**New file:** `apps/backend/src/services/drive.ts`
-
-**Functionality:**
-- Google Drive API client (Service Account)
-- `listFiles(folderId, pageToken?)`
-- `downloadFile(fileId, destPath)`
-- `getChanges(pageToken)`
-
----
-
-### 2E.3 Create Sync Service
-
-**New file:** `apps/backend/src/services/sync.ts`
-
-**Functionality:**
-- Orchestrate: list → download → create doc → queue
-- Incremental sync with Changes API
-- Soft delete (ARCHIVED) for removed files
-
----
-
-### 2E.4 Create Drive Config Endpoints
-
-**New files:**
-- `apps/backend/src/routes/drive/configs.ts`
-- `apps/backend/src/routes/drive/sync.ts`
-
-**Endpoints:**
+## Part 2E: Drive Sync - Backend ✅
+
+**Status:** Complete  
+**Implementation:**
+- `apps/backend/src/services/drive-service.ts`
+- `apps/backend/src/services/sync-service.ts`
+- `apps/backend/src/routes/drive/*`
+
+### Features:
+- ✅ DriveConfig model with folder management
+- ✅ Google Drive API integration (Service Account)
+- ✅ Incremental sync with Changes API + pageToken
+- ✅ MD5 deduplication
+- ✅ Cron-based auto-sync (configurable per folder)
+- ✅ Manual sync trigger endpoint
+- ✅ Soft delete for removed files (status: ARCHIVED)
+
+### Endpoints:
 ```
 POST   /api/drive/configs           - Add folder
 GET    /api/drive/configs           - List folders
@@ -387,95 +108,180 @@ POST   /api/drive/sync/:configId/trigger - Manual sync
 
 ---
 
-### 2E.5 Create Cron Job
+## Part 2F: Drive Sync - Frontend ✅
 
-**New file:** `apps/backend/src/jobs/cron.ts`
+**Status:** Complete  
+**Implementation:** `apps/frontend/src/components/drive/*`
 
-**Functionality:**
-- Use `node-cron`
-- Run sync for enabled DriveConfigs based on `syncCron`
-
----
-
-## Part 2F: Drive Sync - Frontend
-
-**Scope:** UI for Drive folder management.
-
-### 2F.1 Drive Sync Tab
-
-**New files:**
-- `apps/frontend/src/components/DriveSyncTab.tsx`
-- `apps/frontend/src/components/DriveConfigList.tsx`
-- `apps/frontend/src/components/AddFolderModal.tsx`
-
-**Components:**
-- Add Folder button → Modal
-- Folder list with settings
-- Actions: Edit, Delete, Sync Now
+### Components:
+- ✅ `DriveSyncTab.tsx` - Main tab with folder list
+- ✅ `DriveConfigList.tsx` - Folder cards with status
+- ✅ `AddFolderModal.tsx` - Add new folder dialog
+- ✅ Document list filter by Drive folder
+- ✅ Download buttons (Markdown/JSON)
+- ✅ Source type indicators
 
 ---
 
-### 2F.2 Documents Tab Update
+## Part 2G: Re-embed Migration ⏭️
 
-**Modify:** `apps/frontend/src/components/DocumentList.tsx`
-
-**Add:**
-- Download button (markdown/JSON)
-- Source type indicator
-- Filter by Drive folder
+**Status:** Skipped  
+**Reason:** User opted to reset development data instead of migrating Phase 1 embeddings.
 
 ---
 
-## Part 2G: Re-embed Migration (DEPRECATED)
-**Status:** SKIPPED
-**Reason:** User opted to reset development data instead of migrating.
+## Part 2H: SSE Real-time Updates ✅
+
+**Status:** Complete (NEW in Phase 2)  
+**Implementation:**
+- Backend: `apps/backend/src/services/event-bus.ts`, `apps/backend/src/routes/sse-route.ts`
+- Frontend: `apps/frontend/src/hooks/use-sse.ts`, `apps/frontend/src/providers/EventProvider.tsx`
+
+### Architecture:
+```
+Backend EventBus (EventEmitter) → SSE Endpoint → Frontend EventProvider → React Query Invalidation
+```
+
+### Events:
+- `document:created` - New document uploaded
+- `document:status` - Processing status changed (COMPLETED/FAILED)
+- `sync:start` - Drive sync started
+- `sync:complete` - Drive sync completed
+- `sync:error` - Drive sync failed
+
+### Key Features:
+- ✅ Native Fastify SSE with EventSource API
+- ✅ Auto-reconnect with exponential backoff
+- ✅ API key authentication via query parameter (EventSource limitation)
+- ✅ Heartbeat every 30s to keep connection alive
+- ✅ React Query cache invalidation on events
+- ✅ Removed polling from `use-documents.ts` and `DriveSyncTab.tsx`
+
+### Files:
+- `apps/backend/src/services/event-bus.ts` - In-memory pub/sub
+- `apps/backend/src/routes/sse-route.ts` - SSE endpoint
+- `apps/backend/src/routes/internal/callback-route.ts` - Emit document events
+- `apps/backend/src/routes/documents/upload-route.ts` - Emit document:created
+- `apps/backend/src/services/sync-service.ts` - Emit sync events
+- `apps/frontend/src/hooks/use-sse.ts` - SSE connection hook
+- `apps/frontend/src/contexts/EventContext.ts` - React context
+- `apps/frontend/src/hooks/use-events.ts` - Context consumer hook
+- `apps/frontend/src/providers/EventProvider.tsx` - Global SSE provider
+- `apps/frontend/src/App.tsx` - Wrapped with EventProvider
+
+### Tests:
+- ✅ `apps/backend/tests/unit/services/event-bus.test.ts`
+- ✅ `apps/backend/tests/integration/routes/sse-route.test.ts`
+- ✅ All 232 backend tests passing
+
+---
+
+## Part 2I: Multi-format Processing ✅
+
+**Status:** Complete (NEW in Phase 2)  
+**Implementation:** `apps/ai-worker/src/text_processor.py`
+
+### Problem Solved:
+Non-PDF files (JSON, MD, TXT) were marked COMPLETED without processing:
+- ❌ No `processedContent` stored
+- ❌ No chunks created
+- ❌ No embeddings generated
+- ❌ Download failed
+- ❌ Search didn't work
+
+### Solution:
+Created `TextProcessor` to handle all non-PDF formats:
+
+```python
+# apps/ai-worker/src/text_processor.py
+class TextProcessor:
+    async def process(file_path, format):
+        # 1. Read file content
+        # 2. Convert to markdown based on format:
+        #    - MD: return as-is
+        #    - TXT: wrap with filename heading
+        #    - JSON: pretty print in code block
+        # 3. Chunk with same logic as PDF
+        # 4. Embed with same model (bge-small-en-v1.5)
+        # 5. Return ProcessingResult
+```
+
+### Updated Files:
+- `apps/ai-worker/src/text_processor.py` - NEW
+- `apps/ai-worker/src/main.py` - Route by format (PDF→Docling, others→TextProcessor)
+- `apps/backend/src/queue/job-processor.ts` - Dispatch ALL formats to AI worker
+
+### Flow:
+```
+Upload (any format) → Queue → Job Processor
+    → Dispatch to AI Worker with format field
+        → AI Worker routes:
+            - PDF → PDFProcessor (Docling)
+            - MD/TXT/JSON → TextProcessor
+        → Chunk → Embed → Callback
+    → Backend saves processedContent + chunks
+```
+
+### Tests:
+- ✅ TextProcessor imports successfully
+- ✅ All backend tests passing
+- ✅ Manual E2E test: MD file uploaded → processed → downloaded → searched
 
 ---
 
 ## Progress Tracking
 
-| Part | Status | Started | Completed |
-|------|--------|---------|-----------|s
-| 2A | ⬜ Not Started | - | - |
-| 2B | ⬜ Not Started | - | - |
-| 2C | ⬜ Not Started | - | - |
-| 2D | ⬜ Not Started | - | - |
-| 2E | ⬜ Not Started | - | - |
-| 2F | ⬜ Not Started | - | - |
-| 2G | ⬜ Not Started | - | - |
-
-**Legend:** ⬜ Not Started | 🟡 In Progress | ✅ Complete
+| Part | Status | Completed |
+|------|--------|-----------|
+| 2A | ✅ Complete | Dec 2024 |
+| 2B | ✅ Complete | Dec 2024 |
+| 2C | ✅ Complete | Dec 2024 |
+| 2D | ✅ Complete | Dec 2024 |
+| 2E | ✅ Complete | Dec 2024 |
+| 2F | ✅ Complete | Dec 2024 |
+| 2G | ⏭️ Skipped | N/A |
+| 2H | ✅ Complete | Dec 23, 2024 |
+| 2I | ✅ Complete | Dec 23, 2024 |
 
 ---
 
 ## Test Commands
 
 ```bash
-# Part 2A - AI Worker
+# AI Worker
 cd apps/ai-worker && pytest tests/ -v
 
-# Parts 2B-2E - Backend
+# Backend (232 tests)
 cd apps/backend && pnpm test
+
+# Frontend
+cd apps/frontend && pnpm build
 
 # Full suite
 pnpm test
-
-# E2E
-docker-compose up -d && cd apps/backend && pnpm test:e2e
 ```
 
 ---
 
-## Estimated Timeline
+## Actual Timeline
 
-| Part | Hours | Cumulative |
-|------|-------|------------|
-| 2A | 2-3 | 3h |
-| 2B | 1-2 | 5h |
-| 2C | 1 | 6h |
-| 2D | 1-2 | 8h |
-| 2E | 4-5 | 13h |
-| 2F | 2-3 | 16h |
-| 2G | 2-3 | 19h |
+| Part | Estimated | Actual | Notes |
+|------|-----------|--------|-------|
+| 2A-2F | ~16h | ~20h | Initial Phase 2 implementation |
+| 2H (SSE) | N/A | ~4h | Real-time updates (unplanned) |
+| 2I (Multi-format) | N/A | ~2h | Fix non-PDF processing (unplanned) |
+| **Total** | ~16h | ~26h | +10h for real-time features |
 
-**Total: ~19-20 hours**
+---
+
+## Key Learnings
+
+1. **SSE Auth**: EventSource doesn't support custom headers → Use query param for API key
+2. **Fast Refresh**: React requires separating contexts/hooks/components into different files
+3. **Multi-format**: Always process ALL formats through AI worker for consistency
+4. **Polling Removal**: SSE eliminates need for `refetchInterval` in React Query
+5. **DELETE Requests**: Don't set `Content-Type: application/json` when body is empty
+
+---
+
+**Phase 2 Status: ✅ COMPLETE**

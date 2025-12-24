@@ -1,6 +1,6 @@
 # Phase 2 Technical Specifications
 
-**Python-First + Drive Sync** | **All-in-One Implementation Reference**
+**Python-First + Drive Sync + Real-time Updates** | **Implementation Reference**
 
 ---
 
@@ -14,12 +14,19 @@ Fast Lane: JSON/TXT/MD → Node.js (embed + chunk) → DB
 Heavy Lane: PDF → Queue → Python → Callback → Node.js (embed) → DB
 ```
 
-**Phase 2 (Unified Path):**
+**Phase 2 (Unified Path - IMPLEMENTED):**
 ```
 All files → Queue → Python (process + chunk + embed) → Callback → Node.js → DB
+                                                              ↓
+                                                         EventBus (SSE)
+                                                              ↓
+                                                         Frontend
 ```
 
-**Key Difference:** Python worker now owns embedding + chunking. Node.js only stores results.
+**Key Changes:**
+- Python worker owns embedding + chunking for ALL formats
+- Node.js only stores results and emits events
+- Real-time updates via Server-Sent Events (SSE)
 
 ---
 
@@ -32,18 +39,21 @@ sequenceDiagram
     participant Q as BullMQ Queue
     participant W as AI Worker (Python)
     participant DB as PostgreSQL
+    participant SSE as SSE Clients
 
     U->>B: Upload file (any format)
     B->>B: Validate, save, dedup
-    B->>Q: Add job (documentId, filePath)
+    B->>Q: Add job (documentId, filePath, format)
+    B->>SSE: Emit document:created
     Q->>B: Job picked (backend worker)
-    B->>W: POST /process (file + config)
+    B->>W: POST /process (file + format + config)
     
-    Note over W: 1. Convert to markdown (Docling/read)<br/>2. Chunk (LangChain)<br/>3. Embed (sentence-transformers)
+    Note over W: Route by format:<br/>PDF → Docling<br/>MD/TXT/JSON → TextProcessor<br/>Then: Chunk → Embed
     
     W->>B: POST /internal/callback
     B->>DB: Store document + chunks + vectors
-    B->>U: Status: COMPLETED
+    B->>SSE: Emit document:status (COMPLETED/FAILED)
+    SSE->>U: Real-time update
 ```
 
 ---
@@ -58,7 +68,7 @@ Backend sends to AI worker:
 interface ProcessRequest {
   documentId: string;
   filePath: string;          // /uploads/{uuid}.{ext}
-  format: 'pdf' | 'json' | 'txt' | 'md';
+  format: 'pdf' | 'json' | 'txt' | 'md';  // NEW: format field
   config: {
     ocrMode: 'auto' | 'force' | 'never';
     ocrLanguages: string[];  // Default: ['en']
@@ -70,7 +80,7 @@ interface ProcessRequest {
 
 #### 1.3.2 Callback Payload: `POST /internal/callback`
 
-AI worker returns (updated from Phase 1):
+AI worker returns:
 
 ```typescript
 interface ProcessingCallback {
@@ -81,11 +91,8 @@ interface ProcessingCallback {
 }
 
 interface ProcessingResult {
-  // === NEW in Phase 2 ===
   processedContent: string;  // Full markdown output
   chunks: ChunkData[];       // Pre-chunked + embedded
-  
-  // === Same as Phase 1 ===
   pageCount: number;
   ocrApplied: boolean;
   processingTimeMs: number;
@@ -94,7 +101,7 @@ interface ProcessingResult {
 interface ChunkData {
   content: string;
   index: number;
-  embedding: number[];       // 384d vector (NEW: computed in Python)
+  embedding: number[];       // 384d vector (computed in Python)
   metadata: {
     charStart: number;
     charEnd: number;
@@ -102,66 +109,107 @@ interface ChunkData {
     page?: number;           // PDF only
   };
 }
-
-interface ProcessingError {
-  code: ErrorCode;
-  message: string;
-}
-
-type ErrorCode =
-  | 'PASSWORD_PROTECTED'
-  | 'CORRUPT_FILE'
-  | 'UNSUPPORTED_FORMAT'
-  | 'OCR_FAILED'
-  | 'TIMEOUT'
-  | 'INTERNAL_ERROR';
 ```
 
-**Backend Callback Handler Changes:**
-1. Remove embedding logic (no more Fastembed)
-2. Accept `chunks[].embedding` directly from Python
-3. Store `processedContent` in Document table
-4. Write chunks + vectors to DB in single transaction
+**Backend Callback Handler:**
+1. Accepts pre-computed embeddings from Python
+2. Stores `processedContent` in Document table
+3. Writes chunks + vectors to DB in single transaction
+4. **NEW:** Emits SSE events (`document:status`)
 
 ---
 
-### 1.4 Google Drive Sync Flow
+### 1.4 SSE Real-time Updates (NEW)
 
 ```mermaid
 sequenceDiagram
-    participant C as Cron Job
+    participant F as Frontend
     participant B as Backend
-    participant G as Google Drive API
-    participant Q as BullMQ
-    participant W as AI Worker
+    participant E as EventBus
 
-    C->>B: Trigger sync (configId)
-    B->>G: List files (Changes API)
+    F->>B: GET /api/events?apiKey=xxx (EventSource)
+    B->>F: SSE connection established
     
-    loop For each new/modified file
-        G->>B: File metadata
-        B->>B: Check MD5 (skip if exists)
-        B->>G: Download file
-        B->>B: Save to /uploads
-        B->>Q: Add job (documentId, driveConfigId)
-    end
-    
-    Q->>W: Process file
-    W->>B: Callback
-    B->>B: Update lastSyncedAt
+    Note over B: Document processing completes
+    B->>E: eventBus.emit('document:status', {...})
+    E->>B: Broadcast to all SSE connections
+    B->>F: data: {"type":"document:status",...}
+    F->>F: Invalidate React Query cache
+    F->>F: UI updates automatically
 ```
 
-**Sync Strategies:**
-- **Initial:** Full folder scan (recursive if enabled)
-- **Incremental:** Changes API with `pageToken` (stored per DriveConfig)
-- **Dedup:** MD5 hash check before download
-- **Deleted files:** Set `status = 'ARCHIVED'` (soft delete)
+**Event Types:**
+- `document:created` - New document uploaded
+- `document:status` - Processing completed/failed
+- `sync:start` - Drive sync started
+- `sync:complete` - Drive sync finished
+- `sync:error` - Drive sync failed
+
+**Implementation:**
+- Backend: In-memory EventEmitter (`EventBus`)
+- Endpoint: `GET /api/events?apiKey=xxx`
+- Auth: Query parameter (EventSource doesn't support headers)
+- Heartbeat: Every 30s to keep connection alive
+- Frontend: Auto-reconnect with exponential backoff
+
+---
+
+### 1.5 Multi-format Processing (NEW)
+
+**AI Worker Routing:**
+
+```python
+# apps/ai-worker/src/main.py
+if format == "pdf":
+    result = await pdf_processor.process(filePath, ocrMode)
+else:
+    result = await text_processor.process(filePath, format)
+```
+
+**TextProcessor Logic:**
+
+| Format | Conversion to Markdown |
+|--------|------------------------|
+| `.md` | Return as-is |
+| `.txt` | Wrap with filename heading |
+| `.json` | Pretty print in code block |
+
+All formats then: **Chunk → Embed → Callback**
 
 ---
 
 ## 2. API Endpoints
 
 ### 2.1 New Endpoints
+
+#### `GET /api/events` (NEW - SSE)
+
+Real-time event stream.
+
+**Query Params:**
+```typescript
+interface SSEQuery {
+  apiKey: string;  // Required (EventSource limitation)
+}
+```
+
+**Response (200):**
+```
+Content-Type: text/event-stream
+Cache-Control: no-cache
+Connection: keep-alive
+
+data: {"type":"document:status","payload":{...},"timestamp":"..."}
+
+: heartbeat
+
+data: {"type":"sync:complete","payload":{...},"timestamp":"..."}
+```
+
+**Errors:**
+- `401`: Invalid API key
+
+---
 
 #### `GET /api/documents/:id/content`
 
@@ -170,7 +218,7 @@ Download processed markdown or structured JSON.
 **Query Params:**
 ```typescript
 interface ContentQuery {
-  format: 'markdown' | 'json';  // Required
+  format: 'markdown' | 'json';
 }
 ```
 
@@ -182,15 +230,18 @@ Body: <raw markdown string>
 
 // format=json
 interface ContentJsonResponse {
-  documentId: string;
+  id: string;
   filename: string;
   processedContent: string;
   chunks: {
-    index: number;
+    id: string;
     content: string;
-    charStart: number;
-    charEnd: number;
-    heading?: string;
+    index: number;
+    metadata: {
+      charStart: number;
+      charEnd: number;
+      heading?: string;
+    };
   }[];
   processingMetadata: {
     pageCount?: number;
@@ -207,107 +258,17 @@ interface ContentJsonResponse {
 
 ---
 
-#### `POST /api/drive/configs`
+#### Drive Sync Endpoints
 
-Add a Google Drive folder to sync.
-
-**Request:**
-```typescript
-interface CreateDriveConfigRequest {
-  folderId: string;          // Google Drive folder ID
-  folderName?: string;       // Optional display name (fetch from API if not provided)
-  syncCron?: string;         // Default: "0 */6 * * *" (every 6h)
-  recursive?: boolean;       // Default: true
-  enabled?: boolean;         // Default: true
-}
+```
+POST   /api/drive/configs           - Add folder
+GET    /api/drive/configs           - List folders
+PATCH  /api/drive/configs/:id       - Update settings
+DELETE /api/drive/configs/:id       - Remove folder
+POST   /api/drive/sync/:configId/trigger - Manual sync
 ```
 
-**Response (201):**
-```typescript
-interface DriveConfigResponse {
-  id: string;
-  folderId: string;
-  folderName: string;
-  syncCron: string;
-  recursive: boolean;
-  enabled: boolean;
-  lastSyncedAt: string | null;
-  createdAt: string;
-}
-```
-
-**Errors:**
-- `400`: Invalid folderId
-- `401`: Service account cannot access folder
-- `409`: Folder already configured
-
----
-
-#### `GET /api/drive/configs`
-
-List all synced folders.
-
-**Response (200):**
-```typescript
-interface DriveConfigsListResponse {
-  configs: DriveConfigResponse[];
-  total: number;
-}
-```
-
----
-
-#### `PATCH /api/drive/configs/:id`
-
-Update folder settings.
-
-**Request:**
-```typescript
-interface UpdateDriveConfigRequest {
-  syncCron?: string;
-  recursive?: boolean;
-  enabled?: boolean;
-}
-```
-
-**Response (200):** `DriveConfigResponse`
-
----
-
-#### `DELETE /api/drive/configs/:id`
-
-Remove folder from sync (soft delete documents).
-
-**Response (204):** No content
-
-**Side Effect (Application Logic):**
-1. Find all documents with `driveConfigId = :id`
-2. Update their `status` to `'ARCHIVED'` and `driveConfigId` to `null`
-3. Delete the DriveConfig record
-
-*Note: DB constraint is `ON DELETE SET NULL` as a safety net.*
-
----
-
-#### `POST /api/drive/sync/:configId/trigger`
-
-Manually trigger sync for a folder (bypass cron).
-
-**Request:** Empty body
-
-**Response (202):**
-```typescript
-interface SyncTriggerResponse {
-  message: 'Sync started';
-  configId: string;
-  estimatedFiles?: number;  // From Changes API
-}
-```
-
-**Errors:**
-- `404`: Config not found
-- `409`: Sync already in progress
-- `503`: Drive API unavailable
+See Phase 2 ROADMAP for detailed specs.
 
 ---
 
@@ -317,52 +278,22 @@ interface SyncTriggerResponse {
 
 Accept pre-computed embeddings + processed content.
 
-**New Fields in Request:**
+**New Fields:**
 ```typescript
 interface ProcessingCallback {
-  // ... existing fields ...
   result?: {
-    processedContent: string;    // NEW: Full markdown
+    processedContent: string;    // NEW
     chunks: {
-      content: string;
-      index: number;
       embedding: number[];       // NEW: 384d vector
-      metadata: { ... };
+      // ... other fields
     }[];
-    // ... existing fields ...
   };
 }
 ```
 
----
-
-#### `GET /api/documents/:id` (Updated Response)
-
-Add new fields:
-
-```typescript
-interface DocumentStatusResponse {
-  // ... existing fields ...
-  sourceType: 'MANUAL' | 'DRIVE';       // NEW
-  driveFileId?: string;                  // NEW
-  driveConfigId?: string;                // NEW
-  hasProcessedContent: boolean;          // NEW: true if downloadable
-}
-```
-
----
-
-#### `GET /api/documents` (Updated Query)
-
-Add filter options:
-
-```typescript
-interface ListQueryParams {
-  // ... existing ...
-  sourceType?: 'MANUAL' | 'DRIVE';       // NEW
-  driveConfigId?: string;                // NEW: filter by folder
-}
-```
+**Side Effects:**
+- Stores results in DB
+- **NEW:** Emits SSE event (`document:status`)
 
 ---
 
@@ -377,58 +308,50 @@ model Document {
   mimeType            String
   fileSize            Int
   format              String
-  lane                String    // Keep for backwards compat, always 'heavy' in Phase 2
+  lane                String    // Always 'heavy' in Phase 2
   status              String    @default("PENDING")
   filePath            String
   md5Hash             String    @unique
   retryCount          Int       @default(0)
   failReason          String?
   
-  // === NEW Phase 2 Fields ===
-  processedContent    String?   @db.Text   // Full markdown for download
-  processingMetadata  Json?                // { pageCount, ocrApplied, processingTimeMs }
-  sourceType          String    @default("MANUAL")  // MANUAL | DRIVE
-  driveFileId         String?   @unique    // Google Drive file ID
-  driveConfigId       String?              // FK to DriveConfig
-  lastSyncedAt        DateTime?            // Last sync timestamp
+  // Phase 2 Fields
+  processedContent    String?   @db.Text
+  processingMetadata  Json?
+  sourceType          String    @default("MANUAL")
+  driveFileId         String?   @unique
+  driveConfigId       String?
+  lastSyncedAt        DateTime?
   
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   
-  // Relations
   chunks              Chunk[]
-  driveConfig         DriveConfig? @relation(fields: [driveConfigId], references: [id])
+  driveConfig         DriveConfig? @relation(fields: [driveConfigId], references: [id], onDelete: SetNull)
   
-  // Indexes
   @@index([status])
   @@index([sourceType])
   @@index([driveConfigId])
 }
 ```
 
----
-
-### 3.2 DriveConfig Model (New)
+### 3.2 DriveConfig Model
 
 ```prisma
 model DriveConfig {
   id            String    @id @default(uuid())
-  folderId      String    @unique      // Google Drive folder ID
-  folderName    String                 // Display name
-  syncCron      String    @default("0 */6 * * *")  // Every 6 hours
+  folderId      String    @unique
+  folderName    String
+  syncCron      String    @default("0 */6 * * *")
   recursive     Boolean   @default(true)
   enabled       Boolean   @default(true)
-  
-  // Sync state
   lastSyncedAt  DateTime?
-  pageToken     String?               // Changes API cursor
-  syncStatus    String    @default("IDLE")  // IDLE | SYNCING | FAILED
-  syncError     String?               // Last error message
-  
+  pageToken     String?
+  syncStatus    String    @default("IDLE")
+  syncError     String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
-  // Relations
   documents     Document[]
   
   @@index([enabled])
@@ -437,69 +360,22 @@ model DriveConfig {
 
 ---
 
-### 3.3 Migration Notes
-
-**Step 1: Add columns to Document**
-```sql
-ALTER TABLE "Document" 
-  ADD COLUMN "processedContent" TEXT,
-  ADD COLUMN "processingMetadata" JSONB,
-  ADD COLUMN "sourceType" VARCHAR(10) DEFAULT 'MANUAL',
-  ADD COLUMN "driveFileId" VARCHAR(255) UNIQUE,
-  ADD COLUMN "driveConfigId" UUID,
-  ADD COLUMN "lastSyncedAt" TIMESTAMP;
-
-CREATE INDEX "Document_sourceType_idx" ON "Document"("sourceType");
-CREATE INDEX "Document_driveConfigId_idx" ON "Document"("driveConfigId");
-```
-
-**Step 2: Create DriveConfig table**
-```sql
-CREATE TABLE "DriveConfig" (
-  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  "folderId" VARCHAR(255) UNIQUE NOT NULL,
-  "folderName" VARCHAR(255) NOT NULL,
-  "syncCron" VARCHAR(50) DEFAULT '0 */6 * * *',
-  "recursive" BOOLEAN DEFAULT true,
-  "enabled" BOOLEAN DEFAULT true,
-  "lastSyncedAt" TIMESTAMP,
-  "pageToken" TEXT,
-  "syncStatus" VARCHAR(20) DEFAULT 'IDLE',
-  "syncError" TEXT,
-  "createdAt" TIMESTAMP DEFAULT NOW(),
-  "updatedAt" TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX "DriveConfig_enabled_idx" ON "DriveConfig"("enabled");
-```
-
-**Step 3: Add foreign key**
-```sql
-ALTER TABLE "Document" 
-  ADD CONSTRAINT "Document_driveConfigId_fkey" 
-  FOREIGN KEY ("driveConfigId") REFERENCES "DriveConfig"("id") 
-  ON DELETE SET NULL; 
--- Note: "SET NULL" is DB safety net. App logic should soft/delete (ARCHIVE) documents first.
-```
-
----
-
 ## 4. Configuration
 
-### 4.1 New Environment Variables
+### 4.1 Environment Variables
 
-**Backend (.env):**
+**Backend:**
 ```bash
 # Google Drive
 DRIVE_SERVICE_ACCOUNT_KEY=/path/to/service-account.json
-DRIVE_SYNC_CRON=0 */6 * * *    # Default schedule
+DRIVE_SYNC_CRON=0 */6 * * *
 DRIVE_MAX_FILE_SIZE_MB=100
 DRIVE_RECURSIVE=true
 ```
 
-**AI Worker (.env):**
+**AI Worker:**
 ```bash
-# Embedding (moved from Node.js)
+# Embedding
 EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
 EMBEDDING_DIMENSION=384
 
@@ -508,73 +384,59 @@ CHUNK_SIZE=1000
 CHUNK_OVERLAP=200
 ```
 
-### 4.2 Python Dependencies
+### 4.2 Dependencies
 
-Add to `requirements.txt`:
+**Python (AI Worker):**
 ```
 sentence-transformers>=2.3.0
 torch>=2.0.0  # CPU version
 langchain>=0.3.0
 langchain-text-splitters>=0.3.0
+docling>=2.15.0
 ```
 
-Remove from Node.js:
+**Node.js (Backend) - REMOVED:**
 ```
 fastembed  # No longer needed
 ```
 
 ---
 
-## 5. Validation Schemas (Zod)
+## 5. Implementation Notes
 
-### 5.1 Content Export
+### 5.1 SSE Authentication
 
+**Challenge:** EventSource API doesn't support custom headers.
+
+**Solution:** Pass API key as query parameter:
 ```typescript
-export const ContentQuerySchema = z.object({
-  format: z.enum(['markdown', 'json']),
-});
+const url = `/api/events?apiKey=${encodeURIComponent(apiKey)}`;
+const eventSource = new EventSource(url);
 ```
 
-### 5.2 Drive Config
-
+Backend auth middleware checks both header and query param:
 ```typescript
-export const CreateDriveConfigSchema = z.object({
-  folderId: z.string().min(10).max(100),
-  folderName: z.string().max(255).optional(),
-  syncCron: z.string().regex(/^[\d*\/,\-\s]+$/).optional(),
-  recursive: z.boolean().optional(),
-  enabled: z.boolean().optional(),
-});
-
-export const UpdateDriveConfigSchema = z.object({
-  syncCron: z.string().regex(/^[\d*\/,\-\s]+$/).optional(),
-  recursive: z.boolean().optional(),
-  enabled: z.boolean().optional(),
-});
+const apiKey = request.headers['x-api-key'] || request.query.apiKey;
 ```
 
-### 5.3 Updated Callback Schema
+### 5.2 React Fast Refresh
 
+**Challenge:** Fast Refresh only works when file exports only components.
+
+**Solution:** Separate into 3 files:
+- `contexts/EventContext.ts` - Context definition
+- `hooks/use-events.ts` - Hook to consume context
+- `providers/EventProvider.tsx` - Component only
+
+### 5.3 DELETE Request Fix
+
+**Issue:** Frontend sent `Content-Type: application/json` with empty body → Fastify rejected.
+
+**Fix:** Only set Content-Type when body exists:
 ```typescript
-export const CallbackChunkSchema = z.object({
-  content: z.string(),
-  index: z.number().int().nonnegative(),
-  embedding: z.array(z.number()).length(384),  // NEW
-  metadata: z.object({
-    charStart: z.number().int().nonnegative(),
-    charEnd: z.number().int().positive(),
-    heading: z.string().optional(),
-    page: z.number().int().positive().optional(),
-  }),
-});
-
-export const CallbackResultSchema = z.object({
-  processedContent: z.string(),  // NEW
-  chunks: z.array(CallbackChunkSchema),  // NEW structure
-  pageCount: z.number().int().nonnegative(),
-  ocrApplied: z.boolean(),
-  processingTimeMs: z.number().positive(),
-});
+if (!isFormData && hasBody) {
+  headers['Content-Type'] = 'application/json';
+}
 ```
 
 ---
@@ -583,13 +445,15 @@ export const CallbackResultSchema = z.object({
 
 | Component | Change | Migration Action |
 |-----------|--------|------------------|
-| **Callback** | New `processedContent` + `chunks[].embedding` | Update handler to accept new payload |
-| **Embedding** | Fastembed → sentence-transformers | Remove Node.js embedding, add Python |
-| **Model** | all-MiniLM-L6-v2 → bge-small-en-v1.5 | Re-embed ALL existing documents |
-| **Fast Lane** | Removed | Route all files through queue |
-| **Document** | 6 new columns | Run Prisma migration |
-| **DriveConfig** | New table | Run Prisma migration |
+| **Callback** | New `processedContent` + `chunks[].embedding` | ✅ Updated handler |
+| **Embedding** | Fastembed → sentence-transformers | ✅ Removed from backend |
+| **Model** | all-MiniLM-L6-v2 → bge-small-en-v1.5 | ⏭️ Skipped (reset data) |
+| **Fast Lane** | Removed | ✅ All files via queue |
+| **Document** | 6 new columns | ✅ Migrated |
+| **DriveConfig** | New table | ✅ Created |
+| **SSE** | New real-time system | ✅ Implemented |
+| **Multi-format** | All formats processed | ✅ TextProcessor added |
 
 ---
 
-**Phase 2 implementation can begin after this spec is approved.**
+**Phase 2 Status: ✅ COMPLETE**

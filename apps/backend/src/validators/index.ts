@@ -8,8 +8,7 @@ export { ListQuerySchema } from './list-query-validator.js';
 export type { ListQueryInput } from './list-query-validator.js';
 
 export { CallbackSchema } from './callback-validator.js';
-export type { CallbackPayload, ProcessingResult, ProcessingError } from './callback-validator.js';
+export type { CallbackPayload, ProcessingError, ProcessingResult } from './callback-validator.js';
 
-export { detectFormat, getFormatFromMimeType, getFormatFromExtension } from './file-format-detector.js';
+export { detectFormat, getFormatFromExtension, getFormatFromMimeType } from './file-format-detector.js';
 
-export { getProcessingLane, LANE_CONFIG } from './processing-lane-router.js';
