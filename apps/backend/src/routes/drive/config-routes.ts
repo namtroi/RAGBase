@@ -6,6 +6,7 @@
 
 import { getPrismaClient } from '@/services/database.js';
 import { getDriveService } from '@/services/drive-service.js';
+import { getSyncService } from '@/services/sync-service.js';
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
@@ -85,6 +86,13 @@ export async function driveConfigRoutes(fastify: FastifyInstance): Promise<void>
                 enabled,
             },
         });
+
+        // Trigger initial sync in background (don't await)
+        if (enabled) {
+            getSyncService().syncConfig(config.id).catch((err) => {
+                console.error(`Initial sync failed for config ${config.id}:`, err);
+            });
+        }
 
         return reply.status(201).send(config);
     });
@@ -249,6 +257,9 @@ export async function driveConfigRoutes(fastify: FastifyInstance): Promise<void>
         await prisma.driveConfig.delete({
             where: { id: params.data.id },
         });
+
+        // Emit SSE event for frontend update
+        eventBus.emit('driveConfig:deleted', { configId: params.data.id });
 
         return reply.status(204).send();
     });

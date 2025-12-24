@@ -31,6 +31,9 @@ export function EventProvider({ children }: EventProviderProps) {
         switch (event.type) {
             case 'document:created':
             case 'document:status':
+            case 'document:availability':
+            case 'document:deleted':
+            case 'bulk:completed':
                 // Invalidate documents list and individual document
                 queryClient.invalidateQueries({ queryKey: ['documents'] });
                 if (event.payload.id) {
@@ -43,6 +46,14 @@ export function EventProvider({ children }: EventProviderProps) {
             case 'sync:error':
                 // Invalidate drive configs
                 queryClient.invalidateQueries({ queryKey: ['driveConfigs'] });
+                // Also invalidate documents as sync may have added/updated them
+                queryClient.invalidateQueries({ queryKey: ['documents'] });
+                break;
+
+            case 'driveConfig:deleted':
+                // Invalidate drive configs and documents (connectionState changed)
+                queryClient.invalidateQueries({ queryKey: ['driveConfigs'] });
+                queryClient.invalidateQueries({ queryKey: ['documents'] });
                 break;
         }
     };

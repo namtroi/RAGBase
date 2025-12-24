@@ -14,6 +14,7 @@ export type EventType =
     | 'document:deleted'       // Phase 3: document deleted
     | 'document:retry'         // Phase 3: retry triggered
     | 'bulk:completed'         // Phase 3: bulk operation completed
+    | 'driveConfig:deleted'    // Phase 3: drive config removed
     | 'sync:start'
     | 'sync:complete'
     | 'sync:error'
