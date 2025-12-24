@@ -1,8 +1,11 @@
 import { driveApi } from '@/api/endpoints';
 import { useDocuments } from '@/hooks/use-documents';
+import { useSelection } from '@/hooks/use-selection';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, FolderSync, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
+import { BulkActionBar } from './bulk-action-bar';
+import { DeleteConfirmModal } from './delete-confirm-modal';
 import { DocumentCard } from './document-card';
 import { DocumentFilters, FilterState } from './document-filters';
 
@@ -19,6 +22,8 @@ const defaultFilters: FilterState = {
 export function DocumentList() {
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [folderFilter, setFolderFilter] = useState<string>('all');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const selection = useSelection();
 
   // Fetch Drive configs for filter
   const { data: configData } = useQuery({
@@ -40,6 +45,19 @@ export function DocumentList() {
   };
 
   const { data, isLoading, refetch, isRefetching } = useDocuments(queryParams);
+
+  const allIds = data?.documents.map((d) => d.id) || [];
+  const isAllSelected = allIds.length > 0 && allIds.every((id) => selection.isSelected(id));
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      selection.selectNone();
+    } else {
+      selection.selectAll(allIds);
+    }
+  };
+
+  const selectedDocuments = data?.documents.filter((d) => selection.isSelected(d.id)) || [];
 
   return (
     <div className="space-y-4">
@@ -94,6 +112,21 @@ export function DocumentList() {
         </div>
       )}
 
+      {/* Select All */}
+      {data && data.documents.length > 0 && (
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={isAllSelected}
+            onChange={handleSelectAll}
+            className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
+          />
+          <span className="text-sm text-gray-600">
+            Select all ({data.documents.length})
+          </span>
+        </div>
+      )}
+
       {/* Document list */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
@@ -107,7 +140,12 @@ export function DocumentList() {
       ) : (
         <div className="space-y-3">
           {data?.documents.map((doc) => (
-            <DocumentCard key={doc.id} document={doc} />
+            <DocumentCard
+              key={doc.id}
+              document={doc}
+              isSelected={selection.isSelected(doc.id)}
+              onSelect={() => selection.toggle(doc.id)}
+            />
           ))}
         </div>
       )}
@@ -118,6 +156,22 @@ export function DocumentList() {
           Showing {data.documents.length} of {data.total} documents
         </p>
       )}
+
+      {/* Bulk Action Bar */}
+      <BulkActionBar
+        selectedIds={Array.from(selection.selected)}
+        selectedDocuments={selectedDocuments}
+        onClear={selection.selectNone}
+        onDeleteConfirm={() => setShowDeleteModal(true)}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        documents={selectedDocuments}
+        onSuccess={selection.selectNone}
+      />
     </div>
   );
 }

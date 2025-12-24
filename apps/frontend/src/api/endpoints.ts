@@ -113,6 +113,16 @@ export const documentsApi = {
   delete: (id: string) => api.delete<{ success: boolean }>(`/documents/${id}`),
 
   retry: (id: string) => api.post<Document>(`/documents/${id}/retry`, {}),
+
+  // Bulk operations
+  bulkToggleAvailability: (ids: string[], isActive: boolean) =>
+    api.patch<{ updated: number; failed: string[] }>('/documents/bulk/availability', { ids, isActive }),
+
+  bulkDelete: (ids: string[]) =>
+    api.post<{ deleted: number; failed: string[] }>('/documents/bulk/delete', { ids }),
+
+  bulkRetry: (ids: string[]) =>
+    api.post<{ queued: number; failed: string[] }>('/documents/bulk/retry', { ids }),
 };
 
 // Drive endpoints

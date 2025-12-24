@@ -1,4 +1,5 @@
 import { Document, documentsApi } from '@/api/endpoints';
+import clsx from 'clsx';
 import { Calendar, Download, FileText, FolderSync, HardDrive, Hash, Link2, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { AvailabilityToggle } from './availability-toggle';
@@ -6,6 +7,8 @@ import { StatusBadge } from './status-badge';
 
 interface DocumentCardProps {
   document: Document;
+  isSelected?: boolean;
+  onSelect?: () => void;
 }
 
 function formatFileSize(bytes?: number): string {
@@ -15,7 +18,7 @@ function formatFileSize(bytes?: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function DocumentCard({ document }: DocumentCardProps) {
+export function DocumentCard({ document, isSelected, onSelect }: DocumentCardProps) {
   const [downloading, setDownloading] = useState<'markdown' | 'json' | null>(null);
 
   const handleDownload = async (format: 'markdown' | 'json') => {
@@ -38,9 +41,23 @@ export function DocumentCard({ document }: DocumentCardProps) {
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+    <div
+      className={clsx(
+        'bg-white border rounded-lg p-4 hover:shadow-md transition-shadow',
+        isSelected ? 'border-primary-500 ring-2 ring-primary-100' : 'border-gray-200'
+      )}
+    >
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-start gap-3 flex-1 min-w-0">
+          {/* Selection checkbox */}
+          {onSelect && (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={onSelect}
+              className="w-4 h-4 mt-1 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
+            />
+          )}
           <FileText className="w-5 h-5 text-gray-400 shrink-0 mt-0.5" />
           <div className="min-w-0 flex-1">
             <h3 className="font-medium text-gray-900 truncate">{document.filename}</h3>
