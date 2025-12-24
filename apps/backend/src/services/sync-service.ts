@@ -8,6 +8,7 @@
 import { getProcessingQueue } from '@/queue/processing-queue.js';
 import { getPrismaClient } from '@/services/database.js';
 import { DriveService, getDriveService } from '@/services/drive-service.js';
+import { eventBus } from '@/services/event-bus.js';
 import { HashService } from '@/services/hash-service.js';
 import { detectFormat } from '@/validators/file-format-detector.js';
 import { Prisma } from '@prisma/client';
@@ -57,6 +58,9 @@ export class SyncService {
             data: { syncStatus: 'SYNCING', syncError: null },
         });
 
+        // Emit SSE event for sync start
+        eventBus.emit('sync:start', { configId });
+
         try {
             // Use incremental sync if we have a page token, otherwise full sync
             if (config.pageToken) {
@@ -74,6 +78,14 @@ export class SyncService {
                     syncError: result.errors.length > 0 ? result.errors.join('; ') : null,
                 },
             });
+
+            // Emit SSE event for sync complete
+            eventBus.emit('sync:complete', {
+                configId,
+                added: result.added,
+                updated: result.updated,
+                removed: result.removed
+            });
         } catch (error: any) {
             // Update config with error
             await this.prisma.driveConfig.update({
@@ -83,6 +95,10 @@ export class SyncService {
                     syncError: error.message,
                 },
             });
+
+            // Emit SSE event for sync error
+            eventBus.emit('sync:error', { configId, error: error.message });
+
             throw error;
         }
 

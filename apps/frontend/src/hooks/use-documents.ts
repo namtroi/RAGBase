@@ -7,28 +7,19 @@ export function useDocuments(params?: {
   offset?: number;
   driveConfigId?: string;
 }) {
+  // SSE handles real-time updates via EventProvider
   return useQuery({
     queryKey: ['documents', params],
     queryFn: () => documentsApi.list(params),
-    refetchInterval: (query) => {
-      // Poll if any documents are processing
-      const hasProcessing = query.state.data?.documents?.some(
-        (d) => d.status === 'PENDING' || d.status === 'PROCESSING'
-      );
-      return hasProcessing ? 3000 : false; // Poll every 3s
-    },
   });
 }
 
 export function useDocument(id: string) {
+  // SSE handles real-time updates via EventProvider
   return useQuery({
     queryKey: ['document', id],
     queryFn: () => documentsApi.get(id),
     enabled: !!id,
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      return status === 'PENDING' || status === 'PROCESSING' ? 2000 : false;
-    },
   });
 }
 

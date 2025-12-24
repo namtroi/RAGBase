@@ -13,13 +13,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
   const handleDownload = async (format: 'markdown' | 'json') => {
     try {
       setDownloading(format);
-      const { content } = await documentsApi.getContent(document.id, format);
-
-      const blob = new Blob(
-        [typeof content === 'string' ? content : JSON.stringify(content, null, 2)],
-        { type: format === 'json' ? 'application/json' : 'text/markdown' }
-      );
-
+      const blob = await documentsApi.downloadContent(document.id, format);
       const url = URL.createObjectURL(blob);
       const a = window.document.createElement('a');
       a.href = url;
@@ -30,7 +24,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Download failed', err);
-      alert('Failed to download content');
+      // alert('Failed to download content'); // Removed to avoid annoying alerts, log is enough
     } finally {
       setDownloading(null);
     }

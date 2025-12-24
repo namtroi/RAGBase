@@ -14,6 +14,7 @@ from .callback import send_callback
 from .config import settings
 from .logging_config import configure_logging, get_logger
 from .processor import pdf_processor
+from .text_processor import text_processor
 
 # Configure logging first
 configure_logging()
@@ -29,6 +30,7 @@ class ProcessConfig(BaseModel):
 class ProcessRequest(BaseModel):
     documentId: str
     filePath: str
+    format: str = "pdf"  # pdf, md, txt, json
     config: Optional[ProcessConfig] = None
 
 
@@ -129,8 +131,15 @@ async def process_document(request: ProcessRequest):
         if request.config:
             ocr_mode = request.config.ocrMode
 
-        # Process the PDF
-        result = await pdf_processor.process(request.filePath, ocr_mode)
+        # Route to appropriate processor based on format
+        file_format = request.format.lower()
+
+        if file_format == "pdf":
+            # PDF uses Docling
+            result = await pdf_processor.process(request.filePath, ocr_mode)
+        else:
+            # Text files (md, txt, json) use TextProcessor
+            result = await text_processor.process(request.filePath, file_format)
 
         # Send callback to backend
         callback_success = await send_callback(request.documentId, result)

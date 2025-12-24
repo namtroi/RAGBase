@@ -14,7 +14,8 @@ export async function authMiddleware(
     return;
   }
 
-  const apiKey = request.headers['x-api-key'];
+  // Support both header and query param (for SSE - EventSource doesn't support headers)
+  const apiKey = request.headers['x-api-key'] || (request.query as Record<string, string>).apiKey;
   const expectedKey = process.env.API_KEY;
 
   // Constant-time comparison to prevent timing attacks

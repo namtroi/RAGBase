@@ -62,8 +62,8 @@ function AppContent() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === tab.id
-                    ? 'border-primary-500 text-primary-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
               >
                 <tab.icon className="w-4 h-4" />
@@ -135,10 +135,14 @@ function AppContent() {
   );
 }
 
+import { EventProvider } from '@/providers/EventProvider';
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppContent />
+      <EventProvider>
+        <AppContent />
+      </EventProvider>
     </QueryClientProvider>
   );
 }
