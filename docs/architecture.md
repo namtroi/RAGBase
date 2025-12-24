@@ -310,7 +310,7 @@ sequenceDiagram
 **Phase 2 Status:** ✅ COMPLETE (2024-12-23)
 
 **Documentation:**
-- [PRODUCT.md](./PRODUCT.md) - Product overview
-- [API.md](./API.md) - API contracts
-- [ROADMAP-PHASE2.md](./ROADMAP-PHASE2.md) - Phase 2 details
+- [product.md](./product.md) - Product overview
+- [api.md](./api.md) - API contracts
+- [roadmap-phase2.md](./roadmap-phase2.md) - Phase 2 details
 

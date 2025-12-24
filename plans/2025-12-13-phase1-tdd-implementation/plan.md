@@ -168,7 +168,7 @@ cd apps/ai-worker && pytest  # Python tests
 
 ## Docs Reference
 
-- [OVERVIEW](../../docs/OVERVIEW.md) | [ROADMAP](../../docs/ROADMAP.md) | [ARCHITECTURE](../../docs/ARCHITECTURE.md)
+- [OVERVIEW](../../docs/OVERVIEW.md) | [ROADMAP](../../docs/roadmap.md) | [ARCHITECTURE](../../docs/architecture.md)
 - [CONTRACT](../../docs/CONTRACT.md) | [TEST_STRATEGY](../../docs/TEST_STRATEGY.md)
 
 ---

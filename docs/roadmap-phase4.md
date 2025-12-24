@@ -282,7 +282,7 @@
 - ✅ Quality metrics collected in database
 - ✅ Zero regression in Phase 1/2 formats
 - ✅ Tests passing (unit + integration + E2E)
-- ✅ Documentation updated (API.md, ARCHITECTURE.md)
+- ✅ Documentation updated (api.md, architecture.md)
 
 ---
 

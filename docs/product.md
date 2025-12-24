@@ -23,7 +23,7 @@
 - Tests written first, then implementation
 - 79% test coverage (3,688 lines of tests)
 - Contracts define interfaces before code
-- See [API.md](./API.md) for API specifications
+- See [api.md](./api.md) for API specifications
 
 ---
 
@@ -98,7 +98,7 @@
 - AI worker processes and sends callback to backend
 - Eliminates race conditions (single queue consumer)
 
-> See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed system design
+> See [architecture.md](./architecture.md) for detailed system design
 
 ---
 
@@ -175,16 +175,16 @@
 - **Local/On-Premise:** Air-gapped, internal server
 - **Private Cloud:** VPS (AWS, DigitalOcean, etc.)
 
-> See [ARCHITECTURE.md](./ARCHITECTURE.md) for deployment details
+> See [architecture.md](./architecture.md) for deployment details
 
 ---
 
 ## 8. Documentation
 
-- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System design & data flow
-- **[ROADMAP.md](./ROADMAP.md)** - Product roadmap & future features
-- **[API.md](./API.md)** - API specifications
-- **[TESTING.md](./TESTING.md)** - Testing approach
+- **[architecture.md](./architecture.md)** - System design & data flow
+- **[roadmap.md](./roadmap.md)** - Product roadmap & future features
+- **[api.md](./api.md)** - API specifications
+- **[testing.md](./testing.md)** - Testing approach
 - **[plans/](../plans/)** - Implementation plans & phase details
 
 ---

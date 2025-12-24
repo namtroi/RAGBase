@@ -8,10 +8,10 @@
 
 | Phase | Status | Focus | Key Deliverables |
 |-------|--------|-------|------------------|
-| **[Phase 1](./ROADMAP-PHASE1.md)** | ✅ Complete | Core Pipeline (MVP) | PDF/Text processing, Vector DB, React UI |
-| **[Phase 2](./ROADMAP-PHASE2.md)** | 📋 Planned | Python-First + Drive Sync | Unified processing, bge-small-en-v1.5, Drive sync |
-| **[Phase 3](./ROADMAP-PHASE3.md)** | 📋 Planned | Format Expansion | 6 new formats, Format-aware chunking |
-| **[Phase 4](./ROADMAP-PHASE4.md)** | 📋 Planned | Multi-tenant SaaS | Supabase Auth, Stripe billing, API keys |
+| **[Phase 1](./roadmap-phase1.md)** | ✅ Complete | Core Pipeline (MVP) | PDF/Text processing, Vector DB, React UI |
+| **[Phase 2](./roadmap-phase2.md)** | 📋 Planned | Python-First + Drive Sync | Unified processing, bge-small-en-v1.5, Drive sync |
+| **[Phase 3](./roadmap-phase3.md)** | 📋 Planned | Format Expansion | 6 new formats, Format-aware chunking |
+| **[Phase 4](./roadmap-phase4.md)** | 📋 Planned | Multi-tenant SaaS | Supabase Auth, Stripe billing, API keys |
 
 ---
 
@@ -37,7 +37,7 @@
 
 ## Phase Summaries
 
-### [Phase 1: Core Pipeline (MVP)](./ROADMAP-PHASE1.md) ✅ COMPLETE
+### [Phase 1: Core Pipeline (MVP)](./roadmap-phase1.md) ✅ COMPLETE
 
 **Status:** Complete (2025-12-21)
 
@@ -53,7 +53,7 @@
 
 ---
 
-### [Phase 2: Python-First + Drive Sync](./ROADMAP-PHASE2.md) 📋 PLANNED
+### [Phase 2: Python-First + Drive Sync](./roadmap-phase2.md) 📋 PLANNED
 
 **Goal:** Consolidate ML logic in Python, add Drive automation
 
@@ -68,7 +68,7 @@
 
 ---
 
-### [Phase 3: Format Expansion](./ROADMAP-PHASE3.md) 📋 PLANNED
+### [Phase 3: Format Expansion](./roadmap-phase3.md) 📋 PLANNED
 
 **Goal:** Support 6 new formats with format-aware chunking
 
@@ -86,7 +86,7 @@
 
 ---
 
-### [Phase 4: Multi-tenant SaaS](./ROADMAP-PHASE4.md) 📋 PLANNED
+### [Phase 4: Multi-tenant SaaS](./roadmap-phase4.md) 📋 PLANNED
 
 **Goal:** Production SaaS with auth, billing, per-user data
 
