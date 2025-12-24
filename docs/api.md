@@ -1,6 +1,6 @@
 # RAGBase API Contracts
 
-**Phase 2 Complete** | **TDD Reference & Integration Spec**
+**Phase 3 Complete** | **TDD Reference & Integration Spec**
 
 ---
 
@@ -13,8 +13,7 @@ type DocumentStatus =
   | 'PENDING'     // Uploaded, waiting queue
   | 'PROCESSING'  // In worker
   | 'COMPLETED'   // Success
-  | 'FAILED'      // Gave up after retries
-  | 'ARCHIVED';   // Soft deleted (Drive sync)
+  | 'FAILED';     // Gave up after retries
 
 type FileFormat = 'pdf' | 'json' | 'txt' | 'md';
 type SourceType = 'MANUAL' | 'DRIVE';
@@ -39,6 +38,10 @@ interface Document {
   driveFileId?: string;         // Google Drive file ID
   driveConfigId?: string;       // FK → DriveConfig
   lastSyncedAt?: Date;
+  
+  // Phase 3: Data Management
+  isActive: boolean;             // User visibility toggle (default: true)
+  connectionState: 'STANDALONE' | 'LINKED';  // Drive connection status
   
   createdAt: Date;
   updatedAt: Date;
@@ -219,16 +222,39 @@ interface QueryResult {
     heading?: string;
   };
 }
+
+// Note: Query automatically excludes documents with isActive=false
 ```
 
-### List Documents
-
-```typescript
 // GET /api/documents?status=COMPLETED&limit=20&offset=0&driveConfigId=xxx
+// Phase 3 filters: isActive, connectionState, sourceType, search, sortBy, sortOrder
+
+interface ListQueryParams {
+  status?: DocumentStatus;
+  driveConfigId?: string;
+  limit?: number;           // Default: 20, Max: 100
+  offset?: number;
+  
+  // Phase 3 additions
+  isActive?: boolean;
+  connectionState?: 'STANDALONE' | 'LINKED';
+  sourceType?: 'MANUAL' | 'DRIVE';
+  search?: string;          // Filename search (case-insensitive)
+  sortBy?: 'createdAt' | 'filename' | 'fileSize';
+  sortOrder?: 'asc' | 'desc';
+}
 
 interface ListResponse {
   documents: DocumentSummary[];
   total: number;
+  counts: {
+    active: number;
+    inactive: number;
+    failed: number;
+    pending: number;
+    processing: number;
+    completed: number;
+  };
 }
 
 interface DocumentSummary {
@@ -237,9 +263,11 @@ interface DocumentSummary {
   status: DocumentStatus;
   sourceType: SourceType;
   chunkCount?: number;
+  fileSize: number;
+  isActive: boolean;
+  connectionState: 'STANDALONE' | 'LINKED';
   createdAt: string;
 }
-```
 
 ### Content Export (NEW)
 
@@ -295,6 +323,11 @@ interface SSEEvent {
   timestamp: string;       // ISO
 }
 
+// Phase 3 Events:
+// - document:deleted: Document hard deleted
+// - document:availability: Availability toggled
+// - bulk:completed: Bulk operation finished
+
 // Errors
 // 401: Invalid API key
 ```
@@ -328,6 +361,59 @@ interface UpdateFolderRequest {
 
 // POST /api/drive/sync/:configId/trigger
 // Returns 202 Accepted (sync started)
+```
+
+### Data Management (Phase 3)
+
+```typescript
+// PATCH /api/documents/:id/availability
+interface ToggleAvailabilityRequest {
+  isActive: boolean;
+}
+
+interface ToggleAvailabilityResponse {
+  id: string;
+  isActive: boolean;
+  updatedAt: string;
+}
+// Errors: 400 (not COMPLETED), 404 (not found)
+
+// DELETE /api/documents/:id
+// Hard delete document + chunks + file
+interface DeleteResponse {
+  id: string;
+  deleted: true;
+}
+// Errors: 404 (not found), 409 (PROCESSING)
+
+// POST /api/documents/:id/retry
+// Reset FAILED document to PENDING
+interface RetryResponse {
+  id: string;
+  status: 'PENDING';
+}
+// Errors: 400 (not FAILED), 404 (not found)
+
+// PATCH /api/documents/bulk/availability
+interface BulkToggleRequest {
+  ids: string[];      // Max 100
+  isActive: boolean;
+}
+
+interface BulkToggleResponse {
+  updated: number;
+  failed: { id: string; reason: string }[];
+}
+
+// POST /api/documents/bulk/delete
+interface BulkDeleteRequest {
+  ids: string[];      // Max 100
+}
+
+interface BulkDeleteResponse {
+  deleted: number;
+  failed: { id: string; reason: string }[];
+}
 ```
 
 ---
@@ -385,5 +471,5 @@ const REJECTION_RULES = {
 
 ---
 
-**Phase 2 Status:** ✅ COMPLETE (Dec 23, 2025)
+**Phase 3 Status:** ✅ COMPLETE (Dec 24, 2025)
 

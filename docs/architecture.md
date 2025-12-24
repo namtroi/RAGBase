@@ -1,6 +1,6 @@
 # RAGBase Architecture
 
-**Phase 2 Complete** | **Last Updated:** 2025-12-23
+**Phase 3 Complete** | **Last Updated:** 2025-12-24
 
 High-level system design & key architectural decisions.
 
@@ -136,9 +136,12 @@ sequenceDiagram
 **Events:**
 - `document:created` - New document uploaded
 - `document:status` - Processing completed/failed
+- `document:deleted` - Document hard deleted (Phase 3)
+- `document:availability` - Availability toggled (Phase 3)
 - `sync:start` - Drive sync started
 - `sync:complete` - Drive sync finished
 - `sync:error` - Drive sync failed
+- `bulk:completed` - Bulk operation finished (Phase 3)
 
 **Implementation:**
 - Backend: In-memory EventEmitter (`EventBus`)
@@ -179,7 +182,8 @@ graph LR
 ### 6.1 Schema Overview
 
 **Document:** Stores file metadata + processed content
-- New fields: `processedContent`, `sourceType`, `driveFileId`, `driveConfigId`
+- Phase 2: `processedContent`, `sourceType`, `driveFileId`, `driveConfigId`
+- Phase 3: `isActive`, `connectionState`
 
 **Chunk:** Text content + 384d vector embeddings
 
@@ -307,10 +311,10 @@ sequenceDiagram
 
 ---
 
-**Phase 2 Status:** ✅ COMPLETE (2025-12-23)
+**Phase 3 Status:** ✅ COMPLETE (2025-12-24)
 
 **Documentation:**
 - [product.md](./product.md) - Product overview
 - [api.md](./api.md) - API contracts
-- [roadmap-phase2.md](./roadmap-phase2.md) - Phase 2 details
+- [roadmap-phase3.md](./roadmap-phase3.md) - Phase 3 details
 

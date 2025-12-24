@@ -7,44 +7,23 @@ Handles OCR detection, chunking, and embedding.
 import asyncio
 import gc
 import time
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
-from .chunker import Chunker
+from .base_processor import BaseProcessor
 from .config import settings
-from .embedder import Embedder
 from .logging_config import get_logger
+from .models import ProcessingResult
 
 logger = get_logger(__name__)
 
 
-@dataclass
-class ProcessingResult:
-    """Result of PDF processing operation."""
-
-    success: bool
-    processed_content: Optional[str] = None  # Full markdown output
-    chunks: Optional[List[Dict[str, Any]]] = field(
-        default_factory=list
-    )  # Pre-chunked + embedded
-    page_count: int = 0
-    ocr_applied: bool = False
-    processing_time_ms: int = 0
-    error_code: Optional[str] = None
-    error_message: Optional[str] = None
-
-
-class PDFProcessor:
+class PDFProcessor(BaseProcessor):
     """PDF processor using Docling for conversion to Markdown."""
 
     def __init__(self):
+        super().__init__()
         self._converters: dict = {}  # Cache converters by OCR mode
         self._semaphore: asyncio.Semaphore | None = None
-
-        # Initialize helper modules
-        self.chunker = Chunker()
-        self.embedder = Embedder()
 
     def _get_semaphore(self) -> asyncio.Semaphore:
         """Get or create semaphore for limiting concurrent processing."""
@@ -140,15 +119,8 @@ class PDFProcessor:
             # 1. Get Markdown
             markdown = result.document.export_to_markdown()
 
-            # 2. Chunking
-            chunks = self.chunker.chunk(markdown)
-
-            # 3. Embedding
-            if chunks:
-                texts = [c["content"] for c in chunks]
-                embeddings = self.embedder.embed(texts)
-                for i, chunk in enumerate(chunks):
-                    chunk["embedding"] = embeddings[i]
+            # 2. Chunking & Embedding (Shared Logic)
+            chunks = self._chunk_and_embed(markdown)
 
             page_count = (
                 len(result.document.pages) if hasattr(result.document, "pages") else 1

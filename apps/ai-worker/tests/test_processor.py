@@ -12,7 +12,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.processor import PDFProcessor, ProcessingResult
+from src.processor import PDFProcessor
+from src.models import ProcessingResult
 
 
 @pytest.fixture

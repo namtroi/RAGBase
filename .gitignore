@@ -103,7 +103,7 @@ apps/backend/local_cache/
 venv/
 .venv
 .coverage
-.coverage.*
+.coverage*
 htmlcov/
 
 

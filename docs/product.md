@@ -3,7 +3,7 @@
 **Slogan:** _The "Set & Forget" Data Pipeline for Enterprise RAG._  
 **(Open Source | Self-Hosted | Structure-Aware | Production-Ready)**
 
-**Status:** Phase 2 Complete (2025-12-23)
+**Status:** Phase 3 Complete (2025-12-24)
 
 ---
 
@@ -33,7 +33,7 @@
 | `.pdf` (digital) | Python/Docling | ✅ Phase 1 |
 | `.pdf` (scanned) | Docling + OCR | ✅ Phase 1 |
 | `.json`, `.txt`, `.md` | Python/TextProcessor | ✅ Phase 2 |
-| `.docx` | Docling | 🔜 Phase 3 |
+| `.docx` | Docling | 🔜 Phase 4 |
 
 **Processing:** All formats go through BullMQ queue → Python AI Worker (unified pipeline).
 
@@ -136,13 +136,21 @@ Upload (any format) → Queue → Job Processor
 - ✅ Semantic search (pgvector)
 - ✅ Document status tracking
 
-### Phase 2 (Current)
+### Phase 2
 - ✅ **Unified Processing Pipeline** - All formats via Python AI Worker
 - ✅ **Multi-format Support** - PDF, JSON, TXT, MD
 - ✅ **SSE Real-time Updates** - Replaced polling with Server-Sent Events
 - ✅ **Content Export** - Download processed Markdown/JSON
 - ✅ **Google Drive Sync** - Multi-folder auto-sync with Changes API
 - ✅ **Upgraded Embedding** - bge-small-en-v1.5 (~10% better retrieval)
+
+### Phase 3 (Current)
+- ✅ **Document Availability Toggle** - Active/inactive for AI search
+- ✅ **Hard Delete** - Complete removal of documents & chunks
+- ✅ **Bulk Operations** - Toggle/delete multiple documents
+- ✅ **Retry Failed** - Re-queue failed documents
+- ✅ **Enhanced Filtering** - Search, sort, filter by state
+- ✅ **Drive Re-link** - Auto-reconnect when re-adding folder
 
 ### Production Features
 - ✅ Structured logging (Pino/structlog)
@@ -208,9 +216,9 @@ Upload (any format) → Queue → Job Processor
 
 - **[architecture.md](./architecture.md)** - System design & data flow
 - **[api.md](./api.md)** - API specifications
-- **[detailed-plan-phase2.md](./detailed-plan-phase2.md)** - Phase 2 implementation details
+- **[detailed-plan-phase3.md](./detailed-plan-phase3.md)** - Phase 3 implementation details
 - **[roadmap.md](./roadmap.md)** - Product roadmap & future features
 
 ---
 
-**Phase 2 Status:** ✅ **COMPLETE** (2025-12-23)
+**Phase 3 Status:** ✅ **COMPLETE** (2025-12-24)

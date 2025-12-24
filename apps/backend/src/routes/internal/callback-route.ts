@@ -3,6 +3,7 @@ import { getPrisma } from '../../services/database.js';
 import { eventBus } from '../../services/event-bus.js';
 import { QualityGateService } from '../../services/quality-gate-service.js';
 import { CallbackSchema } from '../../validators/callback-validator.js';
+import { logger } from '@/logging/logger.js';
 
 const qualityGate = new QualityGateService();
 
@@ -54,7 +55,7 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
     if (success && result && result.chunks) {
       try {
         const content = result.processedContent || '';
-        console.log(`📥 Callback received for ${documentId}: Content length = ${content.length}`);
+        logger.info({ documentId, contentLength: content.length }, 'callback_received');
         if (!content) {
           // Should verify content presence
         }

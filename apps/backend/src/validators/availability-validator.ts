@@ -29,22 +29,21 @@ export const DocumentIdParamsSchema = z.object({
   id: z.string().uuid(),
 });
 
-// Bulk delete
-export const BulkDeleteSchema = z.object({
+// Shared schema for bulk operations with documentIds array only
+const BulkDocumentIdsSchema = z.object({
   documentIds: z
     .array(z.string().uuid())
     .min(1, 'At least one document ID required')
     .max(100, 'Maximum 100 documents per request'),
 });
+
+// Bulk delete (uses shared schema)
+export const BulkDeleteSchema = BulkDocumentIdsSchema;
 
 export type BulkDeleteInput = z.infer<typeof BulkDeleteSchema>;
 
-// Bulk retry (same schema as bulk delete)
-export const BulkRetrySchema = z.object({
-  documentIds: z
-    .array(z.string().uuid())
-    .min(1, 'At least one document ID required')
-    .max(100, 'Maximum 100 documents per request'),
-});
+// Bulk retry (uses shared schema)
+export const BulkRetrySchema = BulkDocumentIdsSchema;
 
 export type BulkRetryInput = z.infer<typeof BulkRetrySchema>;
+

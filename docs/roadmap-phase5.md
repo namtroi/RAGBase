@@ -1,4 +1,4 @@
-# Phase 4: Multi-tenant SaaS + Supabase Auth + Stripe
+# Phase 5: Multi-tenant SaaS + Supabase Auth + Stripe
 
 **Goal:** Production SaaS platform with Supabase authentication, Stripe billing, per-user Drive access, API keys, and data export.
 

@@ -274,7 +274,7 @@ GET /api/documents?
 - `apps/backend/src/routes/documents/list-route.ts`
 - `apps/backend/src/validators/list-query-validator.ts`
 - `apps/backend/tests/unit/validators/list-query-validator.test.ts`
-- `apps/backend/tests/integration/routes/documents/list-route.test.ts`
+- `apps/backend/tests/integration/routes/list-route.test.ts`
 
 ---
 
@@ -386,11 +386,11 @@ GET /api/documents?
    - SSE sync
 
 ### Files:
-- `apps/frontend/src/components/documents/DocumentTable.tsx`
-- `apps/frontend/src/components/documents/DocumentFilters.tsx`
-- `apps/frontend/src/components/documents/StatusBadge.tsx`
-- `apps/frontend/src/components/documents/AvailabilityToggle.tsx`
-- `apps/frontend/src/api/documents.ts` (new API methods)
+- `apps/frontend/src/components/documents/document-list.tsx`
+- `apps/frontend/src/components/documents/document-filters.tsx`
+- `apps/frontend/src/components/documents/status-badge.tsx`
+- `apps/frontend/src/components/documents/availability-toggle.tsx`
+- `apps/frontend/src/api/endpoints.ts` (API methods)
 
 ---
 
@@ -426,10 +426,10 @@ GET /api/documents?
    ```
 
 ### Files:
-- `apps/frontend/src/components/documents/BulkActionBar.tsx`
-- `apps/frontend/src/components/documents/DeleteConfirmModal.tsx`
+- `apps/frontend/src/components/documents/bulk-action-bar.tsx`
+- `apps/frontend/src/components/documents/delete-confirm-modal.tsx`
 - `apps/frontend/src/hooks/use-selection.ts`
-- `apps/frontend/src/api/documents.ts` (bulk methods)
+- `apps/frontend/src/api/endpoints.ts` (bulk methods)
 
 ---
 

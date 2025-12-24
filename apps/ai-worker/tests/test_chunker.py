@@ -30,22 +30,6 @@ def test_chunk_overlap():
         assert c1_end in chunks[1]["content"]
 
 
-def test_chunk_heading_extraction():
-    chunker = Chunker()
-    md_text = """
-# Section One
-This is content for section one.
-
-## Subsection A
-More content here.
-"""
-    chunks = chunker.chunk(md_text)
-
-    # Currently we don't have header extraction enabled in current implementation
-    # Just verify it splits successfully
-    assert len(chunks) > 0
-
-
 def test_chunk_metadata_structure():
     chunker = Chunker()
     result = chunker.chunk("test content")

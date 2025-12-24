@@ -8,6 +8,7 @@ import { getPrismaClient } from '@/services/database.js';
 import { getDriveService } from '@/services/drive-service.js';
 import { eventBus } from '@/services/event-bus.js';
 import { getSyncService } from '@/services/sync-service.js';
+import { logger } from '@/logging/logger.js';
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
@@ -91,7 +92,7 @@ export async function driveConfigRoutes(fastify: FastifyInstance): Promise<void>
         // Trigger initial sync in background (don't await)
         if (enabled) {
             getSyncService().syncConfig(config.id).catch((err) => {
-                console.error(`Initial sync failed for config ${config.id}:`, err);
+                logger.error({ configId: config.id, err }, 'drive_initial_sync_failed');
             });
         }
 

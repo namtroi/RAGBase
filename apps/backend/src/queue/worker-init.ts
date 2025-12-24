@@ -1,6 +1,7 @@
 import { Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 import { createJobProcessor } from './job-processor.js';
+import { logger } from '@/logging/logger.js';
 
 let worker: Worker | null = null;
 let connection: Redis | null = null;
@@ -14,9 +15,9 @@ export function initWorker(): Worker {
   });
 
   worker = createJobProcessor(connection);
-  
-  console.log('🤖 BullMQ Worker initialized');
-  
+
+  logger.info('worker_initialized');
+
   return worker;
 }
 
@@ -29,5 +30,5 @@ export async function shutdownWorker(): Promise<void> {
     connection.disconnect();
     connection = null;
   }
-  console.log('🤖 BullMQ Worker shut down');
+  logger.info('worker_shutdown');
 }
