@@ -67,3 +67,38 @@ async def test_callback_failure_structure(monkeypatch):
 
     assert payload["success"] is False
     assert payload["error"]["code"] == "ERROR"
+
+
+@pytest.mark.asyncio
+async def test_callback_http_error_returns_false(monkeypatch):
+    """HTTP 500 error returns False."""
+    import httpx
+
+    async def mock_post(*args, **kwargs):
+        response = httpx.Response(500, request=httpx.Request("POST", "http://test"))
+        raise httpx.HTTPStatusError(
+            "Server Error", request=response.request, response=response
+        )
+
+    monkeypatch.setattr("httpx.AsyncClient.post", mock_post)
+
+    result = ProcessingResult(success=True, processed_content="test", chunks=[])
+    success = await send_callback("doc-123", result)
+
+    assert success is False
+
+
+@pytest.mark.asyncio
+async def test_callback_connection_error_returns_false(monkeypatch):
+    """Network connection error returns False."""
+    import httpx
+
+    async def mock_post(*args, **kwargs):
+        raise httpx.ConnectError("Connection refused")
+
+    monkeypatch.setattr("httpx.AsyncClient.post", mock_post)
+
+    result = ProcessingResult(success=True, processed_content="test", chunks=[])
+    success = await send_callback("doc-123", result)
+
+    assert success is False

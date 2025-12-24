@@ -149,3 +149,40 @@ class TestProcessEndpoint:
 
                     assert response.status_code == 500
                     assert "callback" in response.json()["detail"].lower()
+
+
+class TestEmbedEndpoint:
+    """Tests for the /embed endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_embed_success(self):
+        """Test successful embedding generation."""
+        from fastapi.testclient import TestClient
+        from src.main import app
+
+        with patch("src.embedder.Embedder") as MockEmbedder:
+            mock_instance = MockEmbedder.return_value
+            mock_instance.embed.return_value = [[0.1] * 384, [0.2] * 384]
+
+            with TestClient(app) as client:
+                response = client.post(
+                    "/embed",
+                    json={"texts": ["hello", "world"]},
+                )
+
+                assert response.status_code == 200
+                data = response.json()
+                assert len(data["embeddings"]) == 2
+                assert len(data["embeddings"][0]) == 384
+
+    @pytest.mark.asyncio
+    async def test_embed_empty_list(self):
+        """Test empty input returns empty embeddings."""
+        from fastapi.testclient import TestClient
+        from src.main import app
+
+        with TestClient(app) as client:
+            response = client.post("/embed", json={"texts": []})
+
+            assert response.status_code == 200
+            assert response.json()["embeddings"] == []
