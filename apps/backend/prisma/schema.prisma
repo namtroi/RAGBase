@@ -64,11 +64,17 @@ model Document {
   driveConfigId   String?       @map("drive_config_id")
   lastSyncedAt    DateTime?     @map("last_synced_at")
 
+  // Phase 3: Data Management
+  isActive        Boolean       @default(true) @map("is_active")
+  connectionState String        @default("STANDALONE") @map("connection_state")
+
   chunks        Chunk[]
   driveConfig   DriveConfig?  @relation(fields: [driveConfigId], references: [id], onDelete: SetNull)
 
   @@index([sourceType])
   @@index([driveConfigId])
+  @@index([isActive])
+  @@index([connectionState])
   @@map("documents")
 }
 
