@@ -1,12 +1,15 @@
 import { FastifyInstance } from 'fastify';
 import { getPrisma } from '../../services/database.js';
+import { eventBus } from '../../services/event-bus.js';
 import { QualityGateService } from '../../services/quality-gate-service.js';
 import { CallbackSchema } from '../../validators/callback-validator.js';
 
 const qualityGate = new QualityGateService();
 
 export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
-  fastify.post('/internal/callback', async (request, reply) => {
+  // Large PDF files (400+ pages) generate many chunks with embeddings
+  // Each chunk has 384-dimension embedding, payload can reach 50-100MB
+  fastify.post('/internal/callback', { bodyLimit: 100 * 1024 * 1024 }, async (request, reply) => {
     const parsed = CallbackSchema.safeParse(request.body);
 
     if (!parsed.success) {
@@ -41,6 +44,9 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
         },
       });
 
+      // Emit SSE event for failed status
+      eventBus.emit('document:status', { id: documentId, status: 'FAILED', error: error.code });
+
       return reply.send({ status: 'acknowledged', result: 'failed' });
     }
 
@@ -64,6 +70,9 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
               failReason: quality.reason,
             },
           });
+
+          // Emit SSE event for quality gate failure
+          eventBus.emit('document:status', { id: documentId, status: 'FAILED', error: quality.reason });
 
           return reply.send({ status: 'acknowledged', result: 'quality_failed' });
         }
@@ -109,6 +118,13 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
               processingTimeMs: result.processingTimeMs
             }
           },
+        });
+
+        // Emit SSE event for success
+        eventBus.emit('document:status', {
+          id: documentId,
+          status: 'COMPLETED',
+          chunksCount: result.chunks.length
         });
 
         return reply.send({

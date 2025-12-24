@@ -9,11 +9,10 @@ export function DriveSyncTab() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const queryClient = useQueryClient();
 
-    // Fetch configs
+    // Fetch configs - SSE handles real-time sync status updates
     const { data, isLoading } = useQuery({
         queryKey: ['driveConfigs'],
         queryFn: driveApi.listConfigs,
-        refetchInterval: 5000, // Poll every 5s for sync status updates
     });
 
     // Create mutation

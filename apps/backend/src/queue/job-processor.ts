@@ -27,36 +27,27 @@ export function createJobProcessor(connection: Redis): Worker<ProcessingJob> {
 
         job.log(`Processing document ${job.data.documentId}`);
 
-        // Dispatch PDF to Python worker via HTTP
-        if (job.data.format === 'pdf') {
-          const aiWorkerUrl = process.env.AI_WORKER_URL || 'http://localhost:8000';
+        // Dispatch ALL formats to Python AI worker via HTTP
+        const aiWorkerUrl = process.env.AI_WORKER_URL || 'http://localhost:8000';
 
-          const response = await fetch(`${aiWorkerUrl}/process`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              documentId: job.data.documentId,
-              filePath: job.data.filePath,
-              config: job.data.config,
-            }),
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Python worker failed: ${response.status} - ${errorText}`);
-          }
-
-          // Job completed - Python will send callback when processing done
-          return { dispatched: true, documentId: job.data.documentId };
-        }
-
-        // Non-PDF formats: mark as completed (no processing needed in Python)
-        await prisma.document.update({
-          where: { id: job.data.documentId },
-          data: { status: 'COMPLETED' },
+        const response = await fetch(`${aiWorkerUrl}/process`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentId: job.data.documentId,
+            filePath: job.data.filePath,
+            format: job.data.format, // Pass format for routing
+            config: job.data.config,
+          }),
         });
 
-        return { processed: true, documentId: job.data.documentId };
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`AI worker failed: ${response.status} - ${errorText}`);
+        }
+
+        // Job completed - AI worker will send callback when processing done
+        return { dispatched: true, documentId: job.data.documentId };
 
       } catch (error) {
         // Nếu document không tồn tại, không retry

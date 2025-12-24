@@ -1,5 +1,6 @@
 import { getProcessingQueue } from '@/queue/processing-queue.js';
 import { getPrismaClient } from '@/services/database.js';
+import { eventBus } from '@/services/event-bus.js';
 import { HashService } from '@/services/index.js';
 import { detectFormat } from '@/validators/index.js';
 import { validateUpload } from '@/validators/upload-validator.js';
@@ -133,6 +134,13 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
           },
         });
         console.log('✅ Document created:', document.id);
+
+        // Emit SSE event for new document
+        eventBus.emit('document:created', {
+          id: document.id,
+          filename: sanitizedFilename,
+          status: 'PENDING'
+        });
       } catch (error) {
         console.error('❌ Database error:', error);
         // Cleanup file if DB insert fails

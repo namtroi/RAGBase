@@ -23,15 +23,17 @@ async function request<T>(
   responseType: 'json' | 'blob' = 'json'
 ): Promise<T> {
   const isFormData = options.body instanceof FormData;
+  const hasBody = options.body !== undefined;
 
   const headers: Record<string, string> = {
     ...options.headers as Record<string, string>,
     'X-API-Key': config.apiKey,
   };
 
-  // Only set Content-Type for non-FormData requests
+  // Only set Content-Type for non-FormData requests WITH a body
   // FormData needs browser to auto-set with boundary
-  if (!isFormData) {
+  // DELETE requests typically have no body
+  if (!isFormData && hasBody) {
     headers['Content-Type'] = 'application/json';
   }
 

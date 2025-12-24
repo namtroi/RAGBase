@@ -17,6 +17,7 @@ import { driveSyncRoutes } from './routes/drive/sync-routes.js';
 import { healthRoute } from './routes/health-route.js';
 import { callbackRoute } from './routes/internal/callback-route.js';
 import { searchRoute } from './routes/query/search-route.js';
+import { closeAllSSEConnections, sseRoute } from './routes/sse-route.js';
 import { disconnectPrisma } from './services/database.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -78,10 +79,13 @@ export async function createApp(): Promise<FastifyInstance> {
     // Drive sync routes
     await driveConfigRoutes(protectedScope);
     await driveSyncRoutes(protectedScope);
+
+    // SSE real-time events
+    await sseRoute(protectedScope);
   });
 
-  // Cleanup on shutdown
   app.addHook('onClose', async () => {
+    closeAllSSEConnections();
     stopAllCronJobs();
     await shutdownWorker();
     await closeQueue();

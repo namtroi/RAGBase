@@ -102,7 +102,10 @@ apps/backend/local_cache/
 #Python
 venv/
 .venv
+.coverage
+.coverage.*
+htmlcov/
+
 
 #Google Drive Sync
 service-account.json
-htmlcov/
