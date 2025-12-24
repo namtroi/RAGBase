@@ -1,4 +1,4 @@
-# Phase 3: Format Expansion + Chunking Optimization
+# Phase 4: Format Expansion + Chunking Optimization
 
 **Goal:** Support 6 new document formats with format-aware chunking strategies for optimal RAG quality.
 

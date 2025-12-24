@@ -1,6 +1,6 @@
 # RAGBase Testing Strategy
 
-**Phase 1 MVP - Complete** | **TDD Methodology**
+**Phase 3 Complete** | **TDD Methodology**
 
 ---
 
@@ -25,9 +25,10 @@ graph LR
 - Living documentation - tests show how code works
 - Refactor confidence - change without fear
 
-**Phase 1 Results:**
-- **3,688 lines of tests** (79% coverage)
-- **Test-to-Code Ratio:** 79% (3,688 / 4,668)
+**Current Test Suite:**
+- **Backend:** 28 test files (unit + integration + e2e)
+- **AI Worker:** 8 test files (pytest)
+- **Coverage target:** 70-90% depending on module
 
 ---
 
@@ -145,12 +146,26 @@ graph TB
 
 ```
 apps/backend/tests/
-├── unit/           # Validators, services
-├── integration/    # Routes, queue
-└── e2e/            # Full pipeline
+├── unit/
+│   ├── validators/        # Input validation
+│   └── services/          # event-bus, sync-relink, quality-gate
+├── integration/
+│   ├── routes/            # API endpoints
+│   │   └── documents/     # Phase 3: availability, delete, retry
+│   ├── queue/             # BullMQ processing
+│   └── middleware/        # Auth
+├── e2e/                   # Full pipeline
+├── fixtures/              # Test files (PDF, JSON, TXT, MD)
+├── mocks/                 # AI worker mocks
+└── helpers/               # Test utilities
 
 apps/ai-worker/tests/
-└── test_*.py       # Pytest tests
+├── conftest.py            # Fixtures
+├── test_processor.py      # PDF processing
+├── test_text_processor.py # MD/TXT/JSON processing
+├── test_chunker.py        # Chunking
+├── test_embedder.py       # Embedding
+└── test_callback.py       # HTTP callback
 ```
 
 **Naming:**
@@ -160,7 +175,30 @@ apps/ai-worker/tests/
 
 ---
 
-## 8. Test Commands
+## 8. Phase 2/3 Test Coverage
+
+### Phase 2 Tests
+
+| Feature | Test File |
+|---------|----------|
+| SSE Events | `sse-route.test.ts` |
+| Content Export | `content-route.test.ts` |
+| Drive Sync | `integration/routes/` (various) |
+| TextProcessor | `test_text_processor.py` |
+
+### Phase 3 Tests
+
+| Feature | Test File |
+|---------|----------|
+| Availability Toggle | `availability-route.test.ts` |
+| Hard Delete | `delete-route.test.ts` |
+| Retry Failed | `retry-route.test.ts` |
+| Enhanced List | `list-query-validator.test.ts`, `list-route.test.ts` |
+| Drive Re-link | `sync-service-relink.test.ts` |
+
+---
+
+## 9. Test Commands
 
 **Backend:**
 ```bash
@@ -179,7 +217,7 @@ pytest --cov=src --cov-report=html  # With coverage
 
 ---
 
-## 9. Testing Anti-Patterns (Avoid)
+## 10. Testing Anti-Patterns (Avoid)
 
 ### Don't Test Implementation Details
 
@@ -198,7 +236,7 @@ pytest --cov=src --cov-report=html  # With coverage
 
 ---
 
-## 10. Key Decisions
+## 11. Key Decisions
 
 | Decision | Rationale | Trade-off |
 |----------|-----------|-----------|

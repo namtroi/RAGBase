@@ -177,15 +177,14 @@ interface DeleteResponse {
 #### Bulk Delete Documents
 
 ```typescript
-// DELETE /api/documents/bulk
+// POST /api/documents/bulk/delete
 interface BulkDeleteRequest {
-  documentIds: string[];  // Max 100
+  ids: string[];  // Max 100
 }
 
 interface BulkDeleteResponse {
   deleted: number;
   failed: { id: string; reason: string }[];
-}
 ```
 
 #### Retry Failed Document
@@ -231,11 +230,12 @@ interface ListResponse {
   total: number;
   // New: aggregated counts
   counts: {
-    total: number;
     active: number;
     inactive: number;
     failed: number;
     pending: number;
+    processing: number;
+    completed: number;
   };
 }
 
@@ -499,5 +499,5 @@ WHERE source_type = 'DRIVE' AND drive_config_id IS NOT NULL;
 
 ---
 
-**Phase 3 Status:** 📋 PLANNED
+**Phase 3 Status:** ✅ COMPLETE
 

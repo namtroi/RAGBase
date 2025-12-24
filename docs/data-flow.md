@@ -218,6 +218,8 @@ VALUES (gen_random_uuid(), $1, $2, $3, $4::vector, $5, $6, null, NOW())
 | `source_type` | Enum | MANUAL/DRIVE |
 | `drive_file_id` | String? | Google Drive file ID |
 | `drive_config_id` | UUID? | FK → DriveConfig |
+| `is_active` | Boolean | User visibility toggle (default: true) |
+| `connection_state` | String | STANDALONE or LINKED |
 
 ---
 
@@ -271,7 +273,7 @@ sequenceDiagram
 SELECT c.*, d.filename
 FROM chunks c
 JOIN documents d ON c.document_id = d.id
-WHERE d.status = 'COMPLETED'
+WHERE d.status = 'COMPLETED' AND d.is_active = true
 ORDER BY c.embedding <=> $queryVector
 LIMIT $topK
 ```
@@ -293,32 +295,50 @@ LIMIT $topK
 
 ---
 
-## 6. Deletion
+## 6. Deletion & Availability (Phase 3)
 
-### 6.1 Document Deletion
+### 6.1 Hard Delete
 
-Currently **no public DELETE endpoint** for documents.
+**Endpoints:**
+- `DELETE /api/documents/:id` - Single document
+- `POST /api/documents/bulk/delete` - Bulk delete (max 100)
 
-**Cascade behavior:**
-- When Document deleted: all Chunks auto-deleted (`onDelete: Cascade`)
+**What gets deleted:**
+- Document record
+- All chunks (cascade)
+- File on disk
+
+**Restrictions:**
+- Cannot delete PROCESSING documents (409 Conflict)
 
 ---
 
-### 6.2 Drive Sync Removal
+### 6.2 Availability Toggle
+
+**Endpoint:** `PATCH /api/documents/:id/availability`
+
+- Toggle `isActive` between true/false
+- Only COMPLETED documents can be toggled
+- `isActive=false` documents excluded from query
+
+---
+
+### 6.3 Drive Sync Removal
 
 When file removed from Google Drive:
-- Document `status` → `ARCHIVED` (soft delete)
-- Document + chunks remain in DB for history
+- Document `isActive` remains true (content still valid)
+- Can be manually set to inactive or deleted
 
 ---
 
-### 6.3 DriveConfig Deletion
+### 6.4 DriveConfig Deletion
 
 **Endpoint:** `DELETE /api/drive/configs/:id`
 
 **Behavior:**
 - Delete DriveConfig record
-- Documents remain, `driveConfigId` → `null` (`onDelete: SetNull`)
+- Documents remain, `driveConfigId` → `null`
+- `connectionState` → `STANDALONE`
 
 ---
 
