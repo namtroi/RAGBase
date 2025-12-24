@@ -3,6 +3,7 @@ import { Redis } from 'ioredis';
 import { getPrisma } from '../services/database.js';
 import { getPdfConcurrency } from './concurrency-config.js';
 import { ProcessingJob } from './processing-queue.js';
+import { logger } from '@/logging/logger.js';
 
 const PERMANENT_ERRORS = [
   'PASSWORD_PROTECTED',
@@ -65,7 +66,7 @@ export function createJobProcessor(connection: Redis): Worker<ProcessingJob> {
   );
 
   worker.on('completed', (job) => {
-    console.log(`Job ${job?.id} completed`);
+    logger.info({ jobId: job?.id }, 'job_completed');
   });
 
   worker.on('failed', async (job, err) => {
@@ -94,13 +95,13 @@ export function createJobProcessor(connection: Redis): Worker<ProcessingJob> {
         });
       }
     } catch (updateError) {
-      console.error('Failed to update document status:', updateError);
+      logger.error({ err: updateError, jobId: job.id }, 'job_status_update_failed');
     }
   });
 
   // Thêm error handler cho worker
   worker.on('error', (err) => {
-    console.error('Worker error:', err);
+    logger.error({ err }, 'worker_error');
   });
 
   return worker;

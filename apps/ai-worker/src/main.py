@@ -5,41 +5,24 @@ Provides health checks and /process endpoint for PDF processing.
 """
 
 from contextlib import asynccontextmanager
-from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 
 from .callback import send_callback
 from .config import settings
 from .logging_config import configure_logging, get_logger
+from .models import (
+    EmbedRequest,
+    EmbedResponse,
+    ProcessRequest,
+    ProcessResponse,
+)
 from .processor import pdf_processor
 from .text_processor import text_processor
 
 # Configure logging first
 configure_logging()
 logger = get_logger(__name__)
-
-
-# Request/Response models
-class ProcessConfig(BaseModel):
-    ocrMode: str = "auto"
-    ocrLanguages: List[str] = ["en"]
-
-
-class ProcessRequest(BaseModel):
-    documentId: str
-    filePath: str
-    format: str = "pdf"  # pdf, md, txt, json
-    config: Optional[ProcessConfig] = None
-
-
-class ProcessResponse(BaseModel):
-    status: str
-    documentId: str
-    success: bool
-    processingTimeMs: Optional[int] = None
-    error: Optional[str] = None
 
 
 @asynccontextmanager
@@ -80,14 +63,6 @@ async def readiness_check():
         "ready": True,
         "mode": "http-dispatch",
     }
-
-
-class EmbedRequest(BaseModel):
-    texts: List[str]
-
-
-class EmbedResponse(BaseModel):
-    embeddings: List[List[float]]
 
 
 @app.post("/embed", response_model=EmbedResponse)

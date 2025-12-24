@@ -7,6 +7,7 @@
 
 import { getPrismaClient } from '@/services/database.js';
 import { getSyncService } from '@/services/sync-service.js';
+import { logger } from '@/logging/logger.js';
 import cron, { ScheduledTask } from 'node-cron';
 
 const scheduledTasks: Map<string, ScheduledTask> = new Map();
@@ -23,7 +24,7 @@ export async function initializeCronJobs(): Promise<void> {
         select: { id: true, syncCron: true },
     });
 
-    console.log(`📅 Initializing ${configs.length} Drive sync cron jobs`);
+    logger.info({ count: configs.length }, 'cron_initializing');
 
     for (const config of configs) {
         scheduleSync(config.id, config.syncCron);
@@ -36,7 +37,7 @@ export async function initializeCronJobs(): Promise<void> {
 export function scheduleSync(configId: string, cronExpression: string): void {
     // Validate cron expression
     if (!cron.validate(cronExpression)) {
-        console.error(`❌ Invalid cron expression for config ${configId}: ${cronExpression}`);
+        logger.error({ configId, cronExpression }, 'cron_invalid_expression');
         return;
     }
 
@@ -45,18 +46,18 @@ export function scheduleSync(configId: string, cronExpression: string): void {
 
     // Create new scheduled task
     const task = cron.schedule(cronExpression, async () => {
-        console.log(`⏰ Running scheduled sync for config ${configId}`);
+        logger.info({ configId }, 'cron_sync_running');
         try {
             const syncService = getSyncService();
             const result = await syncService.syncConfig(configId);
-            console.log(`✅ Sync complete for ${configId}: +${result.added} ✎${result.updated} -${result.removed}`);
+            logger.info({ configId, added: result.added, updated: result.updated, removed: result.removed }, 'cron_sync_complete');
         } catch (error: any) {
-            console.error(`❌ Sync failed for ${configId}:`, error.message);
+            logger.error({ configId, err: error }, 'cron_sync_failed');
         }
     });
 
     scheduledTasks.set(configId, task);
-    console.log(`📅 Scheduled sync for config ${configId} with cron: ${cronExpression}`);
+    logger.info({ configId, cronExpression }, 'cron_scheduled');
 }
 
 /**
@@ -67,7 +68,7 @@ export function unscheduleSync(configId: string): void {
     if (existing) {
         existing.stop();
         scheduledTasks.delete(configId);
-        console.log(`🛑 Unscheduled sync for config ${configId}`);
+        logger.info({ configId }, 'cron_unscheduled');
     }
 }
 
@@ -86,10 +87,10 @@ export function updateSchedule(configId: string, cronExpression: string, enabled
  * Stop all cron jobs
  */
 export function stopAllCronJobs(): void {
-    console.log(`🛑 Stopping ${scheduledTasks.size} cron jobs`);
+    logger.info({ count: scheduledTasks.size }, 'cron_stopping_all');
     for (const [configId, task] of scheduledTasks) {
         task.stop();
-        console.log(`🛑 Stopped cron job for config ${configId}`);
+        logger.debug({ configId }, 'cron_stopped');
     }
     scheduledTasks.clear();
 }
@@ -103,3 +104,4 @@ export function getCronStatus(): { configId: string; scheduled: boolean }[] {
         scheduled: true,
     }));
 }
+

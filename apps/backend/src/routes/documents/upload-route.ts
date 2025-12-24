@@ -4,6 +4,7 @@ import { eventBus } from '@/services/event-bus.js';
 import { HashService } from '@/services/index.js';
 import { detectFormat } from '@/validators/index.js';
 import { validateUpload } from '@/validators/upload-validator.js';
+import { logger } from '@/logging/logger.js';
 import { FastifyInstance } from 'fastify';
 import { mkdir, rm, writeFile } from 'fs/promises';
 import path, { basename } from 'path';
@@ -15,12 +16,12 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || '/tmp/uploads';
 export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
   fastify.post('/api/documents', async (request, reply) => {
     try {
-      console.log('📤 Upload request received');
+      logger.info('upload_request_received');
 
       const data = await request.file();
 
       if (!data) {
-        console.log('❌ No file in request');
+        logger.warn('upload_no_file');
         return reply.status(400).send({
           error: 'NO_FILE',
           message: 'No file uploaded',
@@ -31,11 +32,7 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
       const filename = data.filename;
       const mimeType = data.mimetype;
 
-      console.log('📄 File details:', {
-        filename,
-        mimeType,
-        size: buffer.length,
-      });
+      logger.info({ filename, mimeType, size: buffer.length }, 'upload_file_details');
 
       // Validate file
       const validation = validateUpload({
@@ -45,7 +42,7 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
       });
 
       if (!validation.valid) {
-        console.log('❌ Validation failed:', validation.error);
+        logger.warn({ error: validation.error }, 'upload_validation_failed');
         return reply.status(400).send({
           error: validation.error!.code,
           message: validation.error!.message,
@@ -55,19 +52,19 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
       // Detect format
       const format = detectFormat({ filename, mimeType });
       if (!format) {
-        console.log('❌ Format detection failed');
+        logger.warn({ filename, mimeType }, 'upload_format_detection_failed');
         return reply.status(400).send({
           error: 'INVALID_FORMAT',
           message: 'Unable to detect file format',
         });
       }
 
-      console.log('✅ Format detected:', format);
+      logger.debug({ format }, 'upload_format_detected');
 
       // Validate filename for path traversal
       const sanitizedFilename = basename(filename);
       if (sanitizedFilename !== filename || sanitizedFilename.length === 0 || sanitizedFilename.length > 255) {
-        console.log('❌ Invalid filename');
+        logger.warn({ filename }, 'upload_invalid_filename');
         return reply.status(400).send({
           error: 'INVALID_FILENAME',
           message: 'Filename contains invalid characters or exceeds length limit',
@@ -75,19 +72,17 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
       }
 
       // Calculate MD5 hash
-      console.log('🔐 Calculating MD5 hash...');
       const md5Hash = HashService.md5(buffer);
-      console.log('✅ MD5 hash:', md5Hash);
+      logger.debug({ md5Hash }, 'upload_hash_calculated');
 
       // Check for duplicates
-      console.log('🔍 Checking for duplicates...');
       const prisma = getPrismaClient();
       const existing = await prisma.document.findUnique({
         where: { md5Hash },
       });
 
       if (existing) {
-        console.log('⚠️ Duplicate file found:', existing.id);
+        logger.info({ existingId: existing.id, md5Hash }, 'upload_duplicate_found');
         return reply.status(409).send({
           error: 'DUPLICATE_FILE',
           message: 'File already exists',
@@ -97,20 +92,18 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
 
       // All files now use heavy lane (processed through queue)
       const lane = 'heavy';
-      console.log('🛣️ Processing lane:', lane);
 
       // Use MD5 hash only for unique storage (prevents path traversal)
       const filePath = path.join(UPLOAD_DIR, md5Hash);
 
       // Save file to disk with error handling
-      console.log('💾 Saving file to disk:', filePath);
       try {
         await mkdir(UPLOAD_DIR, { recursive: true });
         // Allow overwrite - if MD5 is same, content is identical
         await writeFile(filePath, buffer);
-        console.log('✅ File saved successfully');
+        logger.debug({ filePath }, 'upload_file_saved');
       } catch (error: any) {
-        console.error('❌ File save error:', error);
+        logger.error({ err: error, filePath }, 'upload_file_save_error');
         return reply.status(500).send({
           error: 'STORAGE_ERROR',
           message: `Failed to save file: ${error.message}`,
@@ -118,7 +111,6 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
       }
 
       // Create document record (with cleanup on failure)
-      console.log('📝 Creating document record...');
       let document;
       try {
         document = await prisma.document.create({
@@ -133,7 +125,7 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
             md5Hash,
           },
         });
-        console.log('✅ Document created:', document.id);
+        logger.info({ documentId: document.id, filename: sanitizedFilename }, 'upload_document_created');
 
         // Emit SSE event for new document
         eventBus.emit('document:created', {
@@ -142,14 +134,13 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
           status: 'PENDING'
         });
       } catch (error) {
-        console.error('❌ Database error:', error);
+        logger.error({ err: error, filePath }, 'upload_database_error');
         // Cleanup file if DB insert fails
-        await rm(filePath).catch(console.error);
+        await rm(filePath).catch((rmErr) => logger.error({ err: rmErr }, 'upload_cleanup_failed'));
         throw error;
       }
 
       // Queue for processing (all formats now go through queue)
-      console.log('📬 Adding to queue...');
       await getProcessingQueue().add('process', {
         documentId: document.id,
         filePath: filePath,
@@ -159,9 +150,9 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
           ocrLanguages: ['en'],
         },
       });
-      console.log('✅ Queued successfully');
+      logger.debug({ documentId: document.id }, 'upload_queued');
 
-      console.log('🎉 Upload complete, returning 201');
+      logger.info({ documentId: document.id, filename: document.filename }, 'upload_complete');
       return reply.status(201).send({
         id: document.id,
         filename: document.filename,
@@ -170,8 +161,7 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
         lane: document.lane,
       });
     } catch (error: any) {
-      console.error('💥 UPLOAD ROUTE ERROR:', error);
-      console.error('Stack trace:', error.stack);
+      logger.error({ err: error }, 'upload_route_error');
 
       // Handle Fastify file size limit error
       if (error.code === 'FST_REQ_FILE_TOO_LARGE') {
