@@ -12,7 +12,7 @@
 | **3B** | Toggle Availability API | Single + bulk toggle endpoints | ✅ Complete |
 | **3C** | Hard Delete API | Single + bulk delete endpoints | ✅ Complete |
 | **3D** | Retry Failed API | Re-queue failed documents | ✅ Complete |
-| **3E** | Enhanced List API | Filters, sorting, counts | ⬜ Pending |
+| **3E** | Enhanced List API | Filters, sorting, counts | ✅ Complete |
 | **3F** | Query Filter Update | Exclude inactive from search | ⬜ Pending |
 | **3G** | Re-link Logic | Auto re-link when re-adding Drive folder | ⬜ Pending |
 | **3H** | Frontend Data Grid | Enhanced document list UI | ⬜ Pending |
@@ -205,9 +205,9 @@ Response: { id, status: 'PENDING' }
 
 ---
 
-## Part 3E: Enhanced List API ⬜
+## Part 3E: Enhanced List API ✅
 
-**Status:** Pending  
+**Status:** Complete  
 **Implementation:** `apps/backend/src/routes/documents/list-route.ts`
 
 ### TDD Steps:

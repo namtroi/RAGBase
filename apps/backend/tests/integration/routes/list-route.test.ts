@@ -62,6 +62,27 @@ describe('GET /api/documents', () => {
       expect(doc.filename).toBe('test.pdf');
       expect(doc.status).toBe('COMPLETED');
       expect(doc.createdAt).toBeDefined();
+      expect(doc.isActive).toBeDefined();
+      expect(doc.connectionState).toBeDefined();
+    });
+
+    it('should include counts in response', async () => {
+      await seedDocument({ status: 'PENDING', md5Hash: 'h1' });
+      await seedDocument({ status: 'COMPLETED', md5Hash: 'h2', isActive: true });
+      await seedDocument({ status: 'FAILED', md5Hash: 'h3', isActive: false });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/documents',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      const body = response.json();
+      expect(body.counts).toBeDefined();
+      expect(body.counts.total).toBe(3);
+      expect(body.counts.pending).toBe(1);
+      expect(body.counts.failed).toBe(1);
+      expect(body.counts.completed).toBe(1);
     });
   });
 
@@ -79,6 +100,151 @@ describe('GET /api/documents', () => {
 
       expect(response.json().documents).toHaveLength(1);
       expect(response.json().documents[0].status).toBe('COMPLETED');
+    });
+
+    it('should filter by isActive', async () => {
+      await seedDocument({ isActive: true, md5Hash: 'h1' });
+      await seedDocument({ isActive: true, md5Hash: 'h2' });
+      await seedDocument({ isActive: false, md5Hash: 'h3' });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/documents?isActive=true',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      expect(response.json().documents).toHaveLength(2);
+      response.json().documents.forEach((doc: any) => {
+        expect(doc.isActive).toBe(true);
+      });
+    });
+
+    it('should filter by connectionState', async () => {
+      await seedDocument({ connectionState: 'STANDALONE', md5Hash: 'h1' });
+      await seedDocument({ connectionState: 'LINKED', md5Hash: 'h2' });
+      await seedDocument({ connectionState: 'LINKED', md5Hash: 'h3' });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/documents?connectionState=LINKED',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      expect(response.json().documents).toHaveLength(2);
+      response.json().documents.forEach((doc: any) => {
+        expect(doc.connectionState).toBe('LINKED');
+      });
+    });
+
+    it('should filter by sourceType', async () => {
+      await seedDocument({ sourceType: 'MANUAL', md5Hash: 'h1' });
+      await seedDocument({ sourceType: 'DRIVE', md5Hash: 'h2' });
+      await seedDocument({ sourceType: 'DRIVE', md5Hash: 'h3' });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/documents?sourceType=DRIVE',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      expect(response.json().documents).toHaveLength(2);
+      response.json().documents.forEach((doc: any) => {
+        expect(doc.sourceType).toBe('DRIVE');
+      });
+    });
+
+    it('should search by filename (case-insensitive)', async () => {
+      await seedDocument({ filename: 'Invoice-2024.pdf', md5Hash: 'h1' });
+      await seedDocument({ filename: 'invoice_jan.pdf', md5Hash: 'h2' });
+      await seedDocument({ filename: 'report.pdf', md5Hash: 'h3' });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/documents?search=invoice',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      expect(response.json().documents).toHaveLength(2);
+    });
+
+    it('should combine multiple filters', async () => {
+      await seedDocument({ status: 'COMPLETED', isActive: true, md5Hash: 'h1' });
+      await seedDocument({ status: 'COMPLETED', isActive: false, md5Hash: 'h2' });
+      await seedDocument({ status: 'FAILED', isActive: true, md5Hash: 'h3' });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/documents?status=COMPLETED&isActive=true',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      expect(response.json().documents).toHaveLength(1);
+      expect(response.json().documents[0].status).toBe('COMPLETED');
+      expect(response.json().documents[0].isActive).toBe(true);
+    });
+  });
+
+  describe('sorting', () => {
+    it('should sort by createdAt desc by default', async () => {
+      await seedDocument({ filename: 'first.pdf', md5Hash: 'h1' });
+      await new Promise(r => setTimeout(r, 10)); // Small delay to ensure different timestamps
+      await seedDocument({ filename: 'second.pdf', md5Hash: 'h2' });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/documents',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      const docs = response.json().documents;
+      expect(docs[0].filename).toBe('second.pdf');
+      expect(docs[1].filename).toBe('first.pdf');
+    });
+
+    it('should sort by createdAt asc', async () => {
+      await seedDocument({ filename: 'first.pdf', md5Hash: 'h1' });
+      await new Promise(r => setTimeout(r, 10));
+      await seedDocument({ filename: 'second.pdf', md5Hash: 'h2' });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/documents?sortOrder=asc',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      const docs = response.json().documents;
+      expect(docs[0].filename).toBe('first.pdf');
+      expect(docs[1].filename).toBe('second.pdf');
+    });
+
+    it('should sort by filename', async () => {
+      await seedDocument({ filename: 'zebra.pdf', md5Hash: 'h1' });
+      await seedDocument({ filename: 'apple.pdf', md5Hash: 'h2' });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/documents?sortBy=filename&sortOrder=asc',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      const docs = response.json().documents;
+      expect(docs[0].filename).toBe('apple.pdf');
+      expect(docs[1].filename).toBe('zebra.pdf');
+    });
+
+    it('should sort by fileSize', async () => {
+      await seedDocument({ filename: 'small.pdf', fileSize: 100, md5Hash: 'h1' });
+      await seedDocument({ filename: 'large.pdf', fileSize: 10000, md5Hash: 'h2' });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/documents?sortBy=fileSize&sortOrder=desc',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      const docs = response.json().documents;
+      expect(docs[0].filename).toBe('large.pdf');
+      expect(docs[1].filename).toBe('small.pdf');
     });
   });
 
