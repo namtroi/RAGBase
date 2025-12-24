@@ -10,7 +10,7 @@
 |------|------|-------------|--------|
 | **3A** | Database Migration | Add `isActive`, `connectionState` columns | ✅ Complete |
 | **3B** | Toggle Availability API | Single + bulk toggle endpoints | ✅ Complete |
-| **3C** | Hard Delete API | Single + bulk delete endpoints | ⬜ Pending |
+| **3C** | Hard Delete API | Single + bulk delete endpoints | ✅ Complete |
 | **3D** | Retry Failed API | Re-queue failed documents | ⬜ Pending |
 | **3E** | Enhanced List API | Filters, sorting, counts | ⬜ Pending |
 | **3F** | Query Filter Update | Exclude inactive from search | ⬜ Pending |
@@ -120,9 +120,9 @@ Response: { updated: number, failed: [{ id, reason }] }
 
 ---
 
-## Part 3C: Hard Delete API ⬜
+## Part 3C: Hard Delete API ✅
 
-**Status:** Pending  
+**Status:** Complete  
 **Implementation:** `apps/backend/src/routes/documents/delete-route.ts`
 
 ### TDD Steps:
