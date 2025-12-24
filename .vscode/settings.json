@@ -4,8 +4,7 @@
   "typescript.preferences.includePackageJsonAutoImports": "on",
   "typescript.updateImportsOnFileMove.enabled": "always",
   "editor.codeActionsOnSave": {
-    "source.fixAll": "explicit",
-    "source.organizeImports": "explicit"
+    "source.fixAll.eslint": "explicit"
   },
   "files.exclude": {
     "**/node_modules": true,
@@ -25,10 +24,7 @@
   },
   "[python]": {
     "editor.defaultFormatter": "ms-python.black-formatter",
-    "editor.formatOnSave": true,
-    "editor.codeActionsOnSave": {
-      "source.organizeImports": "explicit"
-    }
+    "editor.formatOnSave": true
   },
   "[typescript]": {
     "editor.formatOnSave": true,
@@ -37,5 +33,6 @@
   "[typescriptreact]": {
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "vscode.typescript-language-features"
-  }
+  },
+  "css.lint.unknownAtRules": "ignore"
 }

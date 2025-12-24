@@ -6,6 +6,7 @@
 
 import { getPrismaClient } from '@/services/database.js';
 import { getDriveService } from '@/services/drive-service.js';
+import { eventBus } from '@/services/event-bus.js';
 import { getSyncService } from '@/services/sync-service.js';
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
