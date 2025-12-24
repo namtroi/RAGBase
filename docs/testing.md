@@ -210,6 +210,6 @@ pytest --cov=src --cov-report=html  # With coverage
 ---
 
 **Documentation:**
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - System design
-- [API.md](./API.md) - API contracts
-- [PRODUCT.md](./PRODUCT.md) - Product overview
+- [architecture.md](./architecture.md) - System design
+- [api.md](./api.md) - API contracts
+- [product.md](./product.md) - Product overview

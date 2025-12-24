@@ -98,4 +98,4 @@ pnpm lint && pnpm type-check
 
 ---
 
-**See also:** [TESTING.md](./TESTING.md) | [ARCHITECTURE.md](./ARCHITECTURE.md)
+**See also:** [testing.md](./testing.md) | [architecture.md](./architecture.md)

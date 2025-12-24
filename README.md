@@ -99,13 +99,13 @@ pnpm --filter @ragbase/backend db:generate # Generate client
 
 ## Documentation
 
-- [PRODUCT.md](docs/PRODUCT.md) - Product overview
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - System design
-- [API.md](docs/API.md) - API contracts
-- [TESTING.md](docs/TESTING.md) - TDD strategy
-- [CICD.md](docs/CICD.md) - CI/CD & automation
-- [SECURITY_CHECKLIST.md](docs/SECURITY_CHECKLIST.md) - Security best practices
-- [ROADMAP.md](docs/ROADMAP.md) - Future phases
+- [PRODUCT.md](docs/product.md) - Product overview
+- [ARCHITECTURE.md](docs/architecture.md) - System design
+- [API.md](docs/api.md) - API contracts
+- [TESTING.md](docs/testing.md) - TDD strategy
+- [CICD.md](docs/cicd.md) - CI/CD & automation
+- [SECURITY_CHECKLIST.md](docs/security_checklist.md) - Security best practices
+- [ROADMAP.md](docs/roadmap.md) - Future phases
 
 ---
 
