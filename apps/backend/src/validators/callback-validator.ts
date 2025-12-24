@@ -8,9 +8,9 @@ const ProcessingResultSchema = z.object({
     embedding: z.array(z.number()), // Expect 384d
     metadata: z.record(z.unknown()).optional()
   })).optional(),
-  pageCount: z.number().int().positive(),
+  pageCount: z.number().int().nonnegative(),
   ocrApplied: z.boolean(),
-  processingTimeMs: z.number().positive(),
+  processingTimeMs: z.number().nonnegative(),
 });
 
 const ProcessingErrorSchema = z.object({
