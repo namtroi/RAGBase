@@ -8,7 +8,7 @@
 
 | Part | Name | Description | Status |
 |------|------|-------------|--------|
-| **3A** | Database Migration | Add `isActive`, `connectionState` columns | ⬜ Pending |
+| **3A** | Database Migration | Add `isActive`, `connectionState` columns | ✅ Complete |
 | **3B** | Toggle Availability API | Single + bulk toggle endpoints | ⬜ Pending |
 | **3C** | Hard Delete API | Single + bulk delete endpoints | ⬜ Pending |
 | **3D** | Retry Failed API | Re-queue failed documents | ⬜ Pending |
@@ -20,9 +20,9 @@
 
 ---
 
-## Part 3A: Database Migration ⬜
+## Part 3A: Database Migration ✅
 
-**Status:** Pending  
+**Status:** Complete  
 **Implementation:** `apps/backend/prisma/schema.prisma`
 
 ### TDD Steps:
