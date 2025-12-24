@@ -13,6 +13,10 @@ export interface Document {
   sourceType?: 'MANUAL' | 'DRIVE';
   driveConfigId?: string;
   hasProcessedContent?: boolean;
+  // Phase 3 additions
+  fileSize?: number;
+  isActive?: boolean;
+  connectionState?: 'STANDALONE' | 'LINKED';
 }
 
 export interface DriveConfig {
@@ -42,16 +46,49 @@ export interface QueryResult {
   };
 }
 
+export interface ListParams {
+  status?: string;
+  limit?: number;
+  offset?: number;
+  driveConfigId?: string;
+  // Phase 3 additions
+  isActive?: boolean;
+  connectionState?: 'STANDALONE' | 'LINKED';
+  sourceType?: 'MANUAL' | 'DRIVE';
+  search?: string;
+  sortBy?: 'createdAt' | 'filename' | 'fileSize';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface ListResponse {
+  documents: Document[];
+  total: number;
+  counts?: {
+    active: number;
+    inactive: number;
+    failed: number;
+    pending: number;
+    processing: number;
+    completed: number;
+  };
+}
+
 // Document endpoints
 export const documentsApi = {
-  list: (params?: { status?: string; limit?: number; offset?: number; driveConfigId?: string }) => {
+  list: (params?: ListParams) => {
     const query = new URLSearchParams();
     if (params?.status) query.set('status', params.status);
     if (params?.limit) query.set('limit', String(params.limit));
     if (params?.offset) query.set('offset', String(params.offset));
     if (params?.driveConfigId) query.set('driveConfigId', params.driveConfigId);
+    if (params?.isActive !== undefined) query.set('isActive', String(params.isActive));
+    if (params?.connectionState) query.set('connectionState', params.connectionState);
+    if (params?.sourceType) query.set('sourceType', params.sourceType);
+    if (params?.search) query.set('search', params.search);
+    if (params?.sortBy) query.set('sortBy', params.sortBy);
+    if (params?.sortOrder) query.set('sortOrder', params.sortOrder);
     const queryStr = query.toString();
-    return api.get<{ documents: Document[]; total: number }>(
+    return api.get<ListResponse>(
       `/documents${queryStr ? `?${queryStr}` : ''}`
     );
   },
@@ -69,6 +106,13 @@ export const documentsApi = {
       '/documents',
       file
     ),
+
+  toggleAvailability: (id: string, isActive: boolean) =>
+    api.patch<Document>(`/documents/${id}/availability`, { isActive }),
+
+  delete: (id: string) => api.delete<{ success: boolean }>(`/documents/${id}`),
+
+  retry: (id: string) => api.post<Document>(`/documents/${id}/retry`, {}),
 };
 
 // Drive endpoints

@@ -4,11 +4,20 @@ import { useQuery } from '@tanstack/react-query';
 import { FileText, FolderSync, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { DocumentCard } from './document-card';
+import { DocumentFilters, FilterState } from './document-filters';
 
-type StatusFilter = 'all' | 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+const defaultFilters: FilterState = {
+  search: '',
+  status: '',
+  isActive: '',
+  connectionState: '',
+  sourceType: '',
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+};
 
 export function DocumentList() {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [folderFilter, setFolderFilter] = useState<string>('all');
 
   // Fetch Drive configs for filter
@@ -17,19 +26,20 @@ export function DocumentList() {
     queryFn: driveApi.listConfigs,
   });
 
-  const { data, isLoading, refetch, isRefetching } = useDocuments({
-    status: statusFilter === 'all' ? undefined : statusFilter,
+  // Build query params from filters
+  const queryParams = {
+    status: filters.status || undefined,
+    isActive: filters.isActive ? filters.isActive === 'true' : undefined,
+    connectionState: filters.connectionState as 'STANDALONE' | 'LINKED' | undefined || undefined,
+    sourceType: filters.sourceType as 'MANUAL' | 'DRIVE' | undefined || undefined,
+    search: filters.search || undefined,
+    sortBy: filters.sortBy,
+    sortOrder: filters.sortOrder,
     driveConfigId: folderFilter === 'all' ? undefined : folderFilter,
-    limit: 20,
-  });
+    limit: 50,
+  };
 
-  const filters: { label: string; value: StatusFilter }[] = [
-    { label: 'All', value: 'all' },
-    { label: 'Pending', value: 'PENDING' },
-    { label: 'Processing', value: 'PROCESSING' },
-    { label: 'Completed', value: 'COMPLETED' },
-    { label: 'Failed', value: 'FAILED' },
-  ];
+  const { data, isLoading, refetch, isRefetching } = useDocuments(queryParams);
 
   return (
     <div className="space-y-4">
@@ -48,43 +58,41 @@ export function DocumentList() {
         </button>
       </div>
 
-      {/* Filters/Actions Row */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        {/* Status Filters */}
-        <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
-          {filters.map((filter) => (
-            <button
-              key={filter.value}
-              onClick={() => setStatusFilter(filter.value)}
-              className={`px-3 py-1.5 text-sm rounded-full whitespace-nowrap transition-colors ${statusFilter === filter.value
-                  ? 'bg-primary-500 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
+      {/* Filters */}
+      <DocumentFilters
+        filters={filters}
+        onChange={setFilters}
+        counts={data?.counts}
+      />
 
-        {/* Drive Filter */}
-        {configData?.configs && configData.configs.length > 0 && (
-          <div className="flex items-center gap-2">
-            <FolderSync className="w-4 h-4 text-gray-400" />
-            <select
-              value={folderFilter}
-              onChange={(e) => setFolderFilter(e.target.value)}
-              className="text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 bg-white py-1.5 pl-3 pr-8"
-            >
-              <option value="all">All Sources</option>
-              {configData.configs.map((config) => (
-                <option key={config.id} value={config.id}>
-                  {config.folderName}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
+      {/* Drive Filter (additional) */}
+      {configData?.configs && configData.configs.length > 0 && (
+        <div className="flex items-center gap-2">
+          <FolderSync className="w-4 h-4 text-gray-400" />
+          <select
+            value={folderFilter}
+            onChange={(e) => setFolderFilter(e.target.value)}
+            className="text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 bg-white py-1.5 pl-3 pr-8"
+          >
+            <option value="all">All Folders</option>
+            {configData.configs.map((config) => (
+              <option key={config.id} value={config.id}>
+                {config.folderName}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Status Counts Summary */}
+      {data?.counts && (
+        <div className="flex gap-4 text-xs text-gray-500">
+          <span>Total: {data.total}</span>
+          <span className="text-green-600">Active: {data.counts.active}</span>
+          <span className="text-yellow-600">Inactive: {data.counts.inactive}</span>
+          <span className="text-red-600">Failed: {data.counts.failed}</span>
+        </div>
+      )}
 
       {/* Document list */}
       {isLoading ? (
