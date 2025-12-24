@@ -7,39 +7,20 @@ Converts all formats to markdown, then chunks and embeds.
 import gc
 import json
 import time
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
-from .chunker import Chunker
-from .embedder import Embedder
+from .base_processor import BaseProcessor
 from .logging_config import get_logger
+from .models import ProcessingResult
 
 logger = get_logger(__name__)
 
 
-@dataclass
-class ProcessingResult:
-    """Result of text processing operation."""
-
-    success: bool
-    processed_content: Optional[str] = None  # Full markdown output
-    chunks: Optional[List[Dict[str, Any]]] = field(
-        default_factory=list
-    )  # Pre-chunked + embedded
-    page_count: int = 1  # Text files are single "page"
-    ocr_applied: bool = False  # Never for text files
-    processing_time_ms: int = 0
-    error_code: Optional[str] = None
-    error_message: Optional[str] = None
-
-
-class TextProcessor:
+class TextProcessor(BaseProcessor):
     """Processor for text-based files (MD, TXT, JSON)."""
 
     def __init__(self):
-        self.chunker = Chunker()
-        self.embedder = Embedder()
+        super().__init__()
 
     async def process(
         self,
@@ -66,15 +47,8 @@ class TextProcessor:
             # Convert to markdown based on format
             markdown = self._to_markdown(content, file_format, path.name)
 
-            # Chunk the content
-            chunks = self.chunker.chunk(markdown)
-
-            # Generate embeddings for chunks
-            if chunks:
-                texts = [c["content"] for c in chunks]
-                embeddings = self.embedder.embed(texts)
-                for i, chunk in enumerate(chunks):
-                    chunk["embedding"] = embeddings[i]
+            # Chunking & Embedding (Shared Logic)
+            chunks = self._chunk_and_embed(markdown)
 
             processing_time_ms = int((time.time() - start_time) * 1000)
 

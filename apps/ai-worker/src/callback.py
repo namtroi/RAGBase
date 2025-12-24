@@ -7,7 +7,7 @@ import httpx
 
 from .config import settings
 from .logging_config import get_logger
-from .processor import ProcessingResult
+from .models import ProcessingResult
 
 logger = get_logger(__name__)
 

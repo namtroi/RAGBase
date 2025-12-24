@@ -81,7 +81,7 @@ class TestProcessEndpoint:
         """Test successful PDF processing."""
         from fastapi.testclient import TestClient
         from src.main import app
-        from src.processor import ProcessingResult
+        from src.models import ProcessingResult
 
         mock_result = ProcessingResult(
             success=True,
@@ -120,7 +120,7 @@ class TestProcessEndpoint:
         """Test handling of callback failure."""
         from fastapi.testclient import TestClient
         from src.main import app
-        from src.processor import ProcessingResult
+        from src.models import ProcessingResult
 
         mock_result = ProcessingResult(
             success=True,

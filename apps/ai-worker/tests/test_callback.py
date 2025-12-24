@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from src.callback import send_callback
-from src.processor import ProcessingResult
+from src.models import ProcessingResult
 
 
 @pytest.mark.asyncio
