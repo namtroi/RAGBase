@@ -28,6 +28,8 @@ async def send_callback(
                 "pageCount": result.page_count,
                 "ocrApplied": result.ocr_applied,
                 "processingTimeMs": result.processing_time_ms,
+                # Phase 4: Format category
+                "formatCategory": result.format_category,
             },
         }
     else:
