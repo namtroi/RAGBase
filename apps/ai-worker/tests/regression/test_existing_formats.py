@@ -104,13 +104,14 @@ class TestChunkStructure:
     """Regression tests for chunk structure."""
 
     def test_chunk_has_required_fields(self):
-        """Chunks should have content, index, and embedding."""
-        from src.chunker import Chunker
+        """Chunks should have content, index, and metadata."""
+        from src.chunkers.document_chunker import DocumentChunker
 
-        chunker = Chunker()
-        text = "This is a test paragraph. " * 50
+        chunker = DocumentChunker()
+        text = "# Test Heading\n\nThis is a test paragraph. " * 50
         chunks = chunker.chunk(text)
 
         assert len(chunks) > 0
         for chunk in chunks:
-            assert "text" in chunk or "content" in chunk
+            assert "content" in chunk
+            assert "metadata" in chunk
