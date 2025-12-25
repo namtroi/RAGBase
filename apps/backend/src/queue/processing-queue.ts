@@ -4,7 +4,7 @@ import { Redis } from 'ioredis';
 export interface ProcessingJob {
   documentId: string;
   filePath: string;
-  format: 'pdf' | 'json' | 'txt' | 'md';
+  format: 'pdf' | 'json' | 'txt' | 'md' | 'docx' | 'xlsx' | 'csv' | 'pptx' | 'html' | 'epub';
   config: {
     ocrMode: 'auto' | 'force' | 'never';
     ocrLanguages: string[];
@@ -24,7 +24,7 @@ export function createProcessingQueue(forceNew = false): Queue<ProcessingJob> {
 
   connection = new Redis(process.env.REDIS_URL!, {
     maxRetriesPerRequest: null,
-    enableReadyCheck: false,  
+    enableReadyCheck: false,
   });
 
   queue = new Queue<ProcessingJob>('document-processing', {
@@ -61,7 +61,7 @@ export async function closeQueue(): Promise<void> {
     queue = null;
   }
   if (connection) {
-    connection.disconnect();  
+    connection.disconnect();
     connection = null;
   }
 }

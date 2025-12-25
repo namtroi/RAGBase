@@ -7,16 +7,27 @@ export const UploadSchema = z.object({
 
 export type UploadOptions = z.infer<typeof UploadSchema>;
 
-// Allowed formats for Phase 1
+// Allowed formats - Phase 4 expanded
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
   'application/json',
   'text/plain',
   'text/markdown',
   'text/x-markdown', // Alternative MIME for .md
+  // Phase 4: New formats
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
+  'text/csv',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation', // pptx
+  'text/html',
+  'application/epub+zip',
 ]);
 
-const ALLOWED_EXTENSIONS = new Set(['pdf', 'json', 'txt', 'md']);
+const ALLOWED_EXTENSIONS = new Set([
+  'pdf', 'json', 'txt', 'md',
+  // Phase 4
+  'docx', 'xlsx', 'csv', 'pptx', 'html', 'htm', 'epub',
+]);
 
 // Config (from env)
 const MAX_FILE_SIZE_MB = parseInt(process.env.MAX_FILE_SIZE_MB || '50', 10);

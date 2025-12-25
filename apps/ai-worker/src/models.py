@@ -21,6 +21,8 @@ class ProcessingResult:
     processing_time_ms: int = 0
     error_code: Optional[str] = None
     error_message: Optional[str] = None
+    # Phase 4: Format category
+    format_category: Optional[str] = None
 
 
 @dataclass

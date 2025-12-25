@@ -21,6 +21,12 @@ enum FileFormat {
   json
   txt
   md
+  docx
+  xlsx
+  csv
+  pptx
+  html
+  epub
 }
 
 
@@ -64,6 +70,9 @@ model Document {
   isActive        Boolean       @default(true) @map("is_active")
   connectionState String        @default("STANDALONE") @map("connection_state")
 
+  // Phase 4: Format Expansion
+  formatCategory  String?       @map("format_category")
+
   chunks        Chunk[]
   driveConfig   DriveConfig?  @relation(fields: [driveConfigId], references: [id], onDelete: SetNull)
 
@@ -71,6 +80,7 @@ model Document {
   @@index([driveConfigId])
   @@index([isActive])
   @@index([connectionState])
+  @@index([formatCategory])
   @@map("documents")
 }
 
@@ -86,9 +96,21 @@ model Chunk {
   heading     String?
   createdAt   DateTime @default(now()) @map("created_at")
 
+  // Phase 4: Quality Metadata
+  location       Json?     @db.JsonB
+  qualityScore   Float?    @map("quality_score")
+  qualityFlags   String[]  @map("quality_flags") @default([])
+  chunkType      String?   @map("chunk_type")
+  completeness   String?
+  hasTitle       Boolean?  @map("has_title")
+  breadcrumbs    String[]  @default([])
+  tokenCount     Int?      @map("token_count")
+
   document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@unique([documentId, chunkIndex])
+  @@index([qualityScore])
+  @@index([chunkType])
   @@map("chunks")
 }
 

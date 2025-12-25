@@ -9,6 +9,13 @@ const ACCEPTED_FORMATS = {
   'application/json': ['.json'],
   'text/plain': ['.txt'],
   'text/markdown': ['.md'],
+  // Phase 4: New formats
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+  'text/csv': ['.csv'],
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+  'text/html': ['.html', '.htm'],
+  'application/epub+zip': ['.epub'],
 };
 
 const MAX_SIZE = 50 * 1024 * 1024; // 50MB
@@ -74,7 +81,7 @@ export function UploadDropzone() {
               Drag and drop a file here, or click to select
             </p>
             <p className="text-sm text-gray-500 mt-2">
-              PDF, JSON, TXT, MD (max 50MB)
+              PDF, DOCX, XLSX, CSV, PPTX, HTML, EPUB, JSON, TXT, MD (max 50MB)
             </p>
           </>
         )}
