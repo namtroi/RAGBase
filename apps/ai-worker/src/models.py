@@ -23,6 +23,18 @@ class ProcessingResult:
     error_message: Optional[str] = None
 
 
+@dataclass
+class ProcessorOutput:
+    """Output from format-specific processors (Phase 4)."""
+
+    markdown: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    page_count: Optional[int] = None
+    slide_count: Optional[int] = None
+    sheet_count: Optional[int] = None
+    chapter_count: Optional[int] = None
+
+
 # HTTP API Request/Response Models
 
 

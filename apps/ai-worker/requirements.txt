@@ -27,3 +27,6 @@ docling==2.15.0
 # OCR (very large ~1GB+)
 # pip install easyocr==1.7.1
 
+# Phase 4 Dependencies
+ftfy>=6.1.0
+chardet>=5.2.0
