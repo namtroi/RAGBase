@@ -115,13 +115,13 @@ export const documentsApi = {
 
   // Bulk operations
   bulkToggleAvailability: (ids: string[], isActive: boolean) =>
-    api.patch<{ updated: number; failed: string[] }>('/documents/bulk/availability', { ids, isActive }),
+    api.patch<{ updated: number; failed: string[] }>('/documents/bulk/availability', { documentIds: ids, isActive }),
 
   bulkDelete: (ids: string[]) =>
-    api.post<{ deleted: number; failed: string[] }>('/documents/bulk/delete', { ids }),
+    api.post<{ deleted: number; failed: string[] }>('/documents/bulk/delete', { documentIds: ids }),
 
   bulkRetry: (ids: string[]) =>
-    api.post<{ queued: number; failed: string[] }>('/documents/bulk/retry', { ids }),
+    api.post<{ queued: number; failed: string[] }>('/documents/bulk/retry', { documentIds: ids }),
 };
 
 // Drive endpoints
