@@ -30,3 +30,4 @@ docling==2.15.0
 # Phase 4 Dependencies
 ftfy>=6.1.0
 chardet>=5.2.0
+pandas>=2.2.0

@@ -9,7 +9,7 @@
 | Part | Name | Description | Status |
 |------|------|-------------|--------|
 | **4A** | Pre-processing Layer | Input sanitizer + Markdown normalizer | ✅ Complete |
-| **4B.1** | CSV Processor | Parse CSV → Markdown (table or sentence) | ⬜ Pending |
+| **4B.1** | CSV Processor | Parse CSV → Markdown (table or sentence) | ✅ Complete |
 | **4B.2** | HTML Processor | HTML → Markdown via BeautifulSoup | ⬜ Pending |
 | **4B.3** | EPUB Processor | EPUB chapters → Markdown | ⬜ Pending |
 | **4B.4** | DOCX Processor | Docling DOCX support | ⬜ Pending |
