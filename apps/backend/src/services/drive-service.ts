@@ -26,6 +26,7 @@ interface DriveFile {
     size: number;
     modifiedTime: string;
     md5Checksum?: string;
+    webViewLink?: string;
 }
 
 interface ListFilesResult {
@@ -86,7 +87,7 @@ export class DriveService {
 
         const response = await this.drive.files.list({
             q: query,
-            fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, md5Checksum)',
+            fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, md5Checksum, webViewLink)',
             pageSize: 100,
             pageToken,
         });
@@ -100,6 +101,7 @@ export class DriveService {
                 size: parseInt(f.size || '0', 10),
                 modifiedTime: f.modifiedTime!,
                 md5Checksum: f.md5Checksum ?? undefined,
+                webViewLink: f.webViewLink ?? undefined,
             }));
 
         return {
@@ -123,7 +125,7 @@ export class DriveService {
                 // Get all items in folder (including subfolders)
                 const response = await this.drive.files.list({
                     q: `'${currentFolderId}' in parents and trashed = false`,
-                    fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, md5Checksum)',
+                    fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, md5Checksum, webViewLink)',
                     pageSize: 100,
                     pageToken,
                 });
@@ -140,6 +142,7 @@ export class DriveService {
                             size: parseInt(file.size || '0', 10),
                             modifiedTime: file.modifiedTime!,
                             md5Checksum: file.md5Checksum ?? undefined,
+                            webViewLink: file.webViewLink ?? undefined,
                         });
                     }
                 }
@@ -187,7 +190,7 @@ export class DriveService {
     async getChanges(pageToken: string): Promise<ChangesResult> {
         const response = await this.drive.changes.list({
             pageToken,
-            fields: 'newStartPageToken, nextPageToken, changes(fileId, removed, file(id, name, mimeType, size, modifiedTime, md5Checksum))',
+            fields: 'newStartPageToken, nextPageToken, changes(fileId, removed, file(id, name, mimeType, size, modifiedTime, md5Checksum, webViewLink))',
             pageSize: 100,
         });
 
@@ -202,6 +205,7 @@ export class DriveService {
                     size: parseInt(change.file.size || '0', 10),
                     modifiedTime: change.file.modifiedTime!,
                     md5Checksum: change.file.md5Checksum ?? undefined,
+                    webViewLink: change.file.webViewLink ?? undefined,
                 }
                 : undefined,
         }));

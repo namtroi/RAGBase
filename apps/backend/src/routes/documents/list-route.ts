@@ -55,6 +55,7 @@ export async function listRoute(fastify: FastifyInstance): Promise<void> {
           isActive: true,
           connectionState: true,
           createdAt: true,
+          driveWebViewLink: true,
           _count: {
             select: { chunks: true },
           },
@@ -93,6 +94,7 @@ export async function listRoute(fastify: FastifyInstance): Promise<void> {
         chunkCount: doc._count.chunks || undefined,
         createdAt: doc.createdAt.toISOString(),
         hasProcessedContent: doc.status === 'COMPLETED',
+        driveWebViewLink: doc.driveWebViewLink || undefined,
       })),
       total,
       counts: {

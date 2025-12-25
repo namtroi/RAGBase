@@ -46,6 +46,8 @@ class DocumentChunker:
         header_splits = self.header_splitter.split_text(text)
 
         final_chunks = []
+        cumulative_pos = 0  # Track position for charStart/charEnd
+
         for i, split in enumerate(header_splits):
             # Extract headers from metadata to build breadcrumbs
             # MarkdownHeaderTextSplitter returns metadata like {"Header 1": "Title", ...}
@@ -69,15 +71,19 @@ class DocumentChunker:
                 # Sub-split large section recursively
                 sub_chunks = self.recursive_splitter.split_text(split.page_content)
                 for sub_text in sub_chunks:
+                    content = context_prefix + sub_text
                     final_chunks.append(
                         {
-                            "content": context_prefix + sub_text,
+                            "content": content,
                             "metadata": {
                                 "breadcrumbs": breadcrumbs,
                                 "index": len(final_chunks),
+                                "charStart": cumulative_pos,
+                                "charEnd": cumulative_pos + len(content),
                             },
                         }
                     )
+                    cumulative_pos += len(content)
             else:
                 final_chunks.append(
                     {
@@ -85,7 +91,11 @@ class DocumentChunker:
                         "metadata": {
                             "breadcrumbs": breadcrumbs,
                             "index": len(final_chunks),
+                            "charStart": cumulative_pos,
+                            "charEnd": cumulative_pos + len(chunk_content),
                         },
                     }
                 )
+                cumulative_pos += len(chunk_content)
+
         return final_chunks

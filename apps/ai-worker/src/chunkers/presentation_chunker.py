@@ -30,6 +30,7 @@ class PresentationChunker:
         final_chunks = []
         current_accumulation = []
         current_indices = []
+        cumulative_pos = 0  # Track position for charStart/charEnd
 
         for i, slide_content in enumerate(raw_slides):
             slide_nr = i + 1
@@ -46,21 +47,26 @@ class PresentationChunker:
 
             # If we met the minimum size or this is the last slide, emit a chunk
             if total_size >= self.min_chunk_size or i == len(raw_slides) - 1:
-                final_chunks.append(
-                    self._create_chunk(current_accumulation, current_indices)
+                chunk = self._create_chunk(
+                    current_accumulation, current_indices, cumulative_pos
                 )
+                cumulative_pos = chunk["metadata"]["charEnd"]
+                final_chunks.append(chunk)
                 current_accumulation = []
                 current_indices = []
 
         # If anything is left over (e.g. the last slide was empty but we had an accumulation)
         if current_accumulation:
-            final_chunks.append(
-                self._create_chunk(current_accumulation, current_indices)
+            chunk = self._create_chunk(
+                current_accumulation, current_indices, cumulative_pos
             )
+            final_chunks.append(chunk)
 
         return final_chunks
 
-    def _create_chunk(self, contents: List[str], indices: List[int]) -> Dict[str, Any]:
+    def _create_chunk(
+        self, contents: List[str], indices: List[int], char_start: int
+    ) -> Dict[str, Any]:
         """Helper to format a chunk."""
         # Join slides with extra newline for clarity
         combined_content = "\n\n".join(contents)
@@ -71,6 +77,8 @@ class PresentationChunker:
                 "slide_numbers": indices if len(indices) > 1 else [indices[0]],
             },
             "type": "presentation",
+            "charStart": char_start,
+            "charEnd": char_start + len(combined_content),
         }
 
         # Backward compatibility for tests expecting slide_number even if grouped

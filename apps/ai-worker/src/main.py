@@ -4,6 +4,7 @@ FastAPI application entry point for AI Worker.
 Provides health checks, /embed and /process endpoints.
 """
 
+import os
 import time
 from contextlib import asynccontextmanager
 
@@ -174,6 +175,20 @@ async def process_document(request: ProcessRequest):
                 status_code=500,
                 detail=f"Failed to send callback for {request.documentId}",
             )
+
+        # 4. Cleanup source file after successful processing
+        if result.success:
+            try:
+                if os.path.exists(request.filePath):
+                    os.remove(request.filePath)
+                    logger.info("source_file_deleted", file_path=request.filePath)
+            except Exception as cleanup_err:
+                # Log but don't fail - file cleanup is not critical
+                logger.warning(
+                    "source_file_cleanup_failed",
+                    file_path=request.filePath,
+                    error=str(cleanup_err),
+                )
 
         logger.info(
             "process_completed",
