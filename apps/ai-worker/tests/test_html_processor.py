@@ -6,7 +6,7 @@ Tests HTML to Markdown conversion with BeautifulSoup and markdownify.
 
 import pytest
 
-from src.html_processor import HtmlProcessor
+from src.converters import HtmlConverter as HtmlProcessor
 
 
 @pytest.fixture

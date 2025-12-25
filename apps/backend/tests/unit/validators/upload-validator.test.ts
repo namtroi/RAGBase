@@ -59,6 +59,11 @@ describe('validateUpload', () => {
       { filename: 'data.json', mimeType: 'application/json' },
       { filename: 'readme.txt', mimeType: 'text/plain' },
       { filename: 'notes.md', mimeType: 'text/markdown' },
+      // Phase 4 formats
+      { filename: 'doc.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+      { filename: 'data.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+      { filename: 'data.csv', mimeType: 'text/csv' },
+      { filename: 'page.html', mimeType: 'text/html' },
     ])('should accept $filename with $mimeType', ({ filename, mimeType }) => {
       const result = validateUpload({ filename, mimeType, size: 1024 });
       expect(result.valid).toBe(true);
@@ -66,8 +71,6 @@ describe('validateUpload', () => {
 
     it.each([
       { filename: 'image.png', mimeType: 'image/png' },
-      { filename: 'doc.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
-      { filename: 'data.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
       { filename: 'video.mp4', mimeType: 'video/mp4' },
     ])('should reject $filename with $mimeType', ({ filename, mimeType }) => {
       const result = validateUpload({ filename, mimeType, size: 1024 });

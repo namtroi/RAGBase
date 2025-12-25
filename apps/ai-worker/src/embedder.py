@@ -37,3 +37,24 @@ class Embedder:
         except Exception as e:
             logger.error("embedding_failed", error=str(e))
             raise e
+
+    def get_token_counts(self, texts: List[str]) -> List[int]:
+        """
+        Get token counts for texts using model's tokenizer.
+        Uses same tokenizer as embedding model for accurate counts.
+        """
+        if not texts:
+            return []
+
+        counts = []
+        tokenizer = self._model.tokenizer
+        for text in texts:
+            # Tokenize with truncation to match embedding behavior
+            encoded = tokenizer(
+                text,
+                truncation=True,
+                max_length=512,
+                return_attention_mask=False,
+            )
+            counts.append(len(encoded["input_ids"]))
+        return counts

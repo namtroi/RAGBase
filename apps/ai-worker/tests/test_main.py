@@ -1,13 +1,12 @@
 # apps/ai-worker/tests/test_main.py
 """
 Unit tests for the FastAPI main application.
-Updated for HTTP dispatch architecture (no queue worker).
+Tests health, ready, embed, and process endpoints.
 """
 
-# Import from parent directory
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -81,74 +80,93 @@ class TestProcessEndpoint:
         """Test successful PDF processing."""
         from fastapi.testclient import TestClient
         from src.main import app
-        from src.models import ProcessingResult
+        from src.models import ProcessorOutput
 
-        mock_result = ProcessingResult(
-            success=True,
-            processed_content="# Test Document",
-            page_count=1,
-            ocr_applied=False,
-            processing_time_ms=100,
-            chunks=[{"content": "chunk", "index": 0, "embedding": [0.1] * 384}],
+        # Mock converter and pipeline
+        mock_converter = MagicMock()
+        mock_converter.to_markdown = AsyncMock(
+            return_value=ProcessorOutput(
+                markdown="# Test Document",
+                metadata={"ocr_applied": False},
+                page_count=1,
+            )
         )
 
-        with patch(
-            "src.main.pdf_processor.process",
-            new_callable=AsyncMock,
-            return_value=mock_result,
-        ):
-            with patch(
-                "src.main.send_callback", new_callable=AsyncMock, return_value=True
-            ):
-                with TestClient(app) as client:
-                    response = client.post(
-                        "/process",
-                        json={
-                            "documentId": "test-123",
-                            "filePath": "/tmp/test.pdf",
-                        },
-                    )
+        mock_chunks = [
+            {"content": "chunk", "index": 0, "embedding": [0.1] * 384, "metadata": {}}
+        ]
 
-                    assert response.status_code == 200
-                    data = response.json()
-                    assert data["status"] == "processed"
-                    assert data["documentId"] == "test-123"
-                    assert data["success"] is True
+        with patch("src.main.get_converter", return_value=mock_converter):
+            with patch("src.main.processing_pipeline") as mock_pipeline:
+                mock_pipeline.run.return_value = mock_chunks
+                with patch(
+                    "src.main.send_callback", new_callable=AsyncMock, return_value=True
+                ):
+                    with TestClient(app) as client:
+                        response = client.post(
+                            "/process",
+                            json={
+                                "documentId": "test-123",
+                                "filePath": "/tmp/test.pdf",
+                                "format": "pdf",
+                            },
+                        )
+
+                        assert response.status_code == 200
+                        data = response.json()
+                        assert data["status"] == "processed"
+                        assert data["documentId"] == "test-123"
+                        assert data["success"] is True
 
     @pytest.mark.asyncio
     async def test_process_callback_failure(self):
         """Test handling of callback failure."""
         from fastapi.testclient import TestClient
         from src.main import app
-        from src.models import ProcessingResult
+        from src.models import ProcessorOutput
 
-        mock_result = ProcessingResult(
-            success=True,
-            processed_content="# Test",
-            page_count=1,
-            processing_time_ms=50,
-            chunks=[],
+        mock_converter = MagicMock()
+        mock_converter.to_markdown = AsyncMock(
+            return_value=ProcessorOutput(markdown="# Test", metadata={}, page_count=1)
         )
 
-        with patch(
-            "src.main.pdf_processor.process",
-            new_callable=AsyncMock,
-            return_value=mock_result,
-        ):
-            with patch(
-                "src.main.send_callback", new_callable=AsyncMock, return_value=False
-            ):
-                with TestClient(app) as client:
-                    response = client.post(
-                        "/process",
-                        json={
-                            "documentId": "test-456",
-                            "filePath": "/tmp/test.pdf",
-                        },
-                    )
+        with patch("src.main.get_converter", return_value=mock_converter):
+            with patch("src.main.processing_pipeline") as mock_pipeline:
+                mock_pipeline.run.return_value = [{"content": "c", "metadata": {}}]
+                with patch(
+                    "src.main.send_callback", new_callable=AsyncMock, return_value=False
+                ):
+                    with TestClient(app) as client:
+                        response = client.post(
+                            "/process",
+                            json={
+                                "documentId": "test-456",
+                                "filePath": "/tmp/test.pdf",
+                                "format": "pdf",
+                            },
+                        )
 
-                    assert response.status_code == 500
-                    assert "callback" in response.json()["detail"].lower()
+                        assert response.status_code == 500
+                        assert "callback" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_process_unsupported_format(self):
+        """Test unsupported format returns 400."""
+        from fastapi.testclient import TestClient
+        from src.main import app
+
+        with TestClient(app) as client:
+            response = client.post(
+                "/process",
+                json={
+                    "documentId": "test-789",
+                    "filePath": "/tmp/test.xyz",
+                    "format": "xyz",
+                },
+            )
+
+            assert response.status_code == 400
+            assert "unsupported" in response.json()["detail"].lower()
 
 
 class TestEmbedEndpoint:

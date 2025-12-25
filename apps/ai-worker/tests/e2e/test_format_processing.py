@@ -6,11 +6,11 @@ Tests CSV, HTML, XLSX, EPUB, PPTX processing via temp files.
 
 import pytest
 
-from src.csv_processor import CsvProcessor
-from src.html_processor import HtmlProcessor
-from src.epub_processor import EpubProcessor
-from src.pptx_processor import PptxProcessor
-from src.xlsx_processor import XlsxProcessor
+from src.converters import CsvConverter as CsvProcessor
+from src.converters import HtmlConverter as HtmlProcessor
+from src.converters import EpubConverter as EpubProcessor
+from src.converters import PptxConverter as PptxProcessor
+from src.converters import XlsxConverter as XlsxProcessor
 
 
 class TestCsvProcessorE2E:

@@ -1,32 +1,22 @@
 # apps/ai-worker/tests/test_text_processor.py
 """
-Unit tests for TextProcessor module.
+Unit tests for TextConverter module.
 Covers MD, TXT, JSON file processing and format conversion.
 """
 
-from unittest.mock import MagicMock
-
 import pytest
 
-from src.text_processor import TextProcessor
+from src.converters import TextConverter
 
 
 @pytest.fixture
 def processor():
-    """Create TextProcessor with mocked dependencies."""
-    proc = TextProcessor()
-    # Mock chunker and embedder to avoid real ML model loading
-    proc.chunker = MagicMock()
-    proc.chunker.chunk.return_value = [
-        {"content": "chunk1", "index": 0, "metadata": {"charStart": 0, "charEnd": 6}}
-    ]
-    proc.embedder = MagicMock()
-    proc.embedder.embed.return_value = [[0.1] * 384]
-    return proc
+    """Create TextConverter instance."""
+    return TextConverter()
 
 
 class TestTextProcessorProcess:
-    """Tests for TextProcessor.process() method."""
+    """Tests for TextConverter.process() method."""
 
     @pytest.mark.asyncio
     async def test_process_txt_success(self, processor, tmp_path):
@@ -36,11 +26,9 @@ class TestTextProcessorProcess:
 
         result = await processor.process(str(txt_file), "txt")
 
-        assert result.success is True
-        assert "# test.txt" in result.processed_content
-        assert "Hello world content" in result.processed_content
-        assert len(result.chunks) == 1
-        assert result.chunks[0]["embedding"] == [0.1] * 384
+        assert result.markdown is not None
+        assert "# test.txt" in result.markdown
+        assert "Hello world content" in result.markdown
 
     @pytest.mark.asyncio
     async def test_process_md_passthrough(self, processor, tmp_path):
@@ -51,8 +39,7 @@ class TestTextProcessorProcess:
 
         result = await processor.process(str(md_file), "md")
 
-        assert result.success is True
-        assert result.processed_content == md_content
+        assert result.markdown == md_content
 
     @pytest.mark.asyncio
     async def test_process_json_formats(self, processor, tmp_path):
@@ -62,9 +49,8 @@ class TestTextProcessorProcess:
 
         result = await processor.process(str(json_file), "json")
 
-        assert result.success is True
-        assert "```json" in result.processed_content
-        assert '"key": "value"' in result.processed_content
+        assert "```json" in result.markdown
+        assert '"key": "value"' in result.markdown
 
     @pytest.mark.asyncio
     async def test_process_invalid_json_error(self, processor, tmp_path):
@@ -74,34 +60,32 @@ class TestTextProcessorProcess:
 
         result = await processor.process(str(json_file), "json")
 
-        # Should still succeed - _to_markdown catches JSONDecodeError and wraps as plain text
-        assert result.success is True
-        assert "```" in result.processed_content
-        assert "{invalid json content" in result.processed_content
+        # Should still return markdown - _to_markdown catches JSONDecodeError
+        assert "```" in result.markdown
+        assert "{invalid json content" in result.markdown
 
     @pytest.mark.asyncio
     async def test_process_file_not_found(self, processor):
-        """Missing file returns CORRUPT_FILE error."""
+        """Missing file returns error in metadata."""
         result = await processor.process("/nonexistent/file.txt", "txt")
 
-        assert result.success is False
-        assert result.error_code == "CORRUPT_FILE"
-        assert "not found" in result.error_message.lower()
+        assert result.markdown == ""
+        assert "error" in result.metadata
 
 
 class TestToMarkdown:
-    """Tests for TextProcessor._to_markdown() method."""
+    """Tests for TextConverter._to_markdown() method."""
 
     def test_to_markdown_txt(self):
         """TXT format adds filename heading."""
-        proc = TextProcessor.__new__(TextProcessor)
+        proc = TextConverter()
         result = proc._to_markdown("content here", "txt", "notes.txt")
 
         assert result == "# notes.txt\n\ncontent here"
 
     def test_to_markdown_json(self):
         """JSON format pretty prints in code block."""
-        proc = TextProcessor.__new__(TextProcessor)
+        proc = TextConverter()
         result = proc._to_markdown('{"a":1}', "json", "config.json")
 
         assert "# config.json" in result
@@ -110,7 +94,7 @@ class TestToMarkdown:
 
     def test_to_markdown_unknown_format(self):
         """Unknown format treated as plain text."""
-        proc = TextProcessor.__new__(TextProcessor)
+        proc = TextConverter()
         result = proc._to_markdown("raw content", "xyz", "file.xyz")
 
         assert result == "# file.xyz\n\nraw content"

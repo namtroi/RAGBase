@@ -43,6 +43,14 @@ export async function contentRoute(fastify: FastifyInstance): Promise<void> {
                         charStart: true,
                         charEnd: true,
                         heading: true,
+                        // Phase 4: Quality metadata
+                        qualityScore: true,
+                        qualityFlags: true,
+                        chunkType: true,
+                        breadcrumbs: true,
+                        tokenCount: true,
+                        completeness: true,
+                        hasTitle: true,
                     },
                 },
             },
@@ -81,10 +89,12 @@ export async function contentRoute(fastify: FastifyInstance): Promise<void> {
             return reply.send(document.processedContent);
         }
 
-        // JSON format - include chunks
+        // JSON format - include chunks with quality metadata
         return reply.send({
             id: document.id,
             filename: document.filename,
+            format: document.format,
+            formatCategory: document.formatCategory,
             processedContent: document.processedContent,
             chunks: document.chunks.map(chunk => ({
                 id: chunk.id,
@@ -94,6 +104,14 @@ export async function contentRoute(fastify: FastifyInstance): Promise<void> {
                     charStart: chunk.charStart,
                     charEnd: chunk.charEnd,
                     heading: chunk.heading || undefined,
+                    // Phase 4: Quality metadata
+                    qualityScore: chunk.qualityScore,
+                    qualityFlags: chunk.qualityFlags,
+                    chunkType: chunk.chunkType,
+                    breadcrumbs: chunk.breadcrumbs,
+                    tokenCount: chunk.tokenCount,
+                    completeness: chunk.completeness,
+                    hasTitle: chunk.hasTitle,
                 },
             })),
             processingMetadata: document.processingMetadata,
