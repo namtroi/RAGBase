@@ -6,6 +6,13 @@ const MIME_TO_FORMAT: Record<string, FileFormat> = {
   'text/plain': 'txt',
   'text/markdown': 'md',
   'text/x-markdown': 'md',
+  // Phase 4: New formats
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'text/csv': 'csv',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+  'text/html': 'html',
+  'application/epub+zip': 'epub',
 };
 
 const EXT_TO_FORMAT: Record<string, FileFormat> = {
@@ -13,6 +20,14 @@ const EXT_TO_FORMAT: Record<string, FileFormat> = {
   json: 'json',
   txt: 'txt',
   md: 'md',
+  // Phase 4: New formats
+  docx: 'docx',
+  xlsx: 'xlsx',
+  csv: 'csv',
+  pptx: 'pptx',
+  html: 'html',
+  htm: 'html',
+  epub: 'epub',
 };
 
 interface FileInfo {

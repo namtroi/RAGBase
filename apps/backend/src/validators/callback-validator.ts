@@ -1,17 +1,34 @@
 import { z } from 'zod';
 
+// Phase 4: Quality metadata in chunk
+const ChunkMetadataSchema = z.object({
+  charStart: z.number().optional(),
+  charEnd: z.number().optional(),
+  location: z.record(z.unknown()).optional(),
+  breadcrumbs: z.array(z.string()).optional(),
+  qualityScore: z.number().optional(),
+  qualityFlags: z.array(z.string()).optional(),
+  chunkType: z.string().optional(),
+  completeness: z.string().optional(),
+  hasTitle: z.boolean().optional(),
+  tokenCount: z.number().optional(),
+}).passthrough();
+
 const ProcessingResultSchema = z.object({
   processedContent: z.string().optional(),
   chunks: z.array(z.object({
     content: z.string(),
     index: z.number(),
     embedding: z.array(z.number()), // Expect 384d
-    metadata: z.record(z.unknown()).optional()
+    metadata: ChunkMetadataSchema.optional()
   })).optional(),
   pageCount: z.number().int().nonnegative(),
   ocrApplied: z.boolean(),
   processingTimeMs: z.number().nonnegative(),
+  // Phase 4: Format category
+  formatCategory: z.enum(['document', 'presentation', 'tabular']).optional(),
 });
+
 
 const ProcessingErrorSchema = z.object({
   code: z.enum([

@@ -88,21 +88,37 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
           // Convert embedding array to PostgreSQL vector string format
           const embeddingStr = `[${chunk.embedding.join(',')}]`;
 
-
-
+          // Phase 4: Extract quality metadata
+          const meta = chunk.metadata || {};
+          const locationJson = meta.location ? JSON.stringify(meta.location) : null;
+          const breadcrumbsArr = meta.breadcrumbs || [];
+          const qualityFlagsArr = meta.qualityFlags || [];
 
           await prisma.$executeRaw`
-            INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, heading, created_at)
+            INSERT INTO chunks (
+              id, document_id, content, chunk_index, embedding, 
+              char_start, char_end, heading, created_at,
+              location, quality_score, quality_flags, chunk_type, 
+              completeness, has_title, breadcrumbs, token_count
+            )
             VALUES (
               gen_random_uuid(),
               ${documentId},
               ${chunk.content},
               ${chunk.index},
               ${embeddingStr}::vector,
-              ${(chunk.metadata as any)?.charStart || 0},
-              ${(chunk.metadata as any)?.charEnd || 0},
+              ${meta.charStart || 0},
+              ${meta.charEnd || 0},
               null, 
-              NOW()
+              NOW(),
+              ${locationJson}::jsonb,
+              ${meta.qualityScore || null},
+              ${qualityFlagsArr},
+              ${meta.chunkType || null},
+              ${meta.completeness || null},
+              ${meta.hasTitle || null},
+              ${breadcrumbsArr},
+              ${meta.tokenCount || null}
             )
           `;
         }
@@ -113,6 +129,7 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
           data: {
             status: 'COMPLETED',
             processedContent: content,
+            formatCategory: result.formatCategory || null,
             processingMetadata: {
               pageCount: result.pageCount,
               ocrApplied: result.ocrApplied,
