@@ -5,8 +5,7 @@ Tests PPTX slide extraction and markdown conversion.
 """
 
 import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from src.pptx_processor import PptxProcessor
 from src.models import ProcessorOutput

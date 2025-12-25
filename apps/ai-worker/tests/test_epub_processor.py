@@ -6,7 +6,6 @@ Tests EPUB chapter extraction and markdown conversion.
 
 import pytest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 from ebooklib import epub
 
 from src.epub_processor import EpubProcessor

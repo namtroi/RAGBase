@@ -5,7 +5,6 @@ Tests Excel multi-sheet processing and markdown conversion.
 """
 
 import pytest
-from io import BytesIO
 
 import pandas as pd
 from openpyxl import Workbook
