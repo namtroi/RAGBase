@@ -34,3 +34,4 @@ pandas>=2.2.0
 beautifulsoup4>=4.12.3
 lxml>=5.1.0
 markdownify>=0.11.6
+ebooklib>=0.18
