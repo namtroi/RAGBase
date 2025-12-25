@@ -95,6 +95,7 @@ export async function contentRoute(fastify: FastifyInstance): Promise<void> {
             filename: document.filename,
             format: document.format,
             formatCategory: document.formatCategory,
+            driveWebViewLink: document.driveWebViewLink || undefined,
             processedContent: document.processedContent,
             chunks: document.chunks.map(chunk => ({
                 id: chunk.id,

@@ -32,6 +32,8 @@ class PptxConverter(FormatConverter):
         from docling.datamodel.base_models import InputFormat
         from docling.document_converter import DocumentConverter
 
+        # Note: PPTX converter in Docling doesn't use TableStructureModel
+        # so GPU issues are less likely. But we log for monitoring.
         self._converter = DocumentConverter(allowed_formats=[InputFormat.PPTX])
         logger.info("pptx_converter_created")
 

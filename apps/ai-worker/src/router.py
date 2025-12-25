@@ -37,10 +37,10 @@ FORMAT_CATEGORIES: Dict[str, str] = {
     "md": "document",
     "html": "document",
     "epub": "document",
+    "json": "document",  # Treat JSON as document, not tabular
     "pptx": "presentation",
     "xlsx": "tabular",
     "csv": "tabular",
-    "json": "tabular",
 }
 
 

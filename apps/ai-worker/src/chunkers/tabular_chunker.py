@@ -31,6 +31,8 @@ class TabularChunker:
             sections = [text.strip()]
 
         final_chunks = []
+        cumulative_pos = 0  # Track position for charStart/charEnd
+
         for section in sections:
             # 2. Extract breadcrumbs (Sheet Name)
             lines = section.split("\n")
@@ -61,9 +63,12 @@ class TabularChunker:
                             "breadcrumbs": breadcrumbs,
                             "chunk_type": "tabular",
                             "index": len(final_chunks),
+                            "charStart": cumulative_pos,
+                            "charEnd": cumulative_pos + len(section),
                         },
                     }
                 )
+                cumulative_pos += len(section)
             else:
                 # Sentence Format: Split by rows
                 # Rows are separated by \n\n
@@ -78,9 +83,12 @@ class TabularChunker:
                                 "breadcrumbs": breadcrumbs,
                                 "chunk_type": "tabular",
                                 "index": len(final_chunks),
+                                "charStart": cumulative_pos,
+                                "charEnd": cumulative_pos + len(section),
                             },
                         }
                     )
+                    cumulative_pos += len(section)
                     continue
 
                 # Batch rows into chunks
@@ -102,8 +110,11 @@ class TabularChunker:
                                 "breadcrumbs": breadcrumbs,
                                 "chunk_type": "tabular",
                                 "index": len(final_chunks),
+                                "charStart": cumulative_pos,
+                                "charEnd": cumulative_pos + len(chunk_display_text),
                             },
                         }
                     )
+                    cumulative_pos += len(chunk_display_text)
 
         return final_chunks

@@ -234,7 +234,7 @@ export class SyncService {
     /**
      * Add a new file from Drive
      */
-    private async addFile(configId: string, file: { id: string; name: string; mimeType: string; size: number; md5Checksum?: string }): Promise<void> {
+    private async addFile(configId: string, file: { id: string; name: string; mimeType: string; size: number; md5Checksum?: string; modifiedTime?: string; webViewLink?: string }): Promise<void> {
         // 1. Global Lookup by driveFileId
         const existingByDriveId = await this.prisma.document.findUnique({
             where: { driveFileId: file.id },
@@ -253,6 +253,8 @@ export class SyncService {
                     where: { id: existingByDriveId.id },
                     data: {
                         driveConfigId: configId,
+                        driveWebViewLink: file.webViewLink ?? undefined,
+                        driveModifiedTime: file.modifiedTime ? new Date(file.modifiedTime) : undefined,
                         connectionState: 'LINKED',
                         status: existingByDriveId.status === 'FAILED' && existingByDriveId.failReason === 'REMOVED_FROM_DRIVE'
                             ? 'COMPLETED'
@@ -293,6 +295,8 @@ export class SyncService {
                 data: {
                     driveFileId: file.id,
                     driveConfigId: configId,
+                    driveWebViewLink: file.webViewLink ?? undefined,
+                    driveModifiedTime: file.modifiedTime ? new Date(file.modifiedTime) : undefined,
                     sourceType: 'DRIVE',
                     connectionState: 'LINKED',
                     lastSyncedAt: new Date(),
@@ -317,6 +321,8 @@ export class SyncService {
                 connectionState: 'LINKED',
                 driveFileId: file.id,
                 driveConfigId: configId,
+                driveWebViewLink: file.webViewLink ?? undefined,
+                driveModifiedTime: file.modifiedTime ? new Date(file.modifiedTime) : undefined,
                 lastSyncedAt: new Date(),
             },
         });
@@ -333,7 +339,7 @@ export class SyncService {
     /**
      * Update an existing file from Drive
      */
-    private async updateFile(documentId: string, file: { id: string; name: string; mimeType: string; size: number; md5Checksum?: string }, configId?: string): Promise<void> {
+    private async updateFile(documentId: string, file: { id: string; name: string; mimeType: string; size: number; md5Checksum?: string; modifiedTime?: string; webViewLink?: string }, configId?: string): Promise<void> {
         // Download new version
         const filePath = path.join(UPLOAD_DIR, `drive_${file.id}`);
         await this.driveService.downloadFile(file.id, filePath);
@@ -357,6 +363,8 @@ export class SyncService {
                 failReason: null,
                 connectionState: 'LINKED',
                 driveConfigId: configId, // Update config ID if provided during re-link
+                driveWebViewLink: file.webViewLink ?? undefined,
+                driveModifiedTime: file.modifiedTime ? new Date(file.modifiedTime) : undefined,
                 lastSyncedAt: new Date(),
             },
         });

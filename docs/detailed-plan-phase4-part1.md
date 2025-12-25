@@ -1,6 +1,6 @@
 # Phase 4 Detailed Implementation Plan - Part 1
 
-**Format Processors + Pre-processing** | **TDD Approach**
+**Format Converters + Pre-processing** | **TDD Approach**
 
 ---
 
@@ -9,23 +9,43 @@
 | Part | Name | Description | Status |
 |------|------|-------------|--------|
 | **4A** | Pre-processing Layer | Input sanitizer + Markdown normalizer | ✅ Complete |
-| **4B.1** | CSV Processor | Parse CSV → Markdown (table or sentence) | ✅ Complete |
-| **4B.2** | HTML Processor | HTML → Markdown via BeautifulSoup | ✅ Complete |
-| **4B.3** | EPUB Processor | EPUB chapters → Markdown | ✅ Complete |
-| **4B.4** | DOCX Processor | Docling DOCX support | ✅ Complete |
-| **4B.5** | PPTX Processor | Docling PPTX + slide markers | ✅ Complete |
-| **4B.6** | XLSX Processor | Multi-sheet Excel → Markdown | ✅ Complete |
+| **4B.1** | CSV Converter | Parse CSV → Markdown (table or sentence) | ✅ Complete |
+| **4B.2** | HTML Converter | HTML → Markdown via BeautifulSoup | ✅ Complete |
+| **4B.3** | EPUB Converter | EPUB chapters → Markdown | ✅ Complete |
+| **4B.4** | PDF/DOCX Converter | Docling PDF/DOCX support | ✅ Complete |
+| **4B.5** | PPTX Converter | Docling PPTX + slide markers | ✅ Complete |
+| **4B.6** | XLSX Converter | Multi-sheet Excel → Markdown | ✅ Complete |
+| **4B.7** | Text Converter | TXT/MD/JSON passthrough | ✅ Complete |
 
 **Part 2:** See `detailed-plan-phase4-part2.md` for Chunking, Quality, Schema, Integration.
 
 ---
 
+## Architecture (Post-Refactor)
+
+After Strategy Pattern refactor, architecture changed to:
+
+```
+main.py → router.get_converter(format) → FormatConverter.to_markdown()
+                                                ↓
+                                  pipeline.ProcessingPipeline.run()
+                                                ↓
+                                  (sanitize → chunk → quality → embed)
+```
+
+### Key Files:
+- `src/router.py` - Format → Converter + Category mapping
+- `src/pipeline.py` - Unified processing pipeline
+- `src/converters/` - All format converters (7 files)
+
+---
+
 ## Prerequisites
 
-### 1. Add Dependencies
+### 1. Dependencies
 
 ```bash
-# apps/ai-worker/requirements.txt - ADD
+# apps/ai-worker/requirements.txt
 openpyxl>=3.1.2
 beautifulsoup4>=4.12.3
 lxml>=5.1.0
@@ -36,10 +56,10 @@ ftfy>=6.1.0
 chardet>=5.2.0
 ```
 
-### 2. Add ProcessorOutput Model
+### 2. ProcessorOutput Model
 
 ```python
-# apps/ai-worker/src/models.py - ADD
+# apps/ai-worker/src/models.py
 @dataclass
 class ProcessorOutput:
     markdown: str
@@ -50,348 +70,149 @@ class ProcessorOutput:
     chapter_count: Optional[int] = None
 ```
 
-### 3. Create Test Fixtures
-
-```bash
-mkdir -p apps/ai-worker/tests/fixtures/{csv,html,epub,docx,pptx,xlsx}
-```
-
 ---
 
 ## Part 4A: Pre-processing Layer
 
-**Status:** Pending  
-**Implementation:** `apps/ai-worker/src/sanitizer.py`, `apps/ai-worker/src/normalizer.py`
+**Status:** ✅ Complete  
+**Files:** `src/sanitizer.py`, `src/normalizer.py`
 
 ### 4A.1 Input Sanitizer
-
-### TDD Steps:
-
-1. **Write unit tests**
-   ```python
-   # tests/test_sanitizer.py
-   class TestInputSanitizer:
-       def test_remove_null_bytes()
-       def test_remove_control_chars()
-       def test_preserve_newlines_tabs()
-       def test_normalize_nfc()
-       def test_fix_mojibake()
-       def test_remove_bom()
-       def test_normalize_line_endings()
-       def test_strip_trailing_whitespace()
-   ```
-
-2. **Implement sanitizer**
-   - Remove `\x00` null bytes
-   - Remove control chars `\x01-\x1f` (keep `\n`, `\t`)
-   - Normalize to NFC unicode
-   - Fix mojibake with `ftfy`
-   - Strip BOM and trailing whitespace
-
-### Files:
-- `apps/ai-worker/src/sanitizer.py`
-- `apps/ai-worker/tests/test_sanitizer.py`
-
----
+- Remove null bytes, control chars
+- Normalize to NFC unicode
+- Fix mojibake with `ftfy`
+- Strip BOM, trailing whitespace
 
 ### 4A.2 Markdown Normalizer
-
-### TDD Steps:
-
-1. **Write unit tests**
-   ```python
-   # tests/test_normalizer.py
-   class TestMarkdownNormalizer:
-       def test_normalize_heading_gaps()
-       def test_remove_empty_sections()
-       def test_collapse_blank_lines()
-       def test_standardize_bullets()
-       def test_preserve_code_blocks()
-       def test_fix_unclosed_code_blocks()
-   ```
-
-2. **Implement normalizer**
-   - Collapse multiple blank lines to max 2
-   - Standardize bullets `*`, `+` → `-`
-   - Remove empty sections (heading with no content)
-   - Fix unclosed code blocks
-   - Preserve content inside code blocks
-
-### Files:
-- `apps/ai-worker/src/normalizer.py`
-- `apps/ai-worker/tests/test_normalizer.py`
+- Collapse multiple blank lines
+- Standardize bullets
+- Fix unclosed code blocks
 
 ---
 
-## Part 4B: Format Processors
+## Part 4B: Format Converters
 
-### Format Routing in main.py
+### Base Converter Interface
 
 ```python
-# apps/ai-worker/src/main.py - ADD
-FORMAT_PROCESSORS = {
-    'pdf': pdf_processor,
-    'docx': pdf_processor,      # Docling
-    'pptx': pptx_processor,
-    'txt': text_processor,
-    'md': text_processor,
-    'json': text_processor,
-    'csv': csv_processor,
-    'html': html_processor,
-    'epub': epub_processor,
-    'xlsx': xlsx_processor,
+# src/converters/base.py
+class FormatConverter(ABC):
+    category: str = "document"  # "document", "presentation", "tabular"
+    
+    @abstractmethod
+    async def to_markdown(self, file_path: str, *args) -> ProcessorOutput:
+        pass
+```
+
+### Router (Format → Converter)
+
+```python
+# src/router.py
+CONVERTER_MAP = {
+    "pdf": PdfConverter, "docx": PdfConverter,
+    "txt": TextConverter, "md": TextConverter, "json": TextConverter,
+    "csv": CsvConverter, "html": HtmlConverter,
+    "xlsx": XlsxConverter, "epub": EpubConverter,
+    "pptx": PptxConverter,
 }
 
-FORMAT_CATEGORIES = {
-    'pdf': 'DOCUMENT', 'docx': 'DOCUMENT', 'txt': 'DOCUMENT',
-    'md': 'DOCUMENT', 'html': 'DOCUMENT', 'epub': 'DOCUMENT',
-    'pptx': 'PRESENTATION',
-    'xlsx': 'TABULAR', 'csv': 'TABULAR', 'json': 'TABULAR',
+CATEGORY_MAP = {
+    "pdf": "document", "docx": "document", "txt": "document",
+    "md": "document", "html": "document", "epub": "document",
+    "pptx": "presentation",
+    "xlsx": "tabular", "csv": "tabular", "json": "tabular",
 }
 ```
 
 ---
 
-## Part 4B.1: CSV Processor
+## Part 4B.1: CSV Converter
 
-**Status:** Pending  
-**Implementation:** `apps/ai-worker/src/csv_processor.py`
+**Status:** ✅ Complete  
+**File:** `src/converters/csv_converter.py`
 
-### TDD Steps:
-
-1. **Write unit tests**
-   ```python
-   # tests/test_csv_processor.py
-   class TestCsvProcessor:
-       # Basic parsing
-       def test_parse_simple_csv()
-       def test_parse_empty_csv()
-       
-       # Encoding
-       def test_parse_utf8_csv()
-       def test_parse_latin1_csv()
-       def test_parse_bom_csv()
-       
-       # Delimiter detection
-       def test_detect_comma_delimiter()
-       def test_detect_semicolon_delimiter()
-       def test_detect_tab_delimiter()
-       
-       # Edge cases
-       def test_quoted_fields()
-       def test_multiline_fields()
-       
-       # Size thresholds
-       def test_small_table_markdown_format()  # ≤35 rows
-       def test_large_table_sentence_format()  # >35 rows
-   ```
-
-2. **Implement processor**
-   - Auto-detect encoding with `chardet`
-   - Auto-detect delimiter with `csv.Sniffer`
-   - **Use `pandas.read_csv(..., chunksize=10000)` for streaming large files (OOM prevention)**
-   - Small table (≤35 rows, ≤20 cols) → Markdown table
-   - Large table → Sentence format: `"{Header} is {Value}."`
-   - **Apply smart number formatting** (same as XLSX: commas, dates, percentages)
-
-### Files:
-- `apps/ai-worker/src/csv_processor.py`
-- `apps/ai-worker/tests/test_csv_processor.py`
+### Features:
+- Auto-detect encoding with `chardet`
+- Auto-detect delimiter with `csv.Sniffer`
+- Streaming with `pandas.read_csv(chunksize=10000)`
+- Small table (≤35 rows) → Markdown table
+- Large table → Sentence format
 
 ---
 
-## Part 4B.2: HTML Processor
+## Part 4B.2: HTML Converter
 
-**Status:** Pending  
-**Implementation:** `apps/ai-worker/src/html_processor.py`
+**Status:** ✅ Complete  
+**File:** `src/converters/html_converter.py`
 
-### TDD Steps:
-
-1. **Write unit tests**
-   ```python
-   # tests/test_html_processor.py
-   class TestHtmlProcessor:
-       # Basic extraction
-       def test_extract_body_content()
-       def test_preserve_heading_hierarchy()
-       def test_convert_paragraphs()
-       
-       # Lists
-       def test_convert_unordered_list()
-       def test_convert_ordered_list()
-       def test_convert_nested_lists()
-       
-       # Tables
-       def test_convert_table()
-       
-       # Links & Code
-       def test_convert_links()
-       def test_convert_code_blocks()
-       
-       # Cleanup
-       def test_remove_scripts()
-       def test_remove_styles()
-       def test_remove_comments()
-   ```
-
-2. **Implement processor**
-   - Parse with `BeautifulSoup` + `lxml`
-   - Remove: `script`, `style`, `nav`, `footer`, `aside`
-   - Convert to markdown with `markdownify`
-
-### Files:
-- `apps/ai-worker/src/html_processor.py`
-- `apps/ai-worker/tests/test_html_processor.py`
+### Features:
+- Parse with `BeautifulSoup` + `lxml`
+- Remove: script, style, nav, footer, aside
+- Convert to markdown with `markdownify`
 
 ---
 
-## Part 4B.3: EPUB Processor
+## Part 4B.3: EPUB Converter
 
-**Status:** Pending  
-**Implementation:** `apps/ai-worker/src/epub_processor.py`
+**Status:** ✅ Complete  
+**File:** `src/converters/epub_converter.py`
 
-### TDD Steps:
-
-1. **Write unit tests**
-   ```python
-   # tests/test_epub_processor.py
-   class TestEpubProcessor:
-       # Structure
-       def test_extract_chapters()
-       def test_chapter_titles_as_headings()
-       def test_chapter_separation()
-       
-       # Edge cases
-       def test_skip_toc_chapter()
-       def test_skip_cover_page()
-       def test_unicode_content()
-       
-       # Errors
-       def test_file_not_found()
-   ```
-
-2. **Implement processor**
-   - Read with `ebooklib`
-   - Extract `ITEM_DOCUMENT` items
-   - Skip toc, cover, nav items
-   - Convert chapter HTML to markdown
-   - Separate chapters with `---`
-
-### Files:
-- `apps/ai-worker/src/epub_processor.py`
-- `apps/ai-worker/tests/test_epub_processor.py`
+### Features:
+- Read with `ebooklib`
+- Extract `ITEM_DOCUMENT` items
+- Skip toc, cover, nav items
+- Extract book title as metadata
 
 ---
 
-## Part 4B.4: DOCX Processor
+## Part 4B.4: PDF/DOCX Converter
 
-**Status:** Pending  
-**Implementation:** Update `apps/ai-worker/src/processor.py`
+**Status:** ✅ Complete  
+**File:** `src/converters/pdf_converter.py`
 
-### TDD Steps:
-
-1. **Write unit tests**
-   ```python
-   # tests/test_processor.py - ADD
-   class TestDocxProcessor:
-       def test_extract_paragraphs()
-       def test_preserve_headings()
-       def test_preserve_lists()
-       def test_convert_tables()
-       def test_password_protected_error()
-   ```
-
-2. **Update Docling converter**
-   - Add `InputFormat.DOCX` to allowed formats
-   - Reuse existing `PDFProcessor` infrastructure
-
-### Files:
-- `apps/ai-worker/src/processor.py` (update)
-- `apps/ai-worker/tests/test_processor.py` (add tests)
+### Features:
+- Use Docling for PDF and DOCX
+- OCR mode support (auto/force/never)
+- Fallback to PyMuPDF
+- Page count metadata
 
 ---
 
-## Part 4B.5: PPTX Processor
+## Part 4B.5: PPTX Converter
 
-**Status:** Pending  
-**Implementation:** `apps/ai-worker/src/pptx_processor.py`
+**Status:** ✅ Complete  
+**File:** `src/converters/pptx_converter.py`
 
-### TDD Steps:
-
-1. **Write unit tests**
-   ```python
-   # tests/test_pptx_processor.py
-   class TestPptxProcessor:
-       # Slides
-       def test_extract_all_slides()
-       def test_slide_separation()
-       def test_slide_titles()
-       
-       # Content
-       def test_extract_text_boxes()
-       def test_extract_bullet_points()
-       def test_extract_tables()
-       
-       # Notes
-       def test_include_speaker_notes()
-       
-       # Edge cases
-       def test_empty_slide()
-   ```
-
-2. **Implement processor**
-   - Use Docling for PPTX conversion
-   - Add slide markers `<!-- slide -->`
-   - Include slide number in metadata
-
-### Files:
-- `apps/ai-worker/src/pptx_processor.py`
-- `apps/ai-worker/tests/test_pptx_processor.py`
+### Features:
+- Use Docling for PPTX
+- Add slide markers `<!-- slide -->`
+- Slide count metadata
 
 ---
 
-## Part 4B.6: XLSX Processor
+## Part 4B.6: XLSX Converter
 
-**Status:** Pending  
-**Implementation:** `apps/ai-worker/src/xlsx_processor.py`
+**Status:** ✅ Complete  
+**File:** `src/converters/xlsx_converter.py`
 
-### TDD Steps:
+### Features:
+- Use `openpyxl.load_workbook(read_only=True)`
+- Process all sheets
+- Sheet name as H1 heading
+- Small table → Markdown table
+- Large table → Sentence format
 
-1. **Write unit tests**
-   ```python
-   # tests/test_xlsx_processor.py
-   class TestXlsxProcessor:
-       # Multi-sheet
-       def test_process_all_sheets()
-       def test_sheet_names_as_headers()
-       def test_skip_empty_sheets()
-       
-       # Small tables
-       def test_small_table_markdown()
-       
-       # Large tables
-       def test_large_table_sentences()
-       def test_sentence_template()
-       
-       # Data types
-       def test_number_formatting()
-       def test_date_conversion()
-       def test_skip_null_cells()
-       
-       # Edge cases
-       def test_password_protected()
-   ```
+---
 
-2. **Implement processor**
-   - **Use `openpyxl.load_workbook(..., read_only=True)` for memory efficiency (OOM prevention)**
-   - Read all sheets with `pandas`
-   - Sheet name as H1 heading
-   - Small table → Markdown table
-   - Large table → Sentence format with smart formatting
+## Part 4B.7: Text Converter
 
-### Files:
-- `apps/ai-worker/src/xlsx_processor.py`
-- `apps/ai-worker/tests/test_xlsx_processor.py`
+**Status:** ✅ Complete  
+**File:** `src/converters/text_converter.py`
+
+### Features:
+- TXT: Read as-is
+- MD: Passthrough
+- JSON: Pretty format or detect category (tabular if list/dict)
 
 ---
 
@@ -400,11 +221,10 @@ FORMAT_CATEGORIES = {
 ```bash
 cd apps/ai-worker
 
-# Run all Phase 4A-4B tests
-pytest tests/test_sanitizer.py tests/test_normalizer.py -v
+# Run all converter tests
 pytest tests/test_csv_processor.py tests/test_html_processor.py -v
 pytest tests/test_epub_processor.py tests/test_pptx_processor.py -v
-pytest tests/test_xlsx_processor.py -v
+pytest tests/test_xlsx_processor.py tests/test_text_processor.py -v
 
 # Run with coverage
 pytest tests/ -v --cov=src --cov-report=term-missing
@@ -412,32 +232,27 @@ pytest tests/ -v --cov=src --cov-report=term-missing
 
 ---
 
-## Implementation Order
+## Directory Structure (Final)
 
 ```
-4A (Pre-processing) → 4B.1 (CSV) → 4B.2 (HTML) → 4B.3 (EPUB)
-                           ↓
-                    4B.4 (DOCX) → 4B.5 (PPTX) → 4B.6 (XLSX)
+apps/ai-worker/src/
+├── main.py                  # FastAPI endpoints
+├── router.py                # Format → Converter mapping
+├── pipeline.py              # Unified pipeline (sanitize→chunk→quality→embed)
+├── sanitizer.py             # 4A.1 Input sanitization
+├── normalizer.py            # 4A.2 Markdown normalization
+├── converters/
+│   ├── base.py              # FormatConverter ABC
+│   ├── pdf_converter.py     # PDF/DOCX (Docling)
+│   ├── text_converter.py    # TXT/MD/JSON
+│   ├── csv_converter.py     # 4B.1
+│   ├── html_converter.py    # 4B.2
+│   ├── epub_converter.py    # 4B.3
+│   ├── pptx_converter.py    # 4B.5
+│   └── xlsx_converter.py    # 4B.6
+├── chunkers/                # See Part 2
+└── quality/                 # See Part 2
 ```
-
-Dependencies:
-- 4A must complete first (sanitizer/normalizer used by all processors)
-- 4B.1-4B.6 can run in parallel after 4A
-
----
-
-## Estimated Timeline
-
-| Part | Estimated | Description |
-|------|-----------|-------------|
-| 4A | 2h | Sanitizer + Normalizer |
-| 4B.1 | 2h | CSV Processor |
-| 4B.2 | 2h | HTML Processor |
-| 4B.3 | 2h | EPUB Processor |
-| 4B.4 | 1h | DOCX (Docling update) |
-| 4B.5 | 2h | PPTX Processor |
-| 4B.6 | 3h | XLSX Processor |
-| **Total** | **~14h** | |
 
 ---
 

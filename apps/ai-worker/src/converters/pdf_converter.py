@@ -43,10 +43,25 @@ class PdfConverter(FormatConverter):
         logger.info("creating_converter", ocr_mode=ocr_mode)
 
         from docling.datamodel.base_models import InputFormat
-        from docling.datamodel.pipeline_options import PdfPipelineOptions
+        from docling.datamodel.pipeline_options import (
+            AcceleratorDevice,
+            AcceleratorOptions,
+            PdfPipelineOptions,
+        )
         from docling.document_converter import DocumentConverter, PdfFormatOption
 
-        pipeline_options = PdfPipelineOptions()
+        # Force CPU to avoid GPU meta tensor errors
+        accelerator_options = AcceleratorOptions(
+            num_threads=4,
+            device=AcceleratorDevice.CPU,
+        )
+
+        pipeline_options = PdfPipelineOptions(
+            accelerator_options=accelerator_options,
+            # CRITICAL: Disable table structure detection to avoid
+            # TableStructureModel GPU meta tensor errors
+            do_table_structure=False,
+        )
 
         if ocr_mode == "force" or (ocr_mode == "auto" and settings.ocr_enabled):
             try:

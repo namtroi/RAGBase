@@ -61,10 +61,12 @@ model Document {
   processingMetadata  Json?     @map("processing_metadata")
 
   // Phase 2E: Drive Sync
-  sourceType      SourceType    @default(MANUAL) @map("source_type")
-  driveFileId     String?       @unique @map("drive_file_id")
-  driveConfigId   String?       @map("drive_config_id")
-  lastSyncedAt    DateTime?     @map("last_synced_at")
+  sourceType          SourceType    @default(MANUAL) @map("source_type")
+  driveFileId         String?       @unique @map("drive_file_id")
+  driveConfigId       String?       @map("drive_config_id")
+  driveWebViewLink    String?       @map("drive_web_view_link")
+  driveModifiedTime   DateTime?     @map("drive_modified_time")
+  lastSyncedAt        DateTime?     @map("last_synced_at")
 
   // Phase 3: Data Management
   isActive        Boolean       @default(true) @map("is_active")
