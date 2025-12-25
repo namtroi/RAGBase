@@ -12,7 +12,7 @@
 | **4B.1** | CSV Processor | Parse CSV → Markdown (table or sentence) | ✅ Complete |
 | **4B.2** | HTML Processor | HTML → Markdown via BeautifulSoup | ✅ Complete |
 | **4B.3** | EPUB Processor | EPUB chapters → Markdown | ✅ Complete |
-| **4B.4** | DOCX Processor | Docling DOCX support | ⬜ Pending |
+| **4B.4** | DOCX Processor | Docling DOCX support | ✅ Complete |
 | **4B.5** | PPTX Processor | Docling PPTX + slide markers | ⬜ Pending |
 | **4B.6** | XLSX Processor | Multi-sheet Excel → Markdown | ⬜ Pending |
 
