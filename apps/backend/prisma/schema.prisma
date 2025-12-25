@@ -23,10 +23,6 @@ enum FileFormat {
   md
 }
 
-enum ProcessingLane {
-  fast
-  heavy
-}
 
 enum SourceType {
   MANUAL
@@ -45,7 +41,7 @@ model Document {
   mimeType    String         @map("mime_type")
   fileSize    Int            @map("file_size")
   format      FileFormat
-  lane        ProcessingLane
+
   status      DocumentStatus @default(PENDING)
   filePath    String         @map("file_path")
   md5Hash     String         @unique @map("md5_hash")

@@ -32,7 +32,7 @@ export function UploadDropzone() {
         const result = await uploadMutation.mutateAsync(file);
         setUploadStatus({
           type: 'success',
-          message: `Uploaded ${result.filename} - ${result.lane} lane`,
+          message: `Uploaded ${result.filename}`,
         });
       } catch (error: unknown) {
         setUploadStatus({

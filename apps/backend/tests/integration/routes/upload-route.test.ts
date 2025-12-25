@@ -43,10 +43,9 @@ describe('POST /api/documents', () => {
       expect(body.filename).toBe('test.pdf');
       expect(body.status).toBe('PENDING');
       expect(body.format).toBe('pdf');
-      expect(body.lane).toBe('heavy');
     });
 
-    it('should upload JSON to heavy lane', async () => {
+    it('should upload JSON', async () => {
       const jsonBuffer = await readFixture(FIXTURES.json.valid);
 
       const { payload, headers } = createMultipartMock('data.json', jsonBuffer, 'application/json');
@@ -65,7 +64,6 @@ describe('POST /api/documents', () => {
 
       const body = response.json();
       expect(body.format).toBe('json');
-      expect(body.lane).toBe('heavy');
     });
 
     it('should upload TXT file', async () => {

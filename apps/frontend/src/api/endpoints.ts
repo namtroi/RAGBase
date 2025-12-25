@@ -6,7 +6,6 @@ export interface Document {
   filename: string;
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   format: string;
-  lane: string;
   chunkCount?: number;
   failReason?: string;
   createdAt: string;
@@ -102,7 +101,7 @@ export const documentsApi = {
     api.download(`/documents/${id}/content?format=${format}`),
 
   upload: (file: File) =>
-    api.upload<{ id: string; filename: string; status: string; format: string; lane: string }>(
+    api.upload<{ id: string; filename: string; status: string; format: string }>(
       '/documents',
       file
     ),

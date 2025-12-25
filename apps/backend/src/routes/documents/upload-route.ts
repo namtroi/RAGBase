@@ -90,8 +90,7 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
         });
       }
 
-      // All files now use heavy lane (processed through queue)
-      const lane = 'heavy';
+
 
       // Use MD5 hash only for unique storage (prevents path traversal)
       const filePath = path.join(UPLOAD_DIR, md5Hash);
@@ -119,7 +118,6 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
             mimeType,
             fileSize: buffer.length,
             format,
-            lane,
             status: 'PENDING',
             filePath,
             md5Hash,
@@ -158,7 +156,6 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
         filename: document.filename,
         status: document.status,
         format: document.format,
-        lane: document.lane,
       });
     } catch (error: any) {
       logger.error({ err: error }, 'upload_route_error');

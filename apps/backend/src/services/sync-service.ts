@@ -310,7 +310,6 @@ export class SyncService {
                 mimeType: file.mimeType,
                 fileSize: file.size,
                 format,
-                lane: 'heavy',
                 status: 'PENDING',
                 filePath,
                 md5Hash,
