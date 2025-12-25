@@ -27,3 +27,12 @@ docling==2.15.0
 # OCR (very large ~1GB+)
 # pip install easyocr==1.7.1
 
+# Phase 4 Dependencies
+ftfy>=6.1.0
+chardet>=5.2.0
+pandas>=2.2.0
+beautifulsoup4>=4.12.3
+lxml>=5.1.0
+markdownify>=0.11.6
+ebooklib>=0.18
+openpyxl>=3.1.2

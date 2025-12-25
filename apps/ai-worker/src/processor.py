@@ -61,8 +61,9 @@ class PDFProcessor(BaseProcessor):
 
         pdf_format_option = PdfFormatOption(pipeline_options=pipeline_options)
 
+        # Support both PDF and DOCX formats with Docling
         converter = DocumentConverter(
-            allowed_formats=[InputFormat.PDF],
+            allowed_formats=[InputFormat.PDF, InputFormat.DOCX],
             format_options={InputFormat.PDF: pdf_format_option},
         )
 
