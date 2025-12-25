@@ -8,7 +8,6 @@ import pandas as pd
 
 from src.logging_config import get_logger
 from src.models import ProcessorOutput
-from src.sanitizer import InputSanitizer
 
 from .base import FormatConverter
 
@@ -24,9 +23,6 @@ class XlsxConverter(FormatConverter):
     category = "tabular"
     MAX_TABLE_ROWS = 35
     MAX_TABLE_COLS = 20
-
-    def __init__(self):
-        self.sanitizer = InputSanitizer()
 
     async def to_markdown(self, file_path: str) -> ProcessorOutput:
         """Convert XLSX to Markdown."""
@@ -94,6 +90,8 @@ class XlsxConverter(FormatConverter):
                 sheets=len(sheet_names),
                 rows=total_rows,
             )
+
+            markdown = self._post_process(markdown)
 
             return ProcessorOutput(
                 markdown=markdown, metadata=metadata, sheet_count=len(sheet_names)

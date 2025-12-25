@@ -33,7 +33,9 @@ class TextConverter(FormatConverter):
 
         try:
             content = path.read_text(encoding="utf-8")
+            content = self._sanitize_raw(content)
             markdown = self._to_markdown(content, file_format, path.name)
+            markdown = self._post_process(markdown)
 
             logger.info(
                 "text_conversion_complete",

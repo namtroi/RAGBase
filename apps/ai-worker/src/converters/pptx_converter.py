@@ -57,6 +57,7 @@ class PptxConverter(FormatConverter):
             if "<!-- slide -->" not in markdown:
                 markdown = self._add_slide_markers(markdown)
 
+            markdown = self._post_process(markdown)
             slide_count = markdown.count("<!-- slide -->") + 1
 
             logger.info(

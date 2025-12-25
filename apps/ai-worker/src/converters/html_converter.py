@@ -9,7 +9,6 @@ from bs4 import BeautifulSoup
 
 from src.logging_config import get_logger
 from src.models import ProcessorOutput
-from src.sanitizer import InputSanitizer
 
 from .base import FormatConverter
 
@@ -25,9 +24,6 @@ class HtmlConverter(FormatConverter):
     category = "document"
     REMOVE_TAGS: List[str] = ["script", "style", "nav", "footer", "aside", "noscript"]
 
-    def __init__(self):
-        self.sanitizer = InputSanitizer()
-
     async def to_markdown(self, file_path: str) -> ProcessorOutput:
         """Convert HTML to Markdown."""
         try:
@@ -38,7 +34,7 @@ class HtmlConverter(FormatConverter):
                 )
 
             content = path.read_text(encoding="utf-8", errors="replace")
-            content = self.sanitizer.sanitize(content)
+            content = self._sanitize_raw(content)
 
             if not content.strip():
                 return ProcessorOutput(markdown="", metadata={})
@@ -79,6 +75,7 @@ class HtmlConverter(FormatConverter):
                 prev_blank = is_blank
 
             markdown = "\n".join(cleaned_lines).strip()
+            markdown = self._post_process(markdown)
 
             logger.info("html_conversion_complete", path=file_path, chars=len(markdown))
 

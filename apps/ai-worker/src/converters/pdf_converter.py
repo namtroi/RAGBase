@@ -122,6 +122,7 @@ class PdfConverter(FormatConverter):
             result = await asyncio.to_thread(converter.convert, str(path))
 
             markdown = result.document.export_to_markdown()
+            markdown = self._post_process(markdown)
             page_count = (
                 len(result.document.pages) if hasattr(result.document, "pages") else 1
             )

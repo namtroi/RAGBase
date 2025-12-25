@@ -10,7 +10,6 @@ from ebooklib import epub
 
 from src.logging_config import get_logger
 from src.models import ProcessorOutput
-from src.sanitizer import InputSanitizer
 
 from .base import FormatConverter
 
@@ -25,9 +24,6 @@ class EpubConverter(FormatConverter):
 
     category = "document"
     SKIP_ITEMS = {"toc", "nav", "cover", "ncx", "copyright", "title"}
-
-    def __init__(self):
-        self.sanitizer = InputSanitizer()
 
     async def to_markdown(self, file_path: str) -> ProcessorOutput:
         """Convert EPUB to Markdown."""
@@ -67,7 +63,7 @@ class EpubConverter(FormatConverter):
                 # Get body text
                 body = soup.body or soup
                 text = body.get_text(separator="\n", strip=True)
-                text = self.sanitizer.sanitize(text)
+                text = self._sanitize_raw(text)
 
                 if not text.strip():
                     continue
@@ -86,6 +82,7 @@ class EpubConverter(FormatConverter):
                 )
 
             markdown = "\n\n---\n\n".join(chapters)
+            markdown = self._post_process(markdown)
 
             logger.info(
                 "epub_conversion_complete",

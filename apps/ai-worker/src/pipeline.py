@@ -1,5 +1,5 @@
 # apps/ai-worker/src/pipeline.py
-"""Centralized processing pipeline: sanitize → chunk → quality → embed."""
+"""Centralized processing pipeline: chunk → quality → embed."""
 
 from typing import Any, Dict, List
 
@@ -9,7 +9,6 @@ from .chunkers.tabular_chunker import TabularChunker
 from .embedder import Embedder
 from .logging_config import get_logger
 from .quality.analyzer import QualityAnalyzer
-from .sanitizer import InputSanitizer
 
 logger = get_logger(__name__)
 
@@ -21,7 +20,6 @@ class ProcessingPipeline:
     """
 
     def __init__(self):
-        self.sanitizer = InputSanitizer()
         self.document_chunker = DocumentChunker()
         self.presentation_chunker = PresentationChunker()
         self.tabular_chunker = TabularChunker()
@@ -46,10 +44,8 @@ class ProcessingPipeline:
         if not markdown or not markdown.strip():
             return []
 
-        # 1. Sanitize input
-        markdown = self.sanitizer.sanitize(markdown)
-
-        # 2. Select chunker based on category
+        # Input is already sanitized and normalized by converter
+        # Select chunker based on category
         if category == "presentation":
             chunker = self.presentation_chunker
         elif category == "tabular":

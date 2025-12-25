@@ -11,7 +11,6 @@ import pandas as pd
 
 from src.logging_config import get_logger
 from src.models import ProcessorOutput
-from src.sanitizer import InputSanitizer
 
 from .base import FormatConverter
 
@@ -29,9 +28,6 @@ class CsvConverter(FormatConverter):
     MAX_TABLE_ROWS = 35
     MAX_TABLE_COLS = 20
 
-    def __init__(self):
-        self.sanitizer = InputSanitizer()
-
     async def to_markdown(self, file_path: str) -> ProcessorOutput:
         """Convert CSV to Markdown."""
         try:
@@ -48,7 +44,7 @@ class CsvConverter(FormatConverter):
             encoding = self._detect_encoding(raw_bytes)
             content = raw_bytes.decode(encoding, errors="replace")
             content = content.lstrip("\ufeff")
-            content = self.sanitizer.sanitize(content)
+            content = self._sanitize_raw(content)
 
             if not content.strip():
                 return ProcessorOutput(markdown="", metadata={})
@@ -74,6 +70,7 @@ class CsvConverter(FormatConverter):
             else:
                 markdown = self._to_sentence_format(df)
 
+            markdown = self._post_process(markdown)
             return ProcessorOutput(markdown=markdown, metadata=metadata)
 
         except Exception as e:
