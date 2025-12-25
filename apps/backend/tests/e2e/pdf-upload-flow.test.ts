@@ -104,23 +104,7 @@ This concludes the test document content.`,
     expect(results[0].score).toBeGreaterThan(0);
   }, 60000);
 
-  it('should route PDF to heavy lane', async () => {
-    const app = getTestApp();
-    const pdfBuffer = await readFixture(FIXTURES.pdf.digital);
 
-    const uploadResponse = await app.inject({
-      method: 'POST',
-      url: '/api/documents',
-      headers: {
-        'X-API-Key': API_KEY,
-        'Content-Type': 'multipart/form-data; boundary=---e2e',
-      },
-      payload: createMultipartPayload('test.pdf', pdfBuffer, 'application/pdf'),
-    });
-
-    expect(uploadResponse.statusCode).toBe(201);
-    expect(uploadResponse.json().lane).toBe('heavy');
-  }, 30000);
 });
 
 function createMultipartPayload(filename: string, buffer: Buffer, mimeType: string): Buffer {

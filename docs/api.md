@@ -24,7 +24,7 @@ interface Document {
   mimeType: string;
   fileSize: number;        // bytes
   format: FileFormat;
-  lane: 'heavy';           // Always 'heavy' in Phase 2
+
   status: DocumentStatus;
   filePath: string;        // local storage path
   md5Hash: string;         // dedup
@@ -170,7 +170,7 @@ interface UploadResponse {
   filename: string;
   status: 'PENDING';
   format: FileFormat;
-  lane: 'heavy';           // Always heavy in Phase 2
+
 }
 
 // Errors

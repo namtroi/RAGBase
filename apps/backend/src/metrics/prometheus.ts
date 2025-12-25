@@ -1,10 +1,10 @@
 import { FastifyInstance } from 'fastify';
 import {
-    Counter,
-    Gauge,
-    Histogram,
-    Registry,
-    collectDefaultMetrics,
+  Counter,
+  Gauge,
+  Histogram,
+  Registry,
+  collectDefaultMetrics,
 } from 'prom-client';
 
 const register = new Registry();
@@ -31,7 +31,7 @@ export const httpRequestDuration = new Histogram({
 export const documentsProcessed = new Counter({
   name: 'documents_processed_total',
   help: 'Total documents processed',
-  labelNames: ['status', 'format', 'lane'],
+  labelNames: ['status', 'format'],
   registers: [register],
 });
 

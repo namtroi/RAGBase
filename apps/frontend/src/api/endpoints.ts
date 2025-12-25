@@ -6,7 +6,6 @@ export interface Document {
   filename: string;
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   format: string;
-  lane: string;
   chunkCount?: number;
   failReason?: string;
   createdAt: string;
@@ -102,7 +101,7 @@ export const documentsApi = {
     api.download(`/documents/${id}/content?format=${format}`),
 
   upload: (file: File) =>
-    api.upload<{ id: string; filename: string; status: string; format: string; lane: string }>(
+    api.upload<{ id: string; filename: string; status: string; format: string }>(
       '/documents',
       file
     ),
@@ -116,13 +115,13 @@ export const documentsApi = {
 
   // Bulk operations
   bulkToggleAvailability: (ids: string[], isActive: boolean) =>
-    api.patch<{ updated: number; failed: string[] }>('/documents/bulk/availability', { ids, isActive }),
+    api.patch<{ updated: number; failed: string[] }>('/documents/bulk/availability', { documentIds: ids, isActive }),
 
   bulkDelete: (ids: string[]) =>
-    api.post<{ deleted: number; failed: string[] }>('/documents/bulk/delete', { ids }),
+    api.post<{ deleted: number; failed: string[] }>('/documents/bulk/delete', { documentIds: ids }),
 
   bulkRetry: (ids: string[]) =>
-    api.post<{ queued: number; failed: string[] }>('/documents/bulk/retry', { ids }),
+    api.post<{ queued: number; failed: string[] }>('/documents/bulk/retry', { documentIds: ids }),
 };
 
 // Drive endpoints

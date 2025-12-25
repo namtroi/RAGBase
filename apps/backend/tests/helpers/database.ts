@@ -30,7 +30,7 @@ export async function seedDocument(data: Partial<any>) {
       mimeType: 'application/pdf',
       fileSize: 1024,
       format: 'pdf',
-      lane: 'heavy',
+
       status: 'PENDING',
       filePath: '/tmp/test.pdf',
       md5Hash: 'abc123',
