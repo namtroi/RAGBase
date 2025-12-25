@@ -8,7 +8,7 @@ import pytest
 from pathlib import Path
 from ebooklib import epub
 
-from src.epub_processor import EpubProcessor
+from src.converters import EpubConverter as EpubProcessor
 from src.models import ProcessorOutput
 
 

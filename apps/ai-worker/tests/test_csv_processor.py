@@ -7,7 +7,7 @@ Tests CSV parsing, encoding detection, delimiter detection, and output formattin
 import pytest
 from pathlib import Path
 
-from src.csv_processor import CsvProcessor
+from src.converters import CsvConverter as CsvProcessor
 from src.models import ProcessorOutput
 
 

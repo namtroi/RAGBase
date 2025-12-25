@@ -9,7 +9,7 @@ import pytest
 import pandas as pd
 from openpyxl import Workbook
 
-from src.xlsx_processor import XlsxProcessor
+from src.converters import XlsxConverter as XlsxProcessor
 from src.models import ProcessorOutput
 
 

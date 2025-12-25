@@ -1,0 +1,94 @@
+# apps/ai-worker/src/pipeline.py
+"""Centralized processing pipeline: sanitize → chunk → quality → embed."""
+
+from typing import Any, Dict, List
+
+from .chunkers.document_chunker import DocumentChunker
+from .chunkers.presentation_chunker import PresentationChunker
+from .chunkers.tabular_chunker import TabularChunker
+from .embedder import Embedder
+from .logging_config import get_logger
+from .quality.analyzer import QualityAnalyzer
+from .sanitizer import InputSanitizer
+
+logger = get_logger(__name__)
+
+
+class ProcessingPipeline:
+    """
+    Unified processing pipeline for all document formats.
+    Handles: sanitization → chunking → quality analysis → embedding.
+    """
+
+    def __init__(self):
+        self.sanitizer = InputSanitizer()
+        self.document_chunker = DocumentChunker()
+        self.presentation_chunker = PresentationChunker()
+        self.tabular_chunker = TabularChunker()
+        self.analyzer = QualityAnalyzer()
+        self.embedder = Embedder()
+
+    def run(
+        self,
+        markdown: str,
+        category: str = "document",
+    ) -> List[Dict[str, Any]]:
+        """
+        Run the full processing pipeline.
+
+        Args:
+            markdown: Raw markdown content from converter.
+            category: Format category ("document", "presentation", "tabular").
+
+        Returns:
+            List of chunks with embeddings and quality metadata.
+        """
+        if not markdown or not markdown.strip():
+            return []
+
+        # 1. Sanitize input
+        markdown = self.sanitizer.sanitize(markdown)
+
+        # 2. Select chunker based on category
+        if category == "presentation":
+            chunker = self.presentation_chunker
+        elif category == "tabular":
+            chunker = self.tabular_chunker
+        else:
+            chunker = self.document_chunker
+
+        chunks = chunker.chunk(markdown)
+
+        if not chunks:
+            return []
+
+        # 3. Analyze quality for each chunk
+        for i, chunk in enumerate(chunks):
+            quality = self.analyzer.analyze(chunk)
+            chunk["metadata"]["qualityScore"] = quality["score"]
+            chunk["metadata"]["qualityFlags"] = [f.value for f in quality["flags"]]
+            chunk["metadata"]["hasTitle"] = quality["has_title"]
+            chunk["metadata"]["completeness"] = quality["completeness"]
+            chunk["metadata"]["chunkType"] = category
+            chunk["index"] = i
+
+        # 4. Generate embeddings and token counts
+        texts = [c["content"] for c in chunks]
+        embeddings = self.embedder.embed(texts)
+        token_counts = self.embedder.get_token_counts(texts)
+
+        for i, chunk in enumerate(chunks):
+            chunk["embedding"] = embeddings[i]
+            chunk["metadata"]["tokenCount"] = token_counts[i]
+
+        logger.info(
+            "pipeline_complete",
+            category=category,
+            chunks=len(chunks),
+        )
+
+        return chunks
+
+
+# Singleton instance for reuse
+processing_pipeline = ProcessingPipeline()

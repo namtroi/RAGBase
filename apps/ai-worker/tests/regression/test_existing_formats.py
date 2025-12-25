@@ -1,14 +1,13 @@
 # apps/ai-worker/tests/regression/test_existing_formats.py
 """
-Regression tests for existing format processors.
+Regression tests for existing format converters.
 Ensures PDF, TXT, MD, JSON still work after Phase 4 changes.
 """
 
 import pytest
 from pathlib import Path
 
-from src.processor import PDFProcessor
-from src.text_processor import TextProcessor
+from src.converters import PdfConverter, TextConverter
 
 
 class TestPdfRegression:
@@ -26,10 +25,12 @@ class TestPdfRegression:
     @pytest.mark.asyncio
     async def test_pdf_still_works(self, sample_pdf):
         """PDF processing returns expected result."""
-        processor = PDFProcessor()
-        result = await processor.process(sample_pdf)
+        converter = PdfConverter()
+        result = await converter.to_markdown(sample_pdf)
 
-        assert result.success is True
+        # ProcessorOutput has .markdown, not .success
+        assert result.markdown is not None
+        assert len(result.markdown) > 0
 
 
 class TestTextRegression:
@@ -61,32 +62,29 @@ class TestTextRegression:
     @pytest.mark.asyncio
     async def test_txt_still_works(self, txt_file):
         """TXT processing works correctly."""
-        processor = TextProcessor()
-        result = await processor.process(txt_file, "txt")
+        converter = TextConverter()
+        result = await converter.to_markdown(txt_file, "txt")
 
-        assert result.success is True
-        assert "Hello World" in result.processed_content
+        assert result.markdown is not None
+        assert "Hello World" in result.markdown
 
     @pytest.mark.asyncio
     async def test_md_still_works(self, md_file):
         """Markdown processing preserves content."""
-        processor = TextProcessor()
-        result = await processor.process(md_file, "md")
+        converter = TextConverter()
+        result = await converter.to_markdown(md_file, "md")
 
-        assert result.success is True
-        assert (
-            "Title" in result.processed_content
-            or "Paragraph" in result.processed_content
-        )
+        assert result.markdown is not None
+        assert "Title" in result.markdown or "Paragraph" in result.markdown
 
     @pytest.mark.asyncio
     async def test_json_still_works(self, json_file):
         """JSON processing works correctly."""
-        processor = TextProcessor()
-        result = await processor.process(json_file, "json")
+        converter = TextConverter()
+        result = await converter.to_markdown(json_file, "json")
 
-        assert result.success is True
-        assert "key" in result.processed_content
+        assert result.markdown is not None
+        assert "key" in result.markdown
 
 
 class TestEmbeddingDimensions:
@@ -106,13 +104,14 @@ class TestChunkStructure:
     """Regression tests for chunk structure."""
 
     def test_chunk_has_required_fields(self):
-        """Chunks should have content, index, and embedding."""
-        from src.chunker import Chunker
+        """Chunks should have content, index, and metadata."""
+        from src.chunkers.document_chunker import DocumentChunker
 
-        chunker = Chunker()
-        text = "This is a test paragraph. " * 50
+        chunker = DocumentChunker()
+        text = "# Test Heading\n\nThis is a test paragraph. " * 50
         chunks = chunker.chunk(text)
 
         assert len(chunks) > 0
         for chunk in chunks:
-            assert "text" in chunk or "content" in chunk
+            assert "content" in chunk
+            assert "metadata" in chunk

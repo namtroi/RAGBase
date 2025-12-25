@@ -6,7 +6,6 @@ Tests chunk quality auto-fix rules.
 
 import pytest
 from src.quality.auto_fix import AutoFixer
-from src.quality.analyzer import QualityFlag
 
 
 @pytest.fixture
