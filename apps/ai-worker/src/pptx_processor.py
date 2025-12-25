@@ -120,8 +120,7 @@ class PptxProcessor:
             if line.startswith("# ") and prev_blank and result:
                 # Replace last blank line with slide marker
                 if result and result[-1] == "":
-                    result[-1] = ""
-                    result.append("---")
+                    result[-1] = "<!-- slide -->"
                     result.append("")
 
             result.append(line)
