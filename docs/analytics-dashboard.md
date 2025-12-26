@@ -391,68 +391,59 @@ src/components/chunks/
 
 ---
 
-## 7. Implementation Phases
+## 7. Implementation Phases (TDD Approach)
 
-### Phase 1: Metrics Collection & Migration (3-4 hours)
+### Phase 1: Metrics Collection & Basic Infrastructure (4-5 hours)
 
 **1a. Schema & Migration**
-- [ ] Add `ProcessingMetrics` model to `schema.prisma`
-- [ ] Add queue time fields: `enqueuedAt`, `startedAt`, `completedAt`, `queueTimeMs`, `userWaitTimeMs`
-- [ ] Add relation from `Document` to `ProcessingMetrics`
+- [ ] Add `ProcessingMetrics` model and relation to `schema.prisma`
+- [ ] Add queue time fields (`enqueuedAt`, `startedAt`, etc.)
 - [ ] Run migration: `npx prisma migrate dev`
-- [ ] Create data migration script for existing `processingMetadata` → `ProcessingMetrics`
-- [ ] Mark `processingMetadata` as deprecated (comment in schema)
+- [ ] Create and run data migration script for existing data
 
-**1b. AI Worker Instrumentation**
-- [ ] Add timing instrumentation to `main.py` (conversion, chunking, embedding)
-- [ ] Calculate `rawSizeBytes`, `markdownSizeChars`
-- [ ] Extend callback payload with detailed metrics
+**1b. AI Worker - Instrumentation [TDD]**
+- [ ] **[TEST]** Create unit tests in `apps/ai-worker/tests/` to verify timing/size metrics extraction
+- [ ] **[IMPLEMENT]** Add timing instrumentation to `main.py`
+- [ ] **[IMPLEMENT]** Add size metrics (`rawSizeBytes`, `markdownSizeChars`)
+- [ ] **[VERIFY]** Run tests to ensure metrics are correctly captured in the pipeline output
 
-**1c. Backend Update**
-- [ ] Pass `enqueuedAt` timestamp from BullMQ job to AI Worker
-- [ ] Update `callback-route.ts` to create `ProcessingMetrics` record
-- [ ] Calculate `queueTimeMs` and `userWaitTimeMs`
-- [ ] Aggregate chunk quality scores before saving
+**1c. Backend - Callback & Queue [TDD]**
+- [ ] **[TEST]** Create integration test for `callback-route.ts` with the new metrics payload
+- [ ] **[IMPLEMENT]** Pass `enqueuedAt` from BullMQ to AI Worker
+- [ ] **[IMPLEMENT]** Update callback to save `ProcessingMetrics` and calculate wait times
+- [ ] **[VERIFY]** Run integration tests to ensure data persists correctly in the new table
 
-### Phase 2: API Development (3-4 hours)
+### Phase 2: API Development [TDD] (3-4 hours)
 
 **2a. Analytics Endpoints**
-- [ ] Create `/api/analytics/overview` endpoint
-- [ ] Create `/api/analytics/processing` endpoint
-- [ ] Create `/api/analytics/quality` endpoint
-- [ ] Create `/api/analytics/documents` endpoint
-- [ ] Create `/api/analytics/documents/:id/chunks` endpoint
-- [ ] Add aggregation queries with Prisma
+- [ ] **[TEST]** Create integration tests for all `/api/analytics/*` endpoints with expected response shapes
+- [ ] **[IMPLEMENT]** Implement overview, processing, quality, and per-document endpoints
+- [ ] **[VERIFY]** Run tests to ensure aggregation logic works (period filtering, counts)
 
 **2b. Chunks Explorer Endpoints**
-- [ ] Create `/api/chunks` endpoint (paginated, filterable)
-- [ ] Create `/api/chunks/:id` endpoint (single chunk detail)
-- [ ] Add filters: quality, documentId, type, flags, search
+- [ ] **[TEST]** Create integration tests for `/api/chunks` with various filter combinations
+- [ ] **[IMPLEMENT]** Implement chunks list and detail endpoints
+- [ ] **[VERIFY]** Run tests to ensure filtering and search work as expected
 
-### Phase 3: Dashboard UI (3-4 hours)
+### Phase 3: Dashboard UI (4-6 hours)
 
-**3a. Analytics Dashboard**
+**3a. Infrastructure & Shared Components**
 - [ ] Install Tremor: `pnpm add @tremor/react`
-- [ ] Create `AnalyticsPage.tsx` with routing
-- [ ] Implement stat cards with `Card`, `Metric`, `BadgeDelta`
-- [ ] Implement `ProcessingChart` with `AreaChart` (include queue time)
-- [ ] Implement `QualityDonutChart` with `DonutChart`
-- [ ] Implement `QualityFlagsChart` with `BarChart`
-- [ ] Add period selector with `TabGroup`
+- [ ] Create `useAnalytics` and `useChunks` hooks (with MSW or mock data for initial UI dev)
 
-**3b. Chunks Explorer**
-- [ ] Create `ChunksExplorerPage.tsx` with routing
-- [ ] Implement `ChunkCard.tsx` component
-- [ ] Implement `ChunkFilters.tsx` (quality, document, type, flags, search)
-- [ ] Implement `ChunkDetailModal.tsx` (full content + metadata)
-- [ ] Add pagination
+**3b. Analytics Dashboard & Funnel**
+- [ ] Implement `AnalyticsPage.tsx` with Top-Down Pipeline Funnel
+- [ ] Implement drill-down cards with Tremor charts
 
-### Phase 4: Integration & Testing (2-3 hours)
+**3c. Chunks Explorer**
+- [ ] Implement `ChunksExplorerPage.tsx` with filters and pagination
+- [ ] Implement `ChunkDetailModal.tsx`
 
-- [ ] Add API integration tests for analytics endpoints
-- [ ] Add API integration tests for chunks endpoints
-- [ ] E2E test: Upload → Check metrics → Browse chunks
-- [ ] Performance optimization (indexes, caching)
+### Phase 4: Final Integration & Verification (2-3 hours)
+
+- [ ] **Manual Verification**: Upload various file types and verify the funnel metrics
+- [ ] **Performance Check**: Verify query speed on large datasets (add indexes if needed)
+- [ ] E2E Flow: Ensure data flows correctly from Raw File → Metrics → Dashboard UI
 
 ---
 
