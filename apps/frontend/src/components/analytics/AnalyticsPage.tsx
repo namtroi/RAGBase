@@ -1,4 +1,4 @@
-import { Card, Metric, Text, Flex, TabGroup, TabList, Tab, Badge, Grid } from '@tremor/react';
+import { TabGroup, TabList, Tab, Badge } from '@tremor/react';
 import { useAnalyticsOverview, useAnalyticsProcessing, useAnalyticsQuality, Period } from '@/hooks/use-analytics';
 import { useState } from 'react';
 import { ArrowDown, Clock, FileText, Layers, Sparkles, Zap } from 'lucide-react';
@@ -20,7 +20,26 @@ function formatNumber(n: number): string {
     return n.toString();
 }
 
+// Summary stat card with colored top border
+function StatCard({ title, value, color }: { title: string; value: string; color: string }) {
+    const borderColors: Record<string, string> = {
+        blue: 'border-t-blue-500',
+        emerald: 'border-t-emerald-500',
+        amber: 'border-t-amber-500',
+        violet: 'border-t-violet-500',
+    };
+
+    return (
+        <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 border-t-4 ${borderColors[color]}`}>
+            <p className="text-sm text-gray-500">{title}</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+        </div>
+    );
+}
+
+// Pipeline stage card
 interface StageCardProps {
+    stageNum: string;
     title: string;
     icon: React.ReactNode;
     stats: Array<{ label: string; value: string | number; color?: string }>;
@@ -28,26 +47,44 @@ interface StageCardProps {
     showArrow?: boolean;
 }
 
-function StageCard({ title, icon, stats, footer, showArrow = true }: StageCardProps) {
+function StageCard({ stageNum, title, icon, stats, footer, showArrow = true }: StageCardProps) {
     return (
         <div className="relative">
-            <Card className="p-4">
-                <Flex className="items-center gap-2 mb-3">
-                    {icon}
-                    <Text className="font-semibold text-gray-700">{title}</Text>
-                </Flex>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                {/* Header with icon and title on LEFT */}
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 rounded-lg bg-gray-50">
+                        {icon}
+                    </div>
+                    <div>
+                        <span className="text-xs font-medium text-gray-400">{stageNum}</span>
+                        <h4 className="font-semibold text-gray-800">{title}</h4>
+                    </div>
+                </div>
+
+                {/* Stats grid */}
                 <div className="grid grid-cols-2 gap-4">
                     {stats.map((stat, i) => (
                         <div key={i}>
-                            <Text className="text-xs text-gray-500">{stat.label}</Text>
-                            <Text className={`font-semibold ${stat.color || 'text-gray-900'}`}>{stat.value}</Text>
+                            <p className="text-xs text-gray-500 mb-1">{stat.label}</p>
+                            <p className={`text-lg font-semibold ${stat.color || 'text-gray-900'}`}>
+                                {stat.value}
+                            </p>
                         </div>
                     ))}
                 </div>
-                {footer && <div className="mt-3 pt-3 border-t border-gray-100">{footer}</div>}
-            </Card>
+
+                {/* Footer for badges */}
+                {footer && (
+                    <div className="mt-4 pt-3 border-t border-gray-100">
+                        {footer}
+                    </div>
+                )}
+            </div>
+
+            {/* Arrow connector */}
             {showArrow && (
-                <div className="flex justify-center py-2">
+                <div className="flex justify-center py-3">
                     <ArrowDown className="w-5 h-5 text-gray-300" />
                 </div>
             )}
@@ -68,10 +105,10 @@ export function AnalyticsPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <Flex className="justify-between items-center">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h2 className="text-xl font-bold text-gray-900">📊 Pipeline Analytics</h2>
-                    <Text className="text-gray-500">Monitor your RAG pipeline performance</Text>
+                    <p className="text-gray-500 text-sm">Monitor your RAG pipeline performance</p>
                 </div>
                 <TabGroup index={periodIndex} onIndexChange={setPeriodIndex}>
                     <TabList variant="solid">
@@ -80,7 +117,7 @@ export function AnalyticsPage() {
                         ))}
                     </TabList>
                 </TabGroup>
-            </Flex>
+            </div>
 
             {isLoading ? (
                 <div className="flex items-center justify-center py-12">
@@ -88,33 +125,38 @@ export function AnalyticsPage() {
                 </div>
             ) : (
                 <>
-                    {/* Summary Cards */}
-                    <Grid numItems={1} numItemsSm={2} numItemsLg={4} className="gap-4">
-                        <Card decoration="top" decorationColor="blue">
-                            <Text>Total Documents</Text>
-                            <Metric>{formatNumber(overview?.totalDocuments || 0)}</Metric>
-                        </Card>
-                        <Card decoration="top" decorationColor="emerald">
-                            <Text>Avg Processing Time</Text>
-                            <Metric>{formatMs(overview?.avgProcessingTimeMs || 0)}</Metric>
-                        </Card>
-                        <Card decoration="top" decorationColor="amber">
-                            <Text>Avg Quality Score</Text>
-                            <Metric>{((overview?.avgQualityScore || 0) * 100).toFixed(0)}%</Metric>
-                        </Card>
-                        <Card decoration="top" decorationColor="violet">
-                            <Text>Total Chunks</Text>
-                            <Metric>{formatNumber(overview?.totalChunks || 0)}</Metric>
-                        </Card>
-                    </Grid>
+                    {/* Summary Cards - 4 column grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <StatCard
+                            title="Total Documents"
+                            value={formatNumber(overview?.totalDocuments || 0)}
+                            color="blue"
+                        />
+                        <StatCard
+                            title="Avg Processing Time"
+                            value={formatMs(overview?.avgProcessingTimeMs || 0)}
+                            color="emerald"
+                        />
+                        <StatCard
+                            title="Avg Quality Score"
+                            value={`${((overview?.avgQualityScore || 0) * 100).toFixed(0)}%`}
+                            color="amber"
+                        />
+                        <StatCard
+                            title="Total Chunks"
+                            value={formatNumber(overview?.totalChunks || 0)}
+                            color="violet"
+                        />
+                    </div>
 
                     {/* Pipeline Funnel */}
                     <div className="bg-gray-50 rounded-xl p-6">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4">Pipeline Stages</h3>
+                        <h3 className="text-lg font-semibold text-gray-800 mb-6">Pipeline Stages</h3>
 
                         {/* Stage 1: Queue */}
                         <StageCard
-                            title="① Upload / Queue"
+                            stageNum="STAGE 1"
+                            title="Upload / Queue"
                             icon={<FileText className="w-5 h-5 text-blue-500" />}
                             stats={[
                                 { label: 'Files Uploaded', value: formatNumber(overview?.totalDocuments || 0) },
@@ -124,7 +166,8 @@ export function AnalyticsPage() {
 
                         {/* Stage 2: Conversion */}
                         <StageCard
-                            title="② Conversion (Raw → Markdown)"
+                            stageNum="STAGE 2"
+                            title="Conversion (Raw → Markdown)"
                             icon={<Zap className="w-5 h-5 text-amber-500" />}
                             stats={[
                                 { label: 'Avg Time', value: formatMs(processing?.breakdown.avgConversionTimeMs || 0) },
@@ -134,7 +177,8 @@ export function AnalyticsPage() {
 
                         {/* Stage 3: Chunking */}
                         <StageCard
-                            title="③ Chunking (Markdown → Chunks)"
+                            stageNum="STAGE 3"
+                            title="Chunking (Markdown → Chunks)"
                             icon={<Layers className="w-5 h-5 text-indigo-500" />}
                             stats={[
                                 { label: 'Total Chunks', value: formatNumber(overview?.totalChunks || 0) },
@@ -144,7 +188,8 @@ export function AnalyticsPage() {
 
                         {/* Stage 4: Quality */}
                         <StageCard
-                            title="④ Quality Analysis"
+                            stageNum="STAGE 4"
+                            title="Quality Analysis"
                             icon={<Sparkles className="w-5 h-5 text-emerald-500" />}
                             stats={[
                                 { label: 'Avg Score', value: `${((quality?.avgQualityScore || 0) * 100).toFixed(0)}%` },
@@ -154,20 +199,21 @@ export function AnalyticsPage() {
                             ]}
                             footer={
                                 quality?.flags && Object.keys(quality.flags).length > 0 && (
-                                    <Flex className="gap-2 flex-wrap">
-                                        {Object.entries(quality.flags).slice(0, 3).map(([flag, count]) => (
+                                    <div className="flex gap-2 flex-wrap">
+                                        {Object.entries(quality.flags).slice(0, 4).map(([flag, count]) => (
                                             <Badge key={flag} color="amber" size="xs">
                                                 {flag}: {count}
                                             </Badge>
                                         ))}
-                                    </Flex>
+                                    </div>
                                 )
                             }
                         />
 
                         {/* Stage 5: Embedding */}
                         <StageCard
-                            title="⑤ Embedding"
+                            stageNum="STAGE 5"
+                            title="Embedding"
                             icon={<Clock className="w-5 h-5 text-violet-500" />}
                             stats={[
                                 { label: 'Avg Time', value: formatMs(processing?.breakdown.avgEmbeddingTimeMs || 0) },
@@ -177,23 +223,23 @@ export function AnalyticsPage() {
                         />
                     </div>
 
-                    {/* Total Pipeline Time */}
-                    <Card className="bg-linear-to-r from-blue-50 to-indigo-50">
-                        <Flex className="items-center justify-between">
+                    {/* Total Pipeline Time - Custom styled */}
+                    <div className="bg-liner-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div>
-                                <Text className="font-semibold text-gray-700">Total Pipeline Time</Text>
-                                <Metric className="text-indigo-600">
+                                <p className="text-sm font-medium text-gray-600">Total Pipeline Time</p>
+                                <p className="text-3xl font-bold text-indigo-600">
                                     {formatMs(processing?.breakdown.avgTotalTimeMs || 0)}
-                                </Metric>
+                                </p>
                             </div>
-                            <div className="text-right">
-                                <Text className="text-gray-500">User Wait Time (Queue + Processing)</Text>
-                                <Text className="text-2xl font-bold text-gray-800">
+                            <div className="sm:text-right">
+                                <p className="text-sm text-gray-500">User Wait Time (Queue + Processing)</p>
+                                <p className="text-2xl font-bold text-gray-800">
                                     {formatMs(processing?.breakdown.avgUserWaitTimeMs || 0)}
-                                </Text>
+                                </p>
                             </div>
-                        </Flex>
-                    </Card>
+                        </div>
+                    </div>
                 </>
             )}
         </div>

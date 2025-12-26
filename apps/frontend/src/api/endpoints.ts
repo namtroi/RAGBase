@@ -211,20 +211,33 @@ export interface DocumentMetrics {
 export interface ChunkListItem {
   id: string;
   documentId: string;
-  document: { filename: string };
+  filename: string;  // Backend returns filename directly
+  index: number;     // Backend returns index, not chunkIndex
   content: string;
-  chunkIndex: number;
   qualityScore: number | null;
   chunkType: string | null;
   qualityFlags: string[];
   tokenCount: number | null;
-  createdAt: string;
+  breadcrumbs: string | null;
 }
 
-export interface ChunkDetail extends ChunkListItem {
+export interface ChunkDetail {
+  id: string;
+  documentId: string;
+  document: { id: string; filename: string; format: string; formatCategory: string | null };
+  index: number;
+  content: string;
   charStart: number;
   charEnd: number;
-  breadcrumb: string | null;
+  qualityScore: number | null;
+  qualityFlags: string[];
+  chunkType: string | null;
+  completeness: string | null;
+  hasTitle: boolean | null;
+  breadcrumbs: string | null;
+  tokenCount: number | null;
+  location: unknown | null;
+  createdAt: string;
 }
 
 export interface ChunksListParams {
