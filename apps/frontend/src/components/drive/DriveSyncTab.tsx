@@ -48,7 +48,7 @@ export function DriveSyncTab() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-900">Google Drive Sync</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">Google Drive Sync</h2>
                     <p className="text-sm text-gray-500 mt-1">
                         Connect folder from Google Drive to automatically sync documents.
                     </p>

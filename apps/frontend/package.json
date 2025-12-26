@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.59.0",
-    "@tremor/react": "^3.18.7",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.453.0",

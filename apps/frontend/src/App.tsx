@@ -31,52 +31,64 @@ function AppContent() {
 
   const tabs = [
     { id: 'documents' as Tab, label: 'Documents', icon: FileText },
-    { id: 'query' as Tab, label: 'Search', icon: Search },
+    { id: 'drive' as Tab, label: 'Drive Sync', icon: FolderSync },
     { id: 'analytics' as Tab, label: 'Analytics', icon: BarChart3 },
     { id: 'chunks' as Tab, label: 'Chunks', icon: Layers },
-    { id: 'drive' as Tab, label: 'Drive Sync', icon: FolderSync },
-    { id: 'settings' as Tab, label: 'Settings', icon: Settings },
+    { id: 'query' as Tab, label: 'Search', icon: Search },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Header + Navigation (combined) */}
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-gray-900">RAGBase</h1>
-            <div className="flex items-center gap-2">
-              {!apiKey && (
-                <span className="text-sm text-amber-600 flex items-center gap-1">
-                  <Key className="w-4 h-4" />
-                  API key required
-                </span>
-              )}
-            </div>
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="flex items-center">
+            {/* Logo */}
+            <h1 className="text-lg font-bold text-gray-900 pr-6 py-3 border-r border-gray-200 mr-2">
+              📊 RAGBase
+            </h1>
+
+            {/* Main Navigation */}
+            <nav className="flex items-center gap-1">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-3 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === tab.id
+                      ? 'border-primary-500 text-primary-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+
+            {/* Spacer */}
+            <div className="flex-1" />
+
+            {/* Settings (right side) */}
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`flex items-center gap-2 px-3 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === 'settings'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              title="Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+
+            {/* API Key Warning */}
+            {!apiKey && (
+              <span className="text-sm text-amber-600 flex items-center gap-1 ml-2">
+                <Key className="w-4 h-4" />
+              </span>
+            )}
           </div>
         </div>
       </header>
-
-      {/* Tabs */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-4">
-          <nav className="flex gap-4">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === tab.id
-                  ? 'border-primary-500 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-      </div>
 
       {/* Content */}
       <main className="max-w-5xl mx-auto px-4 py-8">

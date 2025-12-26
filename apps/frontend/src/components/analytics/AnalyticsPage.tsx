@@ -1,4 +1,3 @@
-import { TabGroup, TabList, Tab, Badge } from '@tremor/react';
 import { useAnalyticsOverview, useAnalyticsProcessing, useAnalyticsQuality, Period } from '@/hooks/use-analytics';
 import { useState } from 'react';
 import { ArrowDown, Clock, FileText, Layers, Sparkles, Zap } from 'lucide-react';
@@ -105,18 +104,27 @@ export function AnalyticsPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-900">📊 Pipeline Analytics</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">Pipeline Analytics</h2>
                     <p className="text-gray-500 text-sm">Monitor your RAG pipeline performance</p>
                 </div>
-                <TabGroup index={periodIndex} onIndexChange={setPeriodIndex}>
-                    <TabList variant="solid">
-                        {periods.map((p) => (
-                            <Tab key={p.value}>{p.label}</Tab>
-                        ))}
-                    </TabList>
-                </TabGroup>
+
+                {/* Period Selector */}
+                <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                    {periods.map((p, idx) => (
+                        <button
+                            key={p.value}
+                            onClick={() => setPeriodIndex(idx)}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${periodIndex === idx
+                                ? 'bg-white text-gray-900 shadow-sm'
+                                : 'text-gray-600 hover:text-gray-900'
+                                }`}
+                        >
+                            {p.label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {isLoading ? (
@@ -201,9 +209,12 @@ export function AnalyticsPage() {
                                 quality?.flags && Object.keys(quality.flags).length > 0 && (
                                     <div className="flex gap-2 flex-wrap">
                                         {Object.entries(quality.flags).slice(0, 4).map(([flag, count]) => (
-                                            <Badge key={flag} color="amber" size="xs">
+                                            <span
+                                                key={flag}
+                                                className="px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-700"
+                                            >
                                                 {flag}: {count}
-                                            </Badge>
+                                            </span>
                                         ))}
                                     </div>
                                 )
