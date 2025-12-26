@@ -1,6 +1,6 @@
 import { Document, documentsApi } from '@/api/endpoints';
 import clsx from 'clsx';
-import { Calendar, Download, FileText, FolderSync, HardDrive, Hash, Link2, Loader2 } from 'lucide-react';
+import { Calendar, Download, ExternalLink, FileText, FolderSync, HardDrive, Hash, Link2, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { AvailabilityToggle } from './availability-toggle';
 import { StatusBadge } from './status-badge';
@@ -83,6 +83,18 @@ export function DocumentCard({ document, isSelected, onSelect }: DocumentCardPro
                 <span className="flex items-center gap-1 text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
                   <FolderSync className="w-3 h-3" />
                   Drive
+                  {document.driveWebViewLink && (
+                    <a
+                      href={document.driveWebViewLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="ml-1 hover:text-blue-800 transition-colors"
+                      title="Open in Google Drive"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
                 </span>
               )}
               {document.connectionState === 'LINKED' && (

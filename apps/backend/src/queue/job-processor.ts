@@ -18,6 +18,17 @@ export function createJobProcessor(connection: Redis): Worker<ProcessingJob> {
       const prisma = getPrisma();
 
       try {
+        // Part 3: Skip already-completed documents (stale job protection)
+        const existing = await prisma.document.findUnique({
+          where: { id: job.data.documentId },
+          select: { status: true, processedContent: true }
+        });
+
+        if (existing?.status === 'COMPLETED' && existing?.processedContent) {
+          logger.info({ documentId: job.data.documentId }, 'job_skipped_already_complete');
+          return { skipped: true, documentId: job.data.documentId };
+        }
+
         await prisma.document.update({
           where: { id: job.data.documentId },
           data: {
@@ -51,7 +62,7 @@ export function createJobProcessor(connection: Redis): Worker<ProcessingJob> {
         return { dispatched: true, documentId: job.data.documentId };
 
       } catch (error) {
-        // Nếu document không tồn tại, không retry
+        // Document not found - don't retry
         if ((error as any)?.code === 'P2025') {
           throw new UnrecoverableError('Document not found');
         }
@@ -74,22 +85,36 @@ export function createJobProcessor(connection: Redis): Worker<ProcessingJob> {
 
     try {
       const prisma = getPrisma();
+
+      // Part 2: Detect network errors - these should retry, not fail permanently
+      const isNetworkError =
+        err.message.includes('fetch failed') ||
+        err.message.includes('ECONNREFUSED') ||
+        err.message.includes('ETIMEDOUT') ||
+        err.message.includes('AI worker failed: 5'); // 5xx server errors
+
       const isPermanent = PERMANENT_ERRORS.some(code =>
         err.message.includes(code)
       );
 
-      // Fix: Check cả UnrecoverableError
+      // Network errors should keep retrying until exhausted, not fail immediately
       const shouldMarkFailed =
-        isPermanent ||
+        (isPermanent && !isNetworkError) ||
         err instanceof UnrecoverableError ||
         job.attemptsMade >= (job.opts.attempts ?? 3);
 
       if (shouldMarkFailed) {
+        // Classify error for better debugging
+        let failReason = err.message.slice(0, 500);
+        if (isNetworkError && job.attemptsMade >= (job.opts.attempts ?? 3)) {
+          failReason = `AI_WORKER_UNREACHABLE: ${failReason}`;
+        }
+
         await prisma.document.update({
           where: { id: job.data.documentId },
           data: {
             status: 'FAILED',
-            failReason: err.message.slice(0, 500),  // Truncate để tránh DB error
+            failReason,
             retryCount: job.attemptsMade,
           },
         });
