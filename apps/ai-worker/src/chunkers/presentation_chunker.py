@@ -16,7 +16,7 @@ class PresentationChunker:
 
     def __init__(self, min_chunk_size: int = 200):
         self.min_chunk_size = min_chunk_size
-        self.marker = ""
+        self.marker = "<!-- slide -->"
 
     def chunk(self, text: str) -> List[Dict[str, Any]]:
         """

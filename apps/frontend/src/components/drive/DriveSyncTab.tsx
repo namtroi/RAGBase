@@ -1,6 +1,6 @@
 import { driveApi } from '@/api/endpoints';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Plus, FolderSync } from 'lucide-react';
 import { useState } from 'react';
 import { AddFolderModal } from './AddFolderModal';
 import { DriveConfigList } from './DriveConfigList';
@@ -45,12 +45,15 @@ export function DriveSyncTab() {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {/* Header + Actions */}
+            <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-900">Google Drive Sync</h2>
-                    <p className="text-sm text-gray-500 mt-1">
-                        Connect folder from Google Drive to automatically sync documents.
+                    <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <FolderSync className="w-5 h-5 text-gray-400" />
+                        Drive Sync
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                        Connect folder from Google Drive to automatically sync documents
                     </p>
                 </div>
                 <button

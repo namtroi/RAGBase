@@ -1,7 +1,8 @@
 # apps/ai-worker/src/pipeline.py
 """Centralized processing pipeline: chunk → quality → embed."""
 
-from typing import Any, Dict, List
+import time
+from typing import Any, Dict, List, Tuple
 
 from .chunkers.document_chunker import DocumentChunker
 from .chunkers.presentation_chunker import PresentationChunker
@@ -30,7 +31,7 @@ class ProcessingPipeline:
         self,
         markdown: str,
         category: str = "document",
-    ) -> List[Dict[str, Any]]:
+    ) -> Tuple[List[Dict[str, Any]], int]:
         """
         Run the full processing pipeline.
 
@@ -39,10 +40,10 @@ class ProcessingPipeline:
             category: Format category ("document", "presentation", "tabular").
 
         Returns:
-            List of chunks with embeddings and quality metadata.
+            Tuple of (chunks with embeddings and quality metadata, embedding_time_ms).
         """
         if not markdown or not markdown.strip():
-            return []
+            return [], 0
 
         # Input is already sanitized and normalized by converter
         # Select chunker based on category
@@ -56,7 +57,7 @@ class ProcessingPipeline:
         chunks = chunker.chunk(markdown)
 
         if not chunks:
-            return []
+            return [], 0
 
         # 3. Analyze quality for each chunk
         for i, chunk in enumerate(chunks):
@@ -68,10 +69,12 @@ class ProcessingPipeline:
             chunk["metadata"]["chunkType"] = category
             chunk["index"] = i
 
-        # 4. Generate embeddings and token counts
+        # 4. Generate embeddings and token counts (with timing)
         texts = [c["content"] for c in chunks]
+        embed_start = time.time()
         embeddings = self.embedder.embed(texts)
         token_counts = self.embedder.get_token_counts(texts)
+        embedding_time_ms = int((time.time() - embed_start) * 1000)
 
         for i, chunk in enumerate(chunks):
             chunk["embedding"] = embeddings[i]
@@ -81,9 +84,10 @@ class ProcessingPipeline:
             "pipeline_complete",
             category=category,
             chunks=len(chunks),
+            embedding_time_ms=embedding_time_ms,
         )
 
-        return chunks
+        return chunks, embedding_time_ms
 
 
 # Singleton instance for reuse

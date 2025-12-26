@@ -1,3 +1,4 @@
+import { Select } from '@/components/ui/select';
 import { useSearch } from '@/hooks/use-query';
 import { Loader, Search } from 'lucide-react';
 import { useState } from 'react';
@@ -19,50 +20,34 @@ export function SearchForm() {
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label
-            htmlFor="query"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Search Query
-          </label>
-          <div className="relative">
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               id="query"
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Enter your search query..."
-              className="w-full px-4 py-2 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-primary-500 focus:border-primary-500 hover:border-gray-400 transition-colors"
               maxLength={1000}
             />
-            <button
-              type="submit"
-              disabled={!query.trim() || searchMutation.isPending}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-primary-500 disabled:opacity-50"
-            >
-              {searchMutation.isPending ? (
-                <Loader className="w-5 h-5 animate-spin" />
-              ) : (
-                <Search className="w-5 h-5" />
-              )}
-            </button>
+            {searchMutation.isPending && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <Loader className="w-4 h-4 animate-spin text-primary-500" />
+              </div>
+            )}
           </div>
-        </div>
 
-        <div className="flex items-center gap-4">
-          <label className="text-sm text-gray-600">Results:</label>
-          <select
-            value={topK}
-            onChange={(e) => setTopK(Number(e.target.value))}
-            className="border border-gray-300 rounded-md px-3 py-1 text-sm"
-          >
-            {[3, 5, 10, 20].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-sm text-gray-600">Results:</span>
+            <Select
+              value={topK}
+              onChange={(val: string | number) => setTopK(Number(val))}
+              options={[3, 5, 10, 20].map((n) => ({ label: String(n), value: n }))}
+              className="w-[70px] min-w-[70px]"
+            />
+          </div>
         </div>
       </form>
 

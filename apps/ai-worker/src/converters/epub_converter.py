@@ -85,7 +85,11 @@ class EpubConverter(FormatConverter):
                 "source_format": "epub",
             }
 
-            return ProcessorOutput(markdown=full_markdown, metadata=metadata)
+            return ProcessorOutput(
+                markdown=full_markdown,
+                metadata=metadata,
+                chapter_count=len(chapters),
+            )
 
         except Exception as e:
             logger.exception("epub_conversion_error", path=file_path, error=str(e))

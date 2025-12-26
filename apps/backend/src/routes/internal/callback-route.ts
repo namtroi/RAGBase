@@ -138,6 +138,83 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
           },
         });
 
+        // Phase 5: Create ProcessingMetrics record
+        if (result.metrics) {
+          const m = result.metrics;
+
+          // Calculate queue time from document creation (enqueued) to processing start
+          let queueTimeMs = 0;
+          let startedAt: Date | null = null;
+          let completedAt: Date | null = null;
+
+          if (m.startedAt) {
+            startedAt = new Date(m.startedAt);
+            // Use document.createdAt as enqueuedAt (when job was added to queue)
+            queueTimeMs = Math.max(0, startedAt.getTime() - document.createdAt.getTime());
+          }
+
+          if (m.completedAt) {
+            completedAt = new Date(m.completedAt);
+          }
+
+          const totalTimeMs = m.totalTimeMs || 0;
+          const userWaitTimeMs = queueTimeMs + totalTimeMs;
+
+          await prisma.processingMetrics.upsert({
+            where: { documentId },
+            update: {
+              pageCount: result.pageCount,
+              ocrApplied: result.ocrApplied,
+              enqueuedAt: document.createdAt,
+              startedAt,
+              completedAt,
+              queueTimeMs,
+              conversionTimeMs: m.conversionTimeMs || 0,
+              chunkingTimeMs: m.chunkingTimeMs || 0,
+              embeddingTimeMs: m.embeddingTimeMs || 0,
+              totalTimeMs,
+              userWaitTimeMs,
+              rawSizeBytes: m.rawSizeBytes || 0,
+              markdownSizeChars: m.markdownSizeChars || 0,
+              totalChunks: m.totalChunks || result.chunks.length,
+              avgChunkSize: m.avgChunkSize || 0,
+              oversizedChunks: m.oversizedChunks || 0,
+              avgQualityScore: m.avgQualityScore || 0,
+              qualityFlags: m.qualityFlags || {},
+              totalTokens: m.totalTokens || 0,
+            },
+            create: {
+              documentId,
+              pageCount: result.pageCount,
+              ocrApplied: result.ocrApplied,
+              enqueuedAt: document.createdAt,
+              startedAt,
+              completedAt,
+              queueTimeMs,
+              conversionTimeMs: m.conversionTimeMs || 0,
+              chunkingTimeMs: m.chunkingTimeMs || 0,
+              embeddingTimeMs: m.embeddingTimeMs || 0,
+              totalTimeMs,
+              userWaitTimeMs,
+              rawSizeBytes: m.rawSizeBytes || 0,
+              markdownSizeChars: m.markdownSizeChars || 0,
+              totalChunks: m.totalChunks || result.chunks.length,
+              avgChunkSize: m.avgChunkSize || 0,
+              oversizedChunks: m.oversizedChunks || 0,
+              avgQualityScore: m.avgQualityScore || 0,
+              qualityFlags: m.qualityFlags || {},
+              totalTokens: m.totalTokens || 0,
+            },
+          });
+
+          logger.info({
+            documentId,
+            queueTimeMs,
+            totalTimeMs,
+            userWaitTimeMs
+          }, 'processing_metrics_saved');
+        }
+
         // Emit SSE event for success
         eventBus.emit('document:status', {
           id: documentId,
@@ -174,3 +251,4 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
     });
   });
 }
+

@@ -13,6 +13,7 @@ from fastapi import FastAPI, HTTPException
 from .callback import send_callback
 from .config import settings
 from .logging_config import configure_logging, get_logger
+from .metrics import MetricsCollector
 from .models import (
     EmbedRequest,
     EmbedResponse,
@@ -98,6 +99,10 @@ async def process_document(request: ProcessRequest):
     start_time = time.time()
     file_format = request.format.lower()
 
+    # Initialize metrics collector
+    metrics_collector = MetricsCollector()
+    metrics_collector.mark_started()
+
     try:
         # Validate format
         if not is_supported_format(file_format):
@@ -115,13 +120,23 @@ async def process_document(request: ProcessRequest):
         if request.config:
             ocr_mode = request.config.ocrMode
 
-        # 1. Convert to Markdown
+        # 1. Convert to Markdown (with timing)
+        metrics_collector.start_stage()
         if file_format in ("pdf", "docx"):
             output = await converter.to_markdown(request.filePath, ocr_mode)
         elif file_format in ("txt", "md", "json"):
             output = await converter.to_markdown(request.filePath, file_format)
         else:
             output = await converter.to_markdown(request.filePath)
+        metrics_collector.end_conversion()
+
+        # Capture size metrics
+        try:
+            raw_size = os.path.getsize(request.filePath)
+        except OSError:
+            raw_size = 0
+        markdown_size = len(output.markdown) if output.markdown else 0
+        metrics_collector.set_size_metrics(raw_size, markdown_size)
 
         # Handle conversion errors
         if not output.markdown or not output.markdown.strip():
@@ -135,8 +150,13 @@ async def process_document(request: ProcessRequest):
                 error_message=error_msg,
             )
         else:
-            # 2. Run pipeline: sanitize → chunk → quality → embed
-            chunks = processing_pipeline.run(output.markdown, category)
+            # 2. Run pipeline: sanitize → chunk → quality → embed (with timing)
+            metrics_collector.start_stage()
+            chunks, embedding_time_ms = processing_pipeline.run(
+                output.markdown, category
+            )
+            metrics_collector.end_chunking()
+            metrics_collector.set_embedding_time(embedding_time_ms)
 
             if not chunks:
                 result = ProcessingResult(
@@ -145,6 +165,10 @@ async def process_document(request: ProcessRequest):
                     error_message="Failed to chunk content",
                 )
             else:
+                # Capture chunking and quality metrics
+                metrics_collector.set_chunking_metrics(chunks)
+                metrics_collector.set_quality_summary(chunks)
+
                 # Calculate page count from metadata
                 page_count = (
                     output.page_count
@@ -156,6 +180,10 @@ async def process_document(request: ProcessRequest):
 
                 processing_time_ms = int((time.time() - start_time) * 1000)
 
+                # Finalize metrics
+                metrics_collector.mark_completed()
+                metrics_data = metrics_collector.to_dict()
+
                 result = ProcessingResult(
                     success=True,
                     processed_content=output.markdown,
@@ -164,6 +192,7 @@ async def process_document(request: ProcessRequest):
                     ocr_applied=output.metadata.get("ocr_applied", False),
                     processing_time_ms=processing_time_ms,
                     format_category=category,
+                    metrics=metrics_data,
                 )
 
         # 3. Send callback to backend

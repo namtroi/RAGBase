@@ -391,9 +391,11 @@ src/components/chunks/
 
 ---
 
-## 7. Implementation Phases
+## 7. Implementation Phases (TDD Approach)
 
-### Phase 1: Metrics Collection & Migration (3-4 hours)
+> **Note**: No frontend tests per project decision. Focus on AI Worker unit tests, Backend integration tests, and E2E tests.
+
+### Phase 1: Metrics Collection & Migration (4-5 hours)
 
 **1a. Schema & Migration**
 - [ ] Add `ProcessingMetrics` model to `schema.prisma`
@@ -403,20 +405,90 @@ src/components/chunks/
 - [ ] Create data migration script for existing `processingMetadata` → `ProcessingMetrics`
 - [ ] Mark `processingMetadata` as deprecated (comment in schema)
 
-**1b. AI Worker Instrumentation**
+**1b. AI Worker Tests (Write First)**
+
+```python
+# tests/test_metrics.py
+it('should capture conversion time in milliseconds')
+it('should capture chunking time in milliseconds')
+it('should capture embedding time in milliseconds')
+it('should calculate total time as sum of stages')
+it('should calculate raw size bytes from file')
+it('should calculate markdown size in characters')
+it('should include all metrics fields in callback payload')
+it('should handle zero-duration stages gracefully')
+```
+
+**1c. AI Worker Implementation**
 - [ ] Add timing instrumentation to `main.py` (conversion, chunking, embedding)
 - [ ] Calculate `rawSizeBytes`, `markdownSizeChars`
 - [ ] Extend callback payload with detailed metrics
 
-**1c. Backend Update**
+**1d. Backend Tests (Write First)**
+
+```typescript
+// tests/callback-metrics.test.ts
+it('should create ProcessingMetrics record on callback')
+it('should calculate queueTimeMs from enqueuedAt and startedAt')
+it('should calculate userWaitTimeMs as queueTimeMs + totalTimeMs')
+it('should aggregate avgQualityScore from chunks')
+it('should aggregate qualityFlags counts from chunks')
+it('should store pageCount and ocrApplied')
+it('should link ProcessingMetrics to Document')
+```
+
+**1e. Backend Implementation**
 - [ ] Pass `enqueuedAt` timestamp from BullMQ job to AI Worker
 - [ ] Update `callback-route.ts` to create `ProcessingMetrics` record
 - [ ] Calculate `queueTimeMs` and `userWaitTimeMs`
 - [ ] Aggregate chunk quality scores before saving
 
-### Phase 2: API Development (3-4 hours)
+---
 
-**2a. Analytics Endpoints**
+### Phase 2: API Development (4-5 hours)
+
+**2a. Analytics API Tests (Write First)**
+
+```typescript
+// tests/analytics-api.test.ts
+
+// Overview endpoint
+it('should return total documents count')
+it('should return average processing time')
+it('should return average quality score')
+it('should return total chunks count')
+it('should filter by period 24h')
+it('should filter by period 7d')
+it('should filter by period 30d')
+it('should return comparison with previous period')
+
+// Processing endpoint
+it('should return time breakdown by stage')
+it('should return queue time separately')
+it('should return processing trends over time')
+it('should group by hour for 24h period')
+it('should group by day for 7d/30d period')
+
+// Quality endpoint
+it('should return quality score distribution')
+it('should return excellent/good/low counts')
+it('should return quality flags breakdown')
+it('should return top quality issues')
+
+// Documents endpoint
+it('should return paginated document metrics')
+it('should include processing times per document')
+it('should include quality scores per document')
+it('should sort by processing time')
+it('should sort by quality score')
+
+// Document chunks endpoint
+it('should return chunks for specific document')
+it('should include quality metadata per chunk')
+it('should order chunks by index')
+```
+
+**2b. Analytics API Implementation**
 - [ ] Create `/api/analytics/overview` endpoint
 - [ ] Create `/api/analytics/processing` endpoint
 - [ ] Create `/api/analytics/quality` endpoint
@@ -424,20 +496,44 @@ src/components/chunks/
 - [ ] Create `/api/analytics/documents/:id/chunks` endpoint
 - [ ] Add aggregation queries with Prisma
 
-**2b. Chunks Explorer Endpoints**
+**2c. Chunks Explorer API Tests (Write First)**
+
+```typescript
+// tests/chunks-api.test.ts
+it('should return paginated chunks list')
+it('should return default 20 items per page')
+it('should filter by documentId')
+it('should filter by quality excellent (>=0.85)')
+it('should filter by quality good (0.70-0.84)')
+it('should filter by quality low (<0.70)')
+it('should filter by single quality flag')
+it('should filter by multiple quality flags')
+it('should filter by chunk type document')
+it('should filter by chunk type presentation')
+it('should filter by chunk type tabular')
+it('should search content by keyword')
+it('should return total count for pagination')
+it('should return chunk detail by id')
+it('should include all metadata in chunk detail')
+it('should return 404 for non-existent chunk')
+```
+
+**2d. Chunks Explorer API Implementation**
 - [ ] Create `/api/chunks` endpoint (paginated, filterable)
 - [ ] Create `/api/chunks/:id` endpoint (single chunk detail)
 - [ ] Add filters: quality, documentId, type, flags, search
 
+---
+
 ### Phase 3: Dashboard UI (3-4 hours)
+
+> No frontend tests per project decision.
 
 **3a. Analytics Dashboard**
 - [ ] Install Tremor: `pnpm add @tremor/react`
 - [ ] Create `AnalyticsPage.tsx` with routing
-- [ ] Implement stat cards with `Card`, `Metric`, `BadgeDelta`
-- [ ] Implement `ProcessingChart` with `AreaChart` (include queue time)
-- [ ] Implement `QualityDonutChart` with `DonutChart`
-- [ ] Implement `QualityFlagsChart` with `BarChart`
+- [ ] Implement Pipeline Funnel View (top-down stages)
+- [ ] Implement stage detail panels (drill-down)
 - [ ] Add period selector with `TabGroup`
 
 **3b. Chunks Explorer**
@@ -447,12 +543,28 @@ src/components/chunks/
 - [ ] Implement `ChunkDetailModal.tsx` (full content + metadata)
 - [ ] Add pagination
 
-### Phase 4: Integration & Testing (2-3 hours)
+---
 
-- [ ] Add API integration tests for analytics endpoints
-- [ ] Add API integration tests for chunks endpoints
-- [ ] E2E test: Upload → Check metrics → Browse chunks
-- [ ] Performance optimization (indexes, caching)
+### Phase 4: E2E Tests & Polish (2-3 hours)
+
+**4a. E2E Test Coverage**
+
+```typescript
+// tests/e2e/analytics.test.ts
+it('should create ProcessingMetrics when document is processed')
+it('should show new document in analytics overview')
+it('should reflect correct queue time for processed document')
+it('should show chunks in explorer after processing')
+it('should filter chunks by quality correctly')
+it('should display pipeline funnel with correct counts')
+it('should update metrics when new document is added')
+```
+
+**4b. Performance & Polish**
+- [ ] Add database indexes for analytics queries
+- [ ] Add caching for overview endpoint (optional)
+- [ ] Optimize aggregation queries
+- [ ] Verify dashboard performance with large dataset
 
 ---
 

@@ -7,6 +7,7 @@ Covers MD, TXT, JSON file processing and format conversion.
 import pytest
 
 from src.converters import TextConverter
+from src.converters.text_converter import JsonConverter
 
 
 @pytest.fixture
@@ -32,33 +33,39 @@ class TestTextProcessorProcess:
 
     @pytest.mark.asyncio
     async def test_process_md_passthrough(self, processor, tmp_path):
-        """MD file content unchanged."""
+        """MD file content is processed but preserves structure."""
         md_file = tmp_path / "readme.md"
         md_content = "# Existing Heading\n\nSome content here."
         md_file.write_text(md_content)
 
         result = await processor.process(str(md_file), "md")
 
-        assert result.markdown == md_content
+        # Content is post-processed but structure is preserved
+        assert "# Existing Heading" in result.markdown
+        assert "Some content here" in result.markdown
 
     @pytest.mark.asyncio
     async def test_process_json_formats(self, processor, tmp_path):
-        """JSON file formatted as code block."""
+        """JSON file formatted as code block using JsonConverter."""
         json_file = tmp_path / "data.json"
         json_file.write_text('{"key": "value", "num": 123}')
 
-        result = await processor.process(str(json_file), "json")
+        # Use JsonConverter for JSON files
+        json_processor = JsonConverter()
+        result = await json_processor.process(str(json_file), "json")
 
         assert "```json" in result.markdown
         assert '"key": "value"' in result.markdown
 
     @pytest.mark.asyncio
     async def test_process_invalid_json_error(self, processor, tmp_path):
-        """Invalid JSON in _to_markdown falls back to plain text block."""
+        """Invalid JSON in JsonConverter falls back to plain text block."""
         json_file = tmp_path / "bad.json"
         json_file.write_text("{invalid json content")
 
-        result = await processor.process(str(json_file), "json")
+        # Use JsonConverter for JSON files
+        json_processor = JsonConverter()
+        result = await json_processor.process(str(json_file), "json")
 
         # Should still return markdown - _to_markdown catches JSONDecodeError
         assert "```" in result.markdown
@@ -84,8 +91,8 @@ class TestToMarkdown:
         assert result == "# notes.txt\n\ncontent here"
 
     def test_to_markdown_json(self):
-        """JSON format pretty prints in code block."""
-        proc = TextConverter()
+        """JSON format pretty prints in code block (via JsonConverter)."""
+        proc = JsonConverter()
         result = proc._to_markdown('{"a":1}', "json", "config.json")
 
         assert "# config.json" in result

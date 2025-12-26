@@ -23,6 +23,8 @@ class ProcessingResult:
     error_message: Optional[str] = None
     # Phase 4: Format category
     format_category: Optional[str] = None
+    # Phase 5: Detailed processing metrics
+    metrics: Optional[Dict[str, Any]] = None
 
 
 @dataclass

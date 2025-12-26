@@ -13,6 +13,7 @@ interface ProcessingResult {
   pageCount: number;
   ocrApplied: boolean;
   processingTimeMs: number;
+  metrics?: Record<string, unknown>;
 }
 
 interface ProcessingError {

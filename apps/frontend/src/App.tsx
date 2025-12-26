@@ -3,8 +3,10 @@ import { DocumentList } from '@/components/documents/document-list';
 import { UploadDropzone } from '@/components/documents/upload-dropzone';
 import { DriveSyncTab } from '@/components/drive/DriveSyncTab';
 import { SearchForm } from '@/components/query/search-form';
+import { AnalyticsPage } from '@/components/analytics/AnalyticsPage';
+import { ChunksExplorerPage } from '@/components/chunks/ChunksExplorerPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { FileText, FolderSync, Key, Search, Settings } from 'lucide-react';
+import { FileText, FolderSync, Key, Search, Settings, BarChart3, Layers } from 'lucide-react';
 import { useState } from 'react';
 
 const queryClient = new QueryClient({
@@ -16,7 +18,7 @@ const queryClient = new QueryClient({
   },
 });
 
-type Tab = 'documents' | 'query' | 'settings' | 'drive';
+type Tab = 'documents' | 'query' | 'analytics' | 'chunks' | 'settings' | 'drive';
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<Tab>('documents');
@@ -29,59 +31,78 @@ function AppContent() {
 
   const tabs = [
     { id: 'documents' as Tab, label: 'Documents', icon: FileText },
-    { id: 'query' as Tab, label: 'Search', icon: Search },
     { id: 'drive' as Tab, label: 'Drive Sync', icon: FolderSync },
-    { id: 'settings' as Tab, label: 'Settings', icon: Settings },
+    { id: 'analytics' as Tab, label: 'Analytics', icon: BarChart3 },
+    { id: 'chunks' as Tab, label: 'Chunks', icon: Layers },
+    { id: 'query' as Tab, label: 'Search', icon: Search },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Header + Navigation (combined) */}
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-gray-900">RAGBase</h1>
-            <div className="flex items-center gap-2">
-              {!apiKey && (
-                <span className="text-sm text-amber-600 flex items-center gap-1">
-                  <Key className="w-4 h-4" />
-                  API key required
-                </span>
-              )}
-            </div>
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="flex items-center">
+            {/* Logo */}
+            <h1 className="text-lg font-bold text-gray-900 pr-6 py-3 border-r border-gray-200 mr-2">
+              📊 RAGBase
+            </h1>
+
+            {/* Main Navigation */}
+            <nav className="flex items-center gap-1">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-3 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === tab.id
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+
+            {/* Spacer */}
+            <div className="flex-1" />
+
+            {/* Settings (right side) */}
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`flex items-center gap-2 px-3 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === 'settings'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              title="Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+
+            {/* API Key Warning */}
+            {!apiKey && (
+              <span className="text-sm text-amber-600 flex items-center gap-1 ml-2">
+                <Key className="w-4 h-4" />
+              </span>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Tabs */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-4">
-          <nav className="flex gap-4">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === tab.id
-                  ? 'border-primary-500 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-      </div>
-
       {/* Content */}
       <main className="max-w-5xl mx-auto px-4 py-8">
         {activeTab === 'documents' && (
-          <div className="space-y-8">
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Upload Document
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-gray-400" />
+                Documents
               </h2>
+              <p className="text-sm text-gray-500">Manage and upload your documents</p>
+            </div>
+
+            <section>
               <UploadDropzone />
             </section>
 
@@ -92,12 +113,24 @@ function AppContent() {
         )}
 
         {activeTab === 'query' && (
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Vector Search
-            </h2>
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Search className="w-5 h-5 text-gray-400" />
+                Search
+              </h2>
+              <p className="text-sm text-gray-500">Semantic search across your documents</p>
+            </div>
             <SearchForm />
           </div>
+        )}
+
+        {activeTab === 'analytics' && (
+          <AnalyticsPage />
+        )}
+
+        {activeTab === 'chunks' && (
+          <ChunksExplorerPage />
         )}
 
         {activeTab === 'drive' && (

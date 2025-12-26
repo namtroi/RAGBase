@@ -1,3 +1,4 @@
+import { Select } from '@/components/ui/select';
 import { Search, SortAsc, SortDesc } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -45,6 +46,39 @@ export function DocumentFilters({ filters, onChange, counts }: DocumentFiltersPr
         updateFilter('sortOrder', filters.sortOrder === 'asc' ? 'desc' : 'asc');
     };
 
+    // Options definitions
+    const sortOptions = [
+        { label: 'Date', value: 'createdAt' },
+        { label: 'Name', value: 'filename' },
+        { label: 'Size', value: 'fileSize' },
+    ];
+
+    const statusOptions = [
+        { label: 'All Statuses', value: '' },
+        { label: 'Pending', value: 'PENDING', count: counts?.pending },
+        { label: 'Processing', value: 'PROCESSING', count: counts?.processing },
+        { label: 'Completed', value: 'COMPLETED', count: counts?.completed },
+        { label: 'Failed', value: 'FAILED', count: counts?.failed },
+    ];
+
+    const availabilityOptions = [
+        { label: 'All Availability', value: '' },
+        { label: 'Active', value: 'true', count: counts?.active },
+        { label: 'Inactive', value: 'false', count: counts?.inactive },
+    ];
+
+    const connectionOptions = [
+        { label: 'All Connections', value: '' },
+        { label: 'Standalone', value: 'STANDALONE' },
+        { label: 'Linked', value: 'LINKED' },
+    ];
+
+    const sourceOptions = [
+        { label: 'All Sources', value: '' },
+        { label: 'Manual Upload', value: 'MANUAL' },
+        { label: 'Google Drive', value: 'DRIVE' },
+    ];
+
     return (
         <div className="space-y-4">
             {/* Search and Sort Row */}
@@ -57,24 +91,21 @@ export function DocumentFilters({ filters, onChange, counts }: DocumentFiltersPr
                         placeholder="Search documents..."
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-primary-500 focus:border-primary-500 hover:border-gray-400 transition-colors"
                     />
                 </div>
 
                 {/* Sort */}
                 <div className="flex items-center gap-2">
-                    <select
+                    <Select
                         value={filters.sortBy}
-                        onChange={(e) => updateFilter('sortBy', e.target.value as FilterState['sortBy'])}
-                        className="text-sm border-gray-300 rounded-lg py-2 pl-3 pr-8 focus:ring-primary-500 focus:border-primary-500"
-                    >
-                        <option value="createdAt">Date</option>
-                        <option value="filename">Name</option>
-                        <option value="fileSize">Size</option>
-                    </select>
+                        onChange={(val) => updateFilter('sortBy', val as FilterState['sortBy'])}
+                        options={sortOptions}
+                        className="w-[120px]"
+                    />
                     <button
                         onClick={toggleSort}
-                        className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                        className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                         title={filters.sortOrder === 'asc' ? 'Ascending' : 'Descending'}
                     >
                         {filters.sortOrder === 'asc' ? (
@@ -89,50 +120,40 @@ export function DocumentFilters({ filters, onChange, counts }: DocumentFiltersPr
             {/* Filter Dropdowns Row */}
             <div className="flex flex-wrap gap-3">
                 {/* Status Filter */}
-                <select
+                <Select
                     value={filters.status}
-                    onChange={(e) => updateFilter('status', e.target.value)}
-                    className="text-sm border-gray-300 rounded-lg py-2 pl-3 pr-8 focus:ring-primary-500 focus:border-primary-500"
-                >
-                    <option value="">All Statuses</option>
-                    <option value="PENDING">Pending {counts?.pending ? `(${counts.pending})` : ''}</option>
-                    <option value="PROCESSING">Processing {counts?.processing ? `(${counts.processing})` : ''}</option>
-                    <option value="COMPLETED">Completed {counts?.completed ? `(${counts.completed})` : ''}</option>
-                    <option value="FAILED">Failed {counts?.failed ? `(${counts.failed})` : ''}</option>
-                </select>
+                    onChange={(val) => updateFilter('status', val as string)}
+                    options={statusOptions}
+                    placeholder="Status"
+                    className="w-[160px]"
+                />
 
                 {/* Availability Filter */}
-                <select
+                <Select
                     value={filters.isActive}
-                    onChange={(e) => updateFilter('isActive', e.target.value)}
-                    className="text-sm border-gray-300 rounded-lg py-2 pl-3 pr-8 focus:ring-primary-500 focus:border-primary-500"
-                >
-                    <option value="">All Availability</option>
-                    <option value="true">Active {counts?.active ? `(${counts.active})` : ''}</option>
-                    <option value="false">Inactive {counts?.inactive ? `(${counts.inactive})` : ''}</option>
-                </select>
+                    onChange={(val) => updateFilter('isActive', val as string)}
+                    options={availabilityOptions}
+                    placeholder="Availability"
+                    className="w-[160px]"
+                />
 
                 {/* Connection State Filter */}
-                <select
+                <Select
                     value={filters.connectionState}
-                    onChange={(e) => updateFilter('connectionState', e.target.value)}
-                    className="text-sm border-gray-300 rounded-lg py-2 pl-3 pr-8 focus:ring-primary-500 focus:border-primary-500"
-                >
-                    <option value="">All Connections</option>
-                    <option value="STANDALONE">Standalone</option>
-                    <option value="LINKED">Linked</option>
-                </select>
+                    onChange={(val) => updateFilter('connectionState', val as string)}
+                    options={connectionOptions}
+                    placeholder="Connection"
+                    className="w-[160px]"
+                />
 
                 {/* Source Type Filter */}
-                <select
+                <Select
                     value={filters.sourceType}
-                    onChange={(e) => updateFilter('sourceType', e.target.value)}
-                    className="text-sm border-gray-300 rounded-lg py-2 pl-3 pr-8 focus:ring-primary-500 focus:border-primary-500"
-                >
-                    <option value="">All Sources</option>
-                    <option value="MANUAL">Manual Upload</option>
-                    <option value="DRIVE">Google Drive</option>
-                </select>
+                    onChange={(val) => updateFilter('sourceType', val as string)}
+                    options={sourceOptions}
+                    placeholder="Source"
+                    className="w-[160px]"
+                />
             </div>
         </div>
     );
