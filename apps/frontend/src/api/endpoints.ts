@@ -16,6 +16,8 @@ export interface Document {
   fileSize?: number;
   isActive?: boolean;
   connectionState?: 'STANDALONE' | 'LINKED';
+  // Phase 4 additions
+  driveWebViewLink?: string;
 }
 
 export interface DriveConfig {

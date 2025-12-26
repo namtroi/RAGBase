@@ -1,8 +1,4 @@
 # apps/ai-worker/src/chunkers/tabular_chunker.py
-"""
-Tabular chunker optimized for CSV/XLSX output.
-Handles Markdown tables and row-based sentence format.
-"""
 
 from typing import Any, Dict, List
 
@@ -16,49 +12,53 @@ class TabularChunker:
         self.rows_per_chunk = rows_per_chunk
 
     def chunk(self, text: str) -> List[Dict[str, Any]]:
-        """
-        Split tabular Markdown into chunks.
-        """
         if not text or not text.strip():
             return []
 
         # 1. Split by --- (multiple sheets)
-        sections = [s.strip() for s in text.split("\n\n---\n\n") if s.strip()]
-        if not sections and "---" in text:
-            sections = [s.strip() for s in text.split("---") if s.strip()]
-
-        if not sections:
+        # FIX: Chỉ split khi có xuống dòng rõ ràng (\n\n---\n\n).
+        # Tuyệt đối không split "---" khơi khơi vì sẽ cắt nát Markdown Table (|---|).
+        delimiter = "\n\n---\n\n"
+        if delimiter in text:
+            sections = [s.strip() for s in text.split(delimiter) if s.strip()]
+        else:
             sections = [text.strip()]
 
         final_chunks = []
-        cumulative_pos = 0  # Track position for charStart/charEnd
+        cumulative_pos = 0
 
         for section in sections:
-            # 2. Extract breadcrumbs (Sheet Name)
+            # 2. Extract breadcrumbs (Sheet Name from H1)
             lines = section.split("\n")
             breadcrumbs = []
             content_start_idx = 0
 
-            if lines[0].startswith("# "):
-                breadcrumbs.append(lines[0][2:].strip())
+            # Check if first line is a H1 Header (Sheet Name)
+            if lines and lines[0].startswith("# "):
+                sheet_name = lines[0][2:].strip()
+                breadcrumbs.append(sheet_name)
                 content_start_idx = 1
 
-            # Clean content (remaining lines)
+            # Clean content (exclude the extracted header line)
             content_lines = lines[content_start_idx:]
             content_text = "\n".join(content_lines).strip()
+
             if not content_text:
                 continue
 
-            # 3. Determine Format
-            if (
+            # 3. Determine Format Strategy
+            # Check for Markdown Table syntax (| col | col | + separator |---|)
+            is_markdown_table = (
                 "|" in content_text
-                and "---" in content_text
+                and "\n|-" in content_text  # Check kỹ hơn chút để tránh nhầm
                 and content_text.count("|") > 2
-            ):
-                # Markdown Table: Keep together as one chunk
+            )
+
+            if is_markdown_table:
+                # STRATEGY A: Markdown Table -> Keep as single chunk
                 final_chunks.append(
                     {
-                        "content": section,
+                        "content": section,  # Keep full context (Heading + Table)
                         "metadata": {
                             "breadcrumbs": breadcrumbs,
                             "chunk_type": "tabular",
@@ -70,25 +70,11 @@ class TabularChunker:
                 )
                 cumulative_pos += len(section)
             else:
-                # Sentence Format: Split by rows
-                # Rows are separated by \n\n
+                # STRATEGY B: Sentence Format -> Split by rows
+                # Assumes rows are separated by double newlines (from converter)
                 rows = [r.strip() for r in content_text.split("\n\n") if r.strip()]
 
                 if not rows:
-                    # Fallback if split failed or unexpected format
-                    final_chunks.append(
-                        {
-                            "content": section,
-                            "metadata": {
-                                "breadcrumbs": breadcrumbs,
-                                "chunk_type": "tabular",
-                                "index": len(final_chunks),
-                                "charStart": cumulative_pos,
-                                "charEnd": cumulative_pos + len(section),
-                            },
-                        }
-                    )
-                    cumulative_pos += len(section)
                     continue
 
                 # Batch rows into chunks
@@ -96,12 +82,13 @@ class TabularChunker:
                     batch = rows[i : i + self.rows_per_chunk]
                     batch_text = "\n\n".join(batch)
 
-                    # Prepend title for context if not the first chunk
-                    chunk_display_text = (
-                        section.split("\n")[0] + "\n\n" + batch_text
-                        if breadcrumbs
-                        else batch_text
-                    )
+                    # FIX: Inject Header an toàn hơn
+                    # Nếu có breadcrumb (Sheet name), tái tạo lại header cho mỗi chunk
+                    if breadcrumbs:
+                        header_line = f"# {breadcrumbs[0]}"
+                        chunk_display_text = f"{header_line}\n\n{batch_text}"
+                    else:
+                        chunk_display_text = batch_text
 
                     final_chunks.append(
                         {

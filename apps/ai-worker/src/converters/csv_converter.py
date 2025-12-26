@@ -11,7 +11,6 @@ import pandas as pd
 
 from src.logging_config import get_logger
 from src.models import ProcessorOutput
-from src.sanitizer import InputSanitizer
 
 from .base import FormatConverter
 
@@ -23,14 +22,13 @@ class CsvConverter(FormatConverter):
     Converts CSV files to Markdown format.
     Auto-detects encoding and delimiter.
     Uses table format for small datasets, sentence format for large ones.
+    Implements Phase 4 Smart Number Formatting.
     """
 
     category = "tabular"
+    # Phase 4: Thresholds
     MAX_TABLE_ROWS = 35
     MAX_TABLE_COLS = 20
-
-    def __init__(self):
-        self.sanitizer = InputSanitizer()
 
     async def to_markdown(self, file_path: str) -> ProcessorOutput:
         """Convert CSV to Markdown."""
@@ -46,9 +44,13 @@ class CsvConverter(FormatConverter):
                 return ProcessorOutput(markdown="", metadata={})
 
             encoding = self._detect_encoding(raw_bytes)
+            # Use 'replace' to avoid crashing on bad bytes before sanitization
             content = raw_bytes.decode(encoding, errors="replace")
             content = content.lstrip("\ufeff")
-            content = self.sanitizer.sanitize(content)
+
+            # Phase 4: Input Sanitization (Delegate to base class if implemented there,
+            # otherwise ensures clean input for CSV parser)
+            content = self._sanitize_raw(content)
 
             if not content.strip():
                 return ProcessorOutput(markdown="", metadata={})
@@ -64,19 +66,25 @@ class CsvConverter(FormatConverter):
                 "column_count": len(df.columns),
                 "encoding": encoding,
                 "delimiter": delimiter,
+                "strategy": "unknown",
             }
 
+            # Phase 4: Decision Logic
             if (
                 len(df) <= self.MAX_TABLE_ROWS
                 and len(df.columns) <= self.MAX_TABLE_COLS
             ):
+                metadata["strategy"] = "markdown_table"
                 markdown = self._to_markdown_table(df)
             else:
+                metadata["strategy"] = "sentence_serialization"
                 markdown = self._to_sentence_format(df)
 
+            markdown = self._post_process(markdown)
             return ProcessorOutput(markdown=markdown, metadata=metadata)
 
         except Exception as e:
+            logger.error(f"Error converting CSV {file_path}: {e}")
             return ProcessorOutput(markdown="", metadata={"error": str(e)})
 
     def _detect_encoding(self, raw_bytes: bytes) -> str:
@@ -88,6 +96,7 @@ class CsvConverter(FormatConverter):
 
     def _detect_delimiter(self, content: str) -> str:
         try:
+            # Check first few lines only
             sample = "\n".join(content.split("\n")[:10])
             sniffer = csv.Sniffer()
             dialect = sniffer.sniff(sample, delimiters=",;\t|")
@@ -97,6 +106,7 @@ class CsvConverter(FormatConverter):
 
     def _parse_csv(self, content: str, delimiter: str) -> pd.DataFrame:
         try:
+            # Keep default na=False to avoid NaN strings, treat everything as object initially
             return pd.read_csv(
                 io.StringIO(content),
                 delimiter=delimiter,
@@ -106,31 +116,122 @@ class CsvConverter(FormatConverter):
         except Exception:
             return pd.DataFrame()
 
+    def _format_smart_value(self, header: str, value: str) -> str:
+        """
+        Phase 4: Smart Number Formatting.
+        Applies semantic formatting based on header keywords and value type.
+        """
+        header_lower = header.lower()
+
+        # 1. Clean strings
+        value = value.strip()
+        if not value:
+            return ""
+
+        # 2. Try to parse number
+        try:
+            # Remove existing commas if present to check numeric validity
+            clean_val = value.replace(",", "")
+            float_val = float(clean_val)
+            is_number = True
+        except ValueError:
+            is_number = False
+
+        if is_number:
+            # Currency Detection
+            if any(
+                k in header_lower
+                for k in ["revenue", "price", "cost", "salary", "usd", "amount"]
+            ):
+                # If not already formatted with currency symbol
+                if not value.startswith("$") and not value.startswith("€"):
+                    return f"${float_val:,.2f}"
+
+            # Percentage Detection
+            if "rate" in header_lower or "percent" in header_lower:
+                if float_val < 1.0:  # Assumption: 0.45 -> 45%
+                    return f"{float_val:.1%}"
+                return f"{float_val}%"
+
+            # Large Numbers (Thousands separator)
+            if float_val > 999:
+                # Check if it's an ID (usually doesn't need commas)
+                if (
+                    "id" not in header_lower
+                    and "code" not in header_lower
+                    and "year" not in header_lower
+                ):
+                    return (
+                        f"{float_val:,.0f}"
+                        if float_val.is_integer()
+                        else f"{float_val:,.2f}"
+                    )
+
+        # Date Detection (basic keywords)
+        # Note: Extensive date parsing is complex; assuming standard ISO or simple formats.
+        # If specific Excel serial date conversion is needed, it would go here.
+
+        return value
+
     def _to_markdown_table(self, df: pd.DataFrame) -> str:
+        """Render small datasets as standard Markdown tables."""
         if len(df.columns) == 0:
             return ""
+
         lines: List[str] = []
         headers = list(df.columns)
-        lines.append("| " + " | ".join(str(h) for h in headers) + " |")
+
+        # Escape pipes in headers to prevent breaking markdown
+        safe_headers = [
+            str(h).replace("|", "&#124;").replace("\n", " ") for h in headers
+        ]
+
+        lines.append("| " + " | ".join(safe_headers) + " |")
         lines.append("| " + " | ".join("---" for _ in headers) + " |")
+
         for _, row in df.iterrows():
-            cells = [str(v).replace("\n", " ").replace("\r", "") for v in row]
+            cells = []
+            for v in row:
+                val = str(v).strip()
+                # Escape pipes and newlines
+                val = val.replace("|", "&#124;").replace("\n", "<br>")
+                cells.append(val)
             lines.append("| " + " | ".join(cells) + " |")
+
         return "\n".join(lines)
 
     def _to_sentence_format(self, df: pd.DataFrame) -> str:
+        """
+        Phase 4: Sentence Serialization for large/wide tables.
+        Format: "{Header} is {Value}."
+        """
         if df.empty:
             return ""
+
         lines: List[str] = []
         headers = list(df.columns)
+
         for _, row in df.iterrows():
-            row_lines: List[str] = []
+            row_parts: List[str] = []
             for header in headers:
-                value = str(row[header]).strip()
-                if value:
-                    value = value.replace("\n", " ").replace("\r", "")
-                    row_lines.append(f"**{header}:** {value}")
-            if row_lines:
-                lines.append("; ".join(row_lines) + ".")
-                lines.append("")
+                raw_val = str(row[header])
+                # Skip empty cells as per roadmap
+                if not raw_val or raw_val.strip() == "":
+                    continue
+
+                # Apply smart formatting
+                formatted_val = self._format_smart_value(str(header), raw_val)
+
+                # Phase 4 Syntax: "{Header} is {Value}."
+                # Clean header and value for sentence flow
+                clean_header = str(header).strip()
+                row_parts.append(f"{clean_header} is {formatted_val}")
+
+            if row_parts:
+                # Join parts with periods to create distinct statements or semi-colons
+                # Roadmap suggested sentence structure. Using period + space.
+                # Example: "Name is John. Age is 25."
+                lines.append(". ".join(row_parts) + ".")
+                lines.append("")  # Empty line between rows for chunking clarity
+
         return "\n".join(lines).strip()

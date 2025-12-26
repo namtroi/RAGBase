@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 from typing import Literal
 
 from src.models import ProcessorOutput
+from src.normalizer import MarkdownNormalizer
+from src.sanitizer import InputSanitizer
 
 FormatCategory = Literal["document", "presentation", "tabular"]
 
@@ -18,6 +20,10 @@ class FormatConverter(ABC):
     # Subclasses must define their category
     category: FormatCategory = "document"
 
+    # Shared instances for text processing
+    _sanitizer = InputSanitizer()
+    _normalizer = MarkdownNormalizer()
+
     @abstractmethod
     async def to_markdown(self, file_path: str) -> ProcessorOutput:
         """
@@ -30,6 +36,32 @@ class FormatConverter(ABC):
             ProcessorOutput with markdown content and metadata.
         """
         pass
+
+    def _sanitize_raw(self, text: str) -> str:
+        """
+        Sanitize raw text before formatting.
+        Fixes encoding issues, removes control characters, normalizes Unicode.
+
+        Args:
+            text: Raw text content.
+
+        Returns:
+            Cleaned text ready for formatting.
+        """
+        return self._sanitizer.sanitize(text)
+
+    def _post_process(self, markdown: str) -> str:
+        """
+        Normalize markdown after conversion.
+        Standardizes bullets, removes empty sections, fixes code blocks.
+
+        Args:
+            markdown: Raw markdown from converter.
+
+        Returns:
+            Cleaned and consistent markdown.
+        """
+        return self._normalizer.normalize(markdown)
 
     async def process(self, file_path: str, *args, **kwargs) -> ProcessorOutput:
         """Backward-compatible alias for to_markdown()."""
