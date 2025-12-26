@@ -1,6 +1,6 @@
 import { useAnalyticsOverview, useAnalyticsProcessing, useAnalyticsQuality, Period } from '@/hooks/use-analytics';
 import { useState } from 'react';
-import { ArrowDown, Clock, FileText, Layers, Sparkles, Zap } from 'lucide-react';
+import { ArrowDown, BarChart3, Clock, FileText, Layers, Sparkles, Zap } from 'lucide-react';
 
 const periods: { label: string; value: Period }[] = [
     { label: '24h', value: '24h' },
@@ -103,11 +103,14 @@ export function AnalyticsPage() {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
+            {/* Header + Actions */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Pipeline Analytics</h2>
-                    <p className="text-gray-500 text-sm">Monitor your RAG pipeline performance</p>
+                    <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <BarChart3 className="w-5 h-5 text-gray-400" />
+                        Analytics
+                    </h2>
+                    <p className="text-sm text-gray-500">Monitor your RAG pipeline performance</p>
                 </div>
 
                 {/* Period Selector */}

@@ -55,8 +55,8 @@ function AppContent() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-2 px-3 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === tab.id
-                      ? 'border-primary-500 text-primary-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
                     }`}
                 >
                   <tab.icon className="w-4 h-4" />
@@ -72,8 +72,8 @@ function AppContent() {
             <button
               onClick={() => setActiveTab('settings')}
               className={`flex items-center gap-2 px-3 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === 'settings'
-                  ? 'border-primary-500 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               title="Settings"
             >
@@ -93,11 +93,16 @@ function AppContent() {
       {/* Content */}
       <main className="max-w-5xl mx-auto px-4 py-8">
         {activeTab === 'documents' && (
-          <div className="space-y-8">
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Upload Document
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-gray-400" />
+                Documents
               </h2>
+              <p className="text-sm text-gray-500">Manage and upload your documents</p>
+            </div>
+
+            <section>
               <UploadDropzone />
             </section>
 
@@ -108,10 +113,14 @@ function AppContent() {
         )}
 
         {activeTab === 'query' && (
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Vector Search
-            </h2>
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Search className="w-5 h-5 text-gray-400" />
+                Search
+              </h2>
+              <p className="text-sm text-gray-500">Semantic search across your documents</p>
+            </div>
             <SearchForm />
           </div>
         )}

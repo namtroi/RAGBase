@@ -1,3 +1,4 @@
+import { Select } from '@/components/ui/select';
 import { Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -34,6 +35,20 @@ export function ChunkFilters({ filters, onChange, counts }: ChunkFiltersProps) {
         onChange({ ...filters, [key]: value });
     };
 
+    const qualityOptions = [
+        { label: 'All Quality', value: '' },
+        { label: 'Excellent (≥85%)', value: 'excellent', count: counts?.excellent },
+        { label: 'Good (70-84%)', value: 'good', count: counts?.good },
+        { label: 'Low (<70%)', value: 'low', count: counts?.low },
+    ];
+
+    const typeOptions = [
+        { label: 'All Types', value: '' },
+        { label: 'Document', value: 'document' },
+        { label: 'Presentation', value: 'presentation' },
+        { label: 'Tabular', value: 'tabular' },
+    ];
+
     return (
         <div className="space-y-4">
             {/* Search and Filters Row */}
@@ -46,39 +61,27 @@ export function ChunkFilters({ filters, onChange, counts }: ChunkFiltersProps) {
                         placeholder="Filter by text..."
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-primary-500 focus:border-primary-500 hover:border-gray-400 transition-colors"
                     />
                 </div>
 
                 {/* Quality Filter */}
-                <select
+                <Select
                     value={filters.quality}
-                    onChange={(e) => updateFilter('quality', e.target.value as ChunkFilterState['quality'])}
-                    className="text-sm border-gray-300 rounded-lg py-2 pl-3 pr-8 focus:ring-primary-500 focus:border-primary-500"
-                >
-                    <option value="">All Quality</option>
-                    <option value="excellent">
-                        Excellent (≥85%) {counts?.excellent ? `(${counts.excellent})` : ''}
-                    </option>
-                    <option value="good">
-                        Good (70-84%) {counts?.good ? `(${counts.good})` : ''}
-                    </option>
-                    <option value="low">
-                        Low (&lt;70%) {counts?.low ? `(${counts.low})` : ''}
-                    </option>
-                </select>
+                    onChange={(val) => updateFilter('quality', val as ChunkFilterState['quality'])}
+                    options={qualityOptions}
+                    placeholder="Quality"
+                    className="w-[180px]"
+                />
 
                 {/* Type Filter */}
-                <select
+                <Select
                     value={filters.type}
-                    onChange={(e) => updateFilter('type', e.target.value as ChunkFilterState['type'])}
-                    className="text-sm border-gray-300 rounded-lg py-2 pl-3 pr-8 focus:ring-primary-500 focus:border-primary-500"
-                >
-                    <option value="">All Types</option>
-                    <option value="document">Document</option>
-                    <option value="presentation">Presentation</option>
-                    <option value="tabular">Tabular</option>
-                </select>
+                    onChange={(val) => updateFilter('type', val as ChunkFilterState['type'])}
+                    options={typeOptions}
+                    placeholder="Type"
+                    className="w-[140px]"
+                />
             </div>
         </div>
     );

@@ -2,8 +2,9 @@ import { driveApi } from '@/api/endpoints';
 import { useDocuments } from '@/hooks/use-documents';
 import { useSelection } from '@/hooks/use-selection';
 import { useQuery } from '@tanstack/react-query';
-import { FileText, FolderSync, RefreshCw } from 'lucide-react';
+import { FileText, FolderSync } from 'lucide-react';
 import { useState } from 'react';
+import { Select } from '@/components/ui/select';
 import { BulkActionBar } from './bulk-action-bar';
 import { DeleteConfirmModal } from './delete-confirm-modal';
 import { DocumentCard } from './document-card';
@@ -48,7 +49,7 @@ export function DocumentList() {
     offset: (page - 1) * pageSize,
   };
 
-  const { data, isLoading, refetch, isRefetching } = useDocuments(queryParams);
+  const { data, isLoading } = useDocuments(queryParams);
 
   const allIds = data?.documents.map((d) => d.id) || [];
   const isAllSelected = allIds.length > 0 && allIds.every((id) => selection.isSelected(id));
@@ -65,20 +66,7 @@ export function DocumentList() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">Documents</h2>
-        <button
-          onClick={() => refetch()}
-          disabled={isRefetching}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50"
-        >
-          <RefreshCw
-            className={`w-4 h-4 ${isRefetching ? 'animate-spin' : ''}`}
-          />
-          Refresh
-        </button>
-      </div>
+
 
       {/* Filters */}
       <DocumentFilters
@@ -94,21 +82,21 @@ export function DocumentList() {
       {configData?.configs && configData.configs.length > 0 && (
         <div className="flex items-center gap-2">
           <FolderSync className="w-4 h-4 text-gray-400" />
-          <select
+          <Select
             value={folderFilter}
-            onChange={(e) => {
-              setFolderFilter(e.target.value);
+            onChange={(val: string | number) => {
+              setFolderFilter(String(val));
               setPage(1);
             }}
-            className="text-sm border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 bg-white py-1.5 pl-3 pr-8"
-          >
-            <option value="all">All Folders</option>
-            {configData.configs.map((config) => (
-              <option key={config.id} value={config.id}>
-                {config.folderName}
-              </option>
-            ))}
-          </select>
+            options={[
+              { label: 'All Folders', value: 'all' },
+              ...(configData.configs.map((config) => ({
+                label: config.folderName,
+                value: config.id
+              })))
+            ]}
+            className="w-[200px]"
+          />
         </div>
       )}
 
