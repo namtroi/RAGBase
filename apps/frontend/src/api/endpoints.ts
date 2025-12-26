@@ -150,3 +150,137 @@ export const queryApi = {
   search: (query: string, topK = 5) =>
     api.post<{ results: QueryResult[] }>('/query', { query, topK }),
 };
+
+// Analytics types
+export interface AnalyticsOverview {
+  totalDocuments: number;
+  avgProcessingTimeMs: number;
+  avgQualityScore: number;
+  totalChunks: number;
+  period: string;
+  periodStart: string;
+  periodEnd: string;
+}
+
+export interface AnalyticsProcessing {
+  period: string;
+  periodStart: string;
+  periodEnd: string;
+  documentsProcessed: number;
+  breakdown: {
+    avgConversionTimeMs: number;
+    avgChunkingTimeMs: number;
+    avgEmbeddingTimeMs: number;
+    avgTotalTimeMs: number;
+    avgQueueTimeMs: number;
+    avgUserWaitTimeMs: number;
+  };
+  trends: Array<{
+    date: string;
+    count: number;
+    avgTotalTimeMs: number;
+    avgQueueTimeMs: number;
+  }>;
+}
+
+export interface AnalyticsQuality {
+  period: string;
+  avgQualityScore: number;
+  distribution: {
+    excellent: number;
+    good: number;
+    low: number;
+  };
+  flags: Record<string, number>;
+  totalChunks: number;
+}
+
+export interface DocumentMetrics {
+  id: string;
+  filename: string;
+  status: string;
+  createdAt: string;
+  metrics: {
+    totalTimeMs: number;
+    avgQualityScore: number;
+    totalChunks: number;
+    qualityFlags: Record<string, number>;
+  } | null;
+}
+
+export interface ChunkListItem {
+  id: string;
+  documentId: string;
+  document: { filename: string };
+  content: string;
+  chunkIndex: number;
+  qualityScore: number | null;
+  chunkType: string | null;
+  qualityFlags: string[];
+  tokenCount: number | null;
+  createdAt: string;
+}
+
+export interface ChunkDetail extends ChunkListItem {
+  charStart: number;
+  charEnd: number;
+  breadcrumb: string | null;
+}
+
+export interface ChunksListParams {
+  page?: number;
+  limit?: number;
+  documentId?: string;
+  quality?: 'excellent' | 'good' | 'low';
+  type?: 'document' | 'presentation' | 'tabular';
+  flags?: string;
+  search?: string;
+}
+
+// Analytics endpoints
+export const analyticsApi = {
+  getOverview: (period: '24h' | '7d' | '30d' | 'all' = '7d') =>
+    api.get<AnalyticsOverview>(`/analytics/overview?period=${period}`),
+
+  getProcessing: (period: '24h' | '7d' | '30d' | 'all' = '7d') =>
+    api.get<AnalyticsProcessing>(`/analytics/processing?period=${period}`),
+
+  getQuality: (period: '24h' | '7d' | '30d' | 'all' = '7d') =>
+    api.get<AnalyticsQuality>(`/analytics/quality?period=${period}`),
+
+  getDocuments: (params?: { page?: number; limit?: number; period?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.period) query.set('period', params.period);
+    const queryStr = query.toString();
+    return api.get<{ documents: DocumentMetrics[]; pagination: { total: number; page: number; limit: number; totalPages: number } }>(
+      `/analytics/documents${queryStr ? `?${queryStr}` : ''}`
+    );
+  },
+
+  getDocumentChunks: (documentId: string) =>
+    api.get<{ documentId: string; chunks: Array<{ id: string; index: number; content: string; qualityScore: number | null; qualityFlags: string[] }> }>(
+      `/analytics/documents/${documentId}/chunks`
+    ),
+};
+
+// Chunks Explorer endpoints
+export const chunksApi = {
+  list: (params?: ChunksListParams) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.documentId) query.set('documentId', params.documentId);
+    if (params?.quality) query.set('quality', params.quality);
+    if (params?.type) query.set('type', params.type);
+    if (params?.flags) query.set('flags', params.flags);
+    if (params?.search) query.set('search', params.search);
+    const queryStr = query.toString();
+    return api.get<{ chunks: ChunkListItem[]; pagination: { total: number; page: number; limit: number; totalPages: number } }>(
+      `/chunks${queryStr ? `?${queryStr}` : ''}`
+    );
+  },
+
+  get: (id: string) => api.get<ChunkDetail>(`/chunks/${id}`),
+};
