@@ -30,6 +30,8 @@ async def send_callback(
                 "processingTimeMs": result.processing_time_ms,
                 # Phase 4: Format category
                 "formatCategory": result.format_category,
+                # Phase 5: Detailed processing metrics
+                "metrics": result.metrics,
             },
         }
     else:

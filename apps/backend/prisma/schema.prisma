@@ -58,6 +58,7 @@ model Document {
 
   // Phase 2: Content Export
   processedContent    String?   @db.Text @map("processed_content")
+  // DEPRECATED: Use ProcessingMetrics relation instead
   processingMetadata  Json?     @map("processing_metadata")
 
   // Phase 2E: Drive Sync
@@ -75,8 +76,9 @@ model Document {
   // Phase 4: Format Expansion
   formatCategory  String?       @map("format_category")
 
-  chunks        Chunk[]
-  driveConfig   DriveConfig?  @relation(fields: [driveConfigId], references: [id], onDelete: SetNull)
+  chunks              Chunk[]
+  driveConfig         DriveConfig?  @relation(fields: [driveConfigId], references: [id], onDelete: SetNull)
+  processingMetrics   ProcessingMetrics?
 
   @@index([sourceType])
   @@index([driveConfigId])
@@ -135,3 +137,47 @@ model DriveConfig {
   @@index([enabled])
   @@map("drive_configs")
 }
+
+// Phase 5: Analytics Dashboard - Processing Metrics
+model ProcessingMetrics {
+  id                String   @id @default(cuid())
+  documentId        String   @unique @map("document_id")
+  document          Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  // Migrated from processingMetadata JSON
+  pageCount         Int      @default(0) @map("page_count")
+  ocrApplied        Boolean  @default(false) @map("ocr_applied")
+  
+  // Queue & timing
+  enqueuedAt        DateTime? @map("enqueued_at")
+  startedAt         DateTime? @map("started_at")
+  completedAt       DateTime? @map("completed_at")
+  queueTimeMs       Int      @default(0) @map("queue_time_ms")
+  
+  // Processing time breakdown
+  conversionTimeMs  Int      @default(0) @map("conversion_time_ms")
+  chunkingTimeMs    Int      @default(0) @map("chunking_time_ms")
+  embeddingTimeMs   Int      @default(0) @map("embedding_time_ms")
+  totalTimeMs       Int      @default(0) @map("total_time_ms")
+  userWaitTimeMs    Int      @default(0) @map("user_wait_time_ms")
+  
+  // Size metrics
+  rawSizeBytes      Int      @default(0) @map("raw_size_bytes")
+  markdownSizeChars Int      @default(0) @map("markdown_size_chars")
+  
+  // Chunking efficiency
+  totalChunks       Int      @default(0) @map("total_chunks")
+  avgChunkSize      Float    @default(0) @map("avg_chunk_size")
+  oversizedChunks   Int      @default(0) @map("oversized_chunks")
+  
+  // Quality summary (aggregated from chunks)
+  avgQualityScore   Float    @default(0) @map("avg_quality_score")
+  qualityFlags      Json     @default("{}") @map("quality_flags")
+  totalTokens       Int      @default(0) @map("total_tokens")
+  
+  createdAt         DateTime @default(now()) @map("created_at")
+  
+  @@index([createdAt])
+  @@map("processing_metrics")
+}
+
