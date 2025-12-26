@@ -18,6 +18,7 @@ class XlsxConverter(FormatConverter):
     """
     Converts Excel XLSX files to Markdown.
     Processes all sheets, uses table or sentence format based on size.
+    Phase 4: Adds smart formatting and context-aware sentence serialization.
     """
 
     category = "tabular"
@@ -33,14 +34,17 @@ class XlsxConverter(FormatConverter):
                     markdown="", metadata={"error": f"File not found: {file_path}"}
                 )
 
-            # Read all sheets
+            # Read all sheets using openpyxl engine
             try:
                 xlsx = pd.ExcelFile(path, engine="openpyxl")
             except Exception as e:
                 if "password" in str(e).lower() or "encrypt" in str(e).lower():
                     return ProcessorOutput(
                         markdown="",
-                        metadata={"error": "PASSWORD_PROTECTED"},
+                        metadata={
+                            "error": "PASSWORD_PROTECTED",
+                            "message": "File is password protected. Remove password and re-upload.",
+                        },
                     )
                 raise
 
@@ -52,6 +56,7 @@ class XlsxConverter(FormatConverter):
             total_rows = 0
 
             for sheet_name in sheet_names:
+                # Read sheet, forcing string type to preserve exact text (e.g. IDs with leading zeros)
                 df = pd.read_excel(xlsx, sheet_name=sheet_name, dtype=str)
                 df = df.fillna("")
 
@@ -61,17 +66,18 @@ class XlsxConverter(FormatConverter):
 
                 total_rows += len(df)
 
-                # Add sheet header
+                # Add sheet header (Phase 4: Context)
                 markdown_parts.append(f"# {sheet_name}\n")
 
-                # Convert based on size
+                # Decision Logic: Table vs Sentence
                 if (
                     len(df) <= self.MAX_TABLE_ROWS
                     and len(df.columns) <= self.MAX_TABLE_COLS
                 ):
                     markdown_parts.append(self._to_markdown_table(df))
                 else:
-                    markdown_parts.append(self._to_sentence_format(df))
+                    # Pass sheet_name to inject context into every sentence
+                    markdown_parts.append(self._to_sentence_format(df, sheet_name))
 
                 markdown_parts.append("\n---\n")
 
@@ -79,9 +85,14 @@ class XlsxConverter(FormatConverter):
             if markdown.endswith("---"):
                 markdown = markdown[:-3].strip()
 
+            # Sanitize + Post-process (consistent with CSV approach)
+            markdown = self._sanitize_raw(markdown)
+            markdown = self._post_process(markdown)
+
             metadata: Dict[str, Any] = {
                 "sheet_count": len(sheet_names),
                 "total_rows": total_rows,
+                "source_format": "xlsx",
             }
 
             logger.info(
@@ -91,8 +102,6 @@ class XlsxConverter(FormatConverter):
                 rows=total_rows,
             )
 
-            markdown = self._post_process(markdown)
-
             return ProcessorOutput(
                 markdown=markdown, metadata=metadata, sheet_count=len(sheet_names)
             )
@@ -101,31 +110,110 @@ class XlsxConverter(FormatConverter):
             logger.exception("xlsx_conversion_error", path=file_path, error=str(e))
             return ProcessorOutput(markdown="", metadata={"error": str(e)})
 
+    def _format_smart_value(self, header: str, value: str) -> str:
+        """
+        Phase 4: Smart Number Formatting.
+        Applies semantic formatting based on header keywords and value type.
+        (Duplicated logic from CSV to keep converters independent)
+        """
+        header_lower = str(header).lower()
+        value = str(value).strip()
+
+        if not value:
+            return ""
+
+        try:
+            clean_val = value.replace(",", "")
+            float_val = float(clean_val)
+            is_number = True
+        except ValueError:
+            is_number = False
+
+        if is_number:
+            # Currency
+            if any(
+                k in header_lower
+                for k in ["revenue", "price", "cost", "salary", "usd", "amount"]
+            ):
+                if not value.startswith("$") and not value.startswith("€"):
+                    return f"${float_val:,.2f}"
+
+            # Percentage
+            if "rate" in header_lower or "percent" in header_lower:
+                if float_val < 1.0:
+                    return f"{float_val:.1%}"
+                return f"{float_val}%"
+
+            # Large Numbers
+            if float_val > 999:
+                if (
+                    "id" not in header_lower
+                    and "code" not in header_lower
+                    and "year" not in header_lower
+                ):
+                    return (
+                        f"{float_val:,.0f}"
+                        if float_val.is_integer()
+                        else f"{float_val:,.2f}"
+                    )
+
+        return value
+
     def _to_markdown_table(self, df: pd.DataFrame) -> str:
         if len(df.columns) == 0:
             return ""
+
         lines: List[str] = []
         headers = list(df.columns)
-        lines.append("| " + " | ".join(str(h) for h in headers) + " |")
+
+        # Escape pipes in headers
+        safe_headers = [
+            str(h).replace("|", "&#124;").replace("\n", " ") for h in headers
+        ]
+
+        lines.append("| " + " | ".join(safe_headers) + " |")
         lines.append("| " + " | ".join("---" for _ in headers) + " |")
+
         for _, row in df.iterrows():
-            cells = [str(v).replace("\n", " ").replace("\r", "") for v in row]
+            cells = []
+            for v in row:
+                val = str(v).strip()
+                # Escape pipes and newlines for valid markdown table
+                val = val.replace("|", "&#124;").replace("\n", "<br>")
+                cells.append(val)
             lines.append("| " + " | ".join(cells) + " |")
+
         return "\n".join(lines)
 
-    def _to_sentence_format(self, df: pd.DataFrame) -> str:
+    def _to_sentence_format(self, df: pd.DataFrame, sheet_name: str) -> str:
+        """
+        Phase 4: Sentence Serialization.
+        Format: "Sheet: {Name}. {Header} is {Value}."
+        """
         if df.empty:
             return ""
+
         lines: List[str] = []
         headers = list(df.columns)
+
         for _, row in df.iterrows():
-            row_lines: List[str] = []
+            # Phase 4: Start with Sheet context
+            row_parts: List[str] = [f"Sheet: {sheet_name}"]
+
             for header in headers:
-                value = str(row[header]).strip()
-                if value:
-                    value = value.replace("\n", " ").replace("\r", "")
-                    row_lines.append(f"**{header}:** {value}")
-            if row_lines:
-                lines.append("; ".join(row_lines) + ".")
-                lines.append("")
+                raw_val = str(row[header])
+                if not raw_val or raw_val.strip() == "":
+                    continue
+
+                formatted_val = self._format_smart_value(str(header), raw_val)
+                clean_header = str(header).strip()
+
+                # Syntax: "{Header} is {Value}"
+                row_parts.append(f"{clean_header} is {formatted_val}")
+
+            if len(row_parts) > 1:
+                # Join with periods.
+                lines.append(". ".join(row_parts) + ".")
+                lines.append("")  # Spacer
+
         return "\n".join(lines).strip()

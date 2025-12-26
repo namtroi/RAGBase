@@ -17,7 +17,7 @@ class InputSanitizer:
     """
 
     # Control characters to remove (0x01-0x1f), excluding \t (0x09) and \n (0x0a)
-    _CONTROL_CHAR_PATTERN = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+    _CONTROL_CHAR_PATTERN = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
     def sanitize(self, text: str) -> str:
         """
@@ -49,8 +49,6 @@ class InputSanitizer:
         text = text.replace("\r\n", "\n").replace("\r", "\n")
 
         # 6. Strip trailing whitespace from each line
-        lines = text.split("\n")
-        lines = [line.rstrip() for line in lines]
-        text = "\n".join(lines)
+        text = re.sub(r"[ \t]+$", "", text, flags=re.MULTILINE)
 
         return text

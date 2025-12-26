@@ -3,7 +3,9 @@
 
 import asyncio
 import gc
+import re
 from pathlib import Path
+from typing import Any, Dict
 
 from src.logging_config import get_logger
 from src.models import ProcessorOutput
@@ -16,7 +18,7 @@ logger = get_logger(__name__)
 class PptxConverter(FormatConverter):
     """
     Converts PowerPoint PPTX files to Markdown using Docling.
-    Adds slide markers for presentation chunking.
+    Phase 4: Adds robust slide markers () for chunking strategy.
     """
 
     category = "presentation"
@@ -48,17 +50,31 @@ class PptxConverter(FormatConverter):
                     markdown="", metadata={"error": f"File not found: {file_path}"}
                 )
 
+            # 1. Convert with Docling
             converter = self._get_docling_converter()
             result = await asyncio.to_thread(converter.convert, str(path))
 
-            markdown = result.document.export_to_markdown()
+            # 2. Extract raw markdown
+            raw_markdown = result.document.export_to_markdown()
 
-            # Add slide markers if not present
-            if "<!-- slide -->" not in markdown:
-                markdown = self._add_slide_markers(markdown)
+            # 3. Phase 4: Input Sanitization
+            # (Clean up null bytes or weird control chars before processing markers)
+            markdown = self._sanitize_raw(raw_markdown)
 
+            # 4. Inject Slide Markers for Chunking
+            # We enforce "" as the split token for the chunker
+            markdown = self._ensure_slide_markers(markdown)
+
+            # 5. Final Normalization (Headings, Whitespace)
             markdown = self._post_process(markdown)
-            slide_count = markdown.count("<!-- slide -->") + 1
+
+            # 6. Metadata Extraction
+            slide_count = markdown.count("") + 1
+            doc_metadata = self._extract_metadata(result.document)
+
+            # Combine internal count with Docling metadata
+            doc_metadata["slide_count"] = slide_count
+            doc_metadata["source_format"] = "pptx"
 
             logger.info(
                 "pptx_conversion_complete",
@@ -68,8 +84,8 @@ class PptxConverter(FormatConverter):
 
             return ProcessorOutput(
                 markdown=markdown,
-                metadata={"slide_count": slide_count},
-                slide_count=slide_count,
+                metadata=doc_metadata,
+                page_count=slide_count,  # Mapping slides to pages concept
             )
 
         except Exception as e:
@@ -79,16 +95,49 @@ class PptxConverter(FormatConverter):
         finally:
             gc.collect()
 
-    def _add_slide_markers(self, markdown: str) -> str:
-        """Add slide markers between top-level sections."""
+    def _extract_metadata(self, doc_obj: Any) -> Dict[str, Any]:
+        """Extract title/author from Docling document object if available."""
+        metadata = {}
+        try:
+            # Docling might populate description/provenance
+            # Adjust based on exact Docling version fields
+            if hasattr(doc_obj, "name") and doc_obj.name:
+                metadata["title"] = doc_obj.name
+        except Exception:
+            pass
+        return metadata
+
+    def _ensure_slide_markers(self, markdown: str) -> str:
+        """
+        Ensures `` markers exist between slides.
+        Strategy:
+        1. Check for standard Markdown horizontal rules '---' (Docling usually puts these).
+        2. Fallback to Header heuristic (# Title) if no rules found.
+        """
+        # If markers already exist, skip
+        if "" in markdown:
+            return markdown
+
+        # Strategy A: Replace Horizontal Rules (---)
+        # Docling typically separates pages/slides with ---
+        # We look for --- surrounded by newlines
+        if re.search(r"\n\s*---\s*\n", markdown):
+            return re.sub(r"\n\s*---\s*\n", "\n\n\n\n", markdown)
+
+        # Strategy B: Fallback to H1 Headers
+        # Only if no --- found (e.g., custom template)
+        logger.warning(
+            "pptx_fallback_marker", msg="No '---' delimiters found, using H1 heuristic"
+        )
         lines = markdown.split("\n")
         result: list[str] = []
         first_heading_found = False
 
         for line in lines:
+            # Detect H1 but exclude H2, H3...
             if line.startswith("# ") and not line.startswith("##"):
                 if first_heading_found:
-                    result.append("\n<!-- slide -->\n")
+                    result.append("\n\n")
                 first_heading_found = True
             result.append(line)
 

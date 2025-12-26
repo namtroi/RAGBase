@@ -1,10 +1,11 @@
 # apps/ai-worker/src/chunkers/presentation_chunker.py
 """
 Presentation chunker that splits by slide markers.
-Groups small slides to maintain context.
+Groups small slides to maintain context and extracts slide titles.
 """
 
-from typing import Any, Dict, List
+import re
+from typing import Any, Dict, List, Optional
 
 
 class PresentationChunker:
@@ -15,11 +16,17 @@ class PresentationChunker:
 
     def __init__(self, min_chunk_size: int = 200):
         self.min_chunk_size = min_chunk_size
-        self.marker = "<!-- slide -->"
+        self.marker = ""
 
     def chunk(self, text: str) -> List[Dict[str, Any]]:
         """
         Split content by slide markers and group small slides.
+
+        Args:
+            text: Raw markdown content with slide markers.
+
+        Returns:
+            List of chunk dictionaries with metadata.
         """
         if not text or not text.strip():
             return []
@@ -55,7 +62,7 @@ class PresentationChunker:
                 current_accumulation = []
                 current_indices = []
 
-        # If anything is left over (e.g. the last slide was empty but we had an accumulation)
+        # If anything is left over (e.g., the last slide was empty but we had an accumulation)
         if current_accumulation:
             chunk = self._create_chunk(
                 current_accumulation, current_indices, cumulative_pos
@@ -67,9 +74,14 @@ class PresentationChunker:
     def _create_chunk(
         self, contents: List[str], indices: List[int], char_start: int
     ) -> Dict[str, Any]:
-        """Helper to format a chunk."""
+        """
+        Helper to format a chunk dictionary.
+        """
         # Join slides with extra newline for clarity
         combined_content = "\n\n".join(contents)
+
+        # Extract title (first H1) for better search context
+        title = self._extract_title(combined_content)
 
         metadata = {
             "location": {
@@ -77,12 +89,24 @@ class PresentationChunker:
                 "slide_numbers": indices if len(indices) > 1 else [indices[0]],
             },
             "type": "presentation",
+            "hasTitle": bool(title),
+            "title": title,
             "charStart": char_start,
             "charEnd": char_start + len(combined_content),
         }
 
-        # Backward compatibility for tests expecting slide_number even if grouped
+        # Backward compatibility: ensure slide_number is set even if grouped
         if len(indices) > 1:
             metadata["location"]["slide_number"] = indices[0]
 
         return {"content": combined_content, "metadata": metadata}
+
+    def _extract_title(self, text: str) -> Optional[str]:
+        """
+        Extract the first Markdown H1 header (# Title) from text.
+        """
+        # Matches lines starting with exactly one # followed by whitespace
+        match = re.search(r"^#\s+(.+)$", text, re.MULTILINE)
+        if match:
+            return match.group(1).strip()
+        return None
