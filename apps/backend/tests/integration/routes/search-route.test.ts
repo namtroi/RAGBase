@@ -163,6 +163,39 @@ describe('POST /api/query', () => {
       // Default should be 5, but may return fewer if not enough chunks
       expect(response.statusCode).toBe(200);
     });
+
+    it('should reject invalid mode values', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/query',
+        headers: { 'X-API-Key': API_KEY },
+        payload: { query: 'test', mode: 'invalid' },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('should reject alpha below 0', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/query',
+        headers: { 'X-API-Key': API_KEY },
+        payload: { query: 'test', alpha: -0.1 },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('should reject alpha above 1', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/query',
+        headers: { 'X-API-Key': API_KEY },
+        payload: { query: 'test', alpha: 1.5 },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
   });
 
   describe('empty results', () => {
@@ -242,6 +275,121 @@ describe('POST /api/query', () => {
       });
 
       expect(response.json().results).toHaveLength(0);
+    });
+  });
+
+  describe('search modes', () => {
+    async function insertChunkWithSearchVector(docId: string, content: string, chunkIndex: number = 0) {
+      const prisma = getPrisma();
+      const embedding = mockEmbedding(content);
+      // Insert with search_vector to support hybrid search
+      await prisma.$executeRaw`
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, search_vector, char_start, char_end, created_at)
+        VALUES (gen_random_uuid(), ${docId}, ${content}, ${chunkIndex}, ${JSON.stringify(embedding)}::vector, to_tsvector('english', ${content}), 0, ${content.length}, NOW())
+      `;
+    }
+
+    it('should default to semantic mode', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/query',
+        headers: { 'X-API-Key': API_KEY },
+        payload: { query: 'test' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().mode).toBe('semantic');
+    });
+
+    it('should accept explicit semantic mode', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/query',
+        headers: { 'X-API-Key': API_KEY },
+        payload: { query: 'test', mode: 'semantic' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().mode).toBe('semantic');
+    });
+
+    it('should accept hybrid mode', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/query',
+        headers: { 'X-API-Key': API_KEY },
+        payload: { query: 'test', mode: 'hybrid' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().mode).toBe('hybrid');
+    });
+
+    it('should return alpha value in hybrid mode response', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/query',
+        headers: { 'X-API-Key': API_KEY },
+        payload: { query: 'test', mode: 'hybrid', alpha: 0.5 },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.mode).toBe('hybrid');
+      expect(body.alpha).toBe(0.5);
+    });
+
+    it('should use default alpha 0.7 in hybrid mode when not specified', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/query',
+        headers: { 'X-API-Key': API_KEY },
+        payload: { query: 'test', mode: 'hybrid' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().alpha).toBe(0.7);
+    });
+
+    it('should include vectorScore and keywordScore in hybrid mode results', async () => {
+      const doc = await seedDocument({ status: 'COMPLETED' });
+      await insertChunkWithSearchVector(doc.id, 'Machine learning is amazing');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/query',
+        headers: { 'X-API-Key': API_KEY },
+        payload: { query: 'machine learning', mode: 'hybrid', topK: 5 },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.results.length).toBeGreaterThan(0);
+      
+      const result = body.results[0];
+      expect(result.vectorScore).toBeDefined();
+      expect(result.keywordScore).toBeDefined();
+      expect(typeof result.vectorScore).toBe('number');
+      expect(typeof result.keywordScore).toBe('number');
+    });
+
+    it('should not include vectorScore/keywordScore in semantic mode', async () => {
+      const doc = await seedDocument({ status: 'COMPLETED' });
+      await insertChunkWithSearchVector(doc.id, 'Some test content');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/query',
+        headers: { 'X-API-Key': API_KEY },
+        payload: { query: 'test content', mode: 'semantic', topK: 5 },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      if (body.results.length > 0) {
+        expect(body.results[0].vectorScore).toBeUndefined();
+        expect(body.results[0].keywordScore).toBeUndefined();
+      }
     });
   });
 });

@@ -25,6 +25,8 @@ import { disconnectPrisma } from './services/database.js';
 // Phase 5: Analytics Dashboard
 import { overviewRoute, processingRoute, qualityRoute, documentsRoute } from './routes/analytics/index.js';
 import { chunksRoute } from './routes/chunks/index.js';
+// Hybrid Search Infrastructure
+import { initializeHybridSearch } from './services/hybrid-search-init.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -69,6 +71,10 @@ export async function createApp(): Promise<FastifyInstance> {
     // Initialize Drive sync cron jobs
     initializeCronJobs().catch(err => {
       console.error('Failed to initialize cron jobs:', err);
+    });
+    // Initialize hybrid search (tsvector trigger)
+    initializeHybridSearch().catch(err => {
+      console.error('Failed to initialize hybrid search:', err);
     });
   }
 

@@ -110,11 +110,15 @@ model Chunk {
   breadcrumbs    String[]  @default([])
   tokenCount     Int?      @map("token_count")
 
+  // Hybrid Search: BM25 full-text search vector
+  searchVector   Unsupported("tsvector")?  @map("search_vector")
+
   document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@unique([documentId, chunkIndex])
   @@index([qualityScore])
   @@index([chunkType])
+  @@index([searchVector], type: Gin)
   @@map("chunks")
 }
 
