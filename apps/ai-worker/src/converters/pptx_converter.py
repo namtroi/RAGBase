@@ -14,11 +14,14 @@ from .base import FormatConverter
 
 logger = get_logger(__name__)
 
+# Standard slide marker for presentation chunking
+SLIDE_MARKER = "<!-- slide -->"
+
 
 class PptxConverter(FormatConverter):
     """
     Converts PowerPoint PPTX files to Markdown using Docling.
-    Phase 4: Adds robust slide markers () for chunking strategy.
+    Phase 4: Adds robust slide markers for chunking strategy.
     """
 
     category = "presentation"
@@ -62,14 +65,14 @@ class PptxConverter(FormatConverter):
             markdown = self._sanitize_raw(raw_markdown)
 
             # 4. Inject Slide Markers for Chunking
-            # We enforce "" as the split token for the chunker
+            # We enforce SLIDE_MARKER as the split token for the chunker
             markdown = self._ensure_slide_markers(markdown)
 
             # 5. Final Normalization (Headings, Whitespace)
             markdown = self._post_process(markdown)
 
             # 6. Metadata Extraction
-            slide_count = markdown.count("") + 1
+            slide_count = markdown.count(SLIDE_MARKER) + 1
             doc_metadata = self._extract_metadata(result.document)
 
             # Combine internal count with Docling metadata
@@ -85,7 +88,7 @@ class PptxConverter(FormatConverter):
             return ProcessorOutput(
                 markdown=markdown,
                 metadata=doc_metadata,
-                page_count=slide_count,  # Mapping slides to pages concept
+                slide_count=slide_count,
             )
 
         except Exception as e:
@@ -109,20 +112,20 @@ class PptxConverter(FormatConverter):
 
     def _ensure_slide_markers(self, markdown: str) -> str:
         """
-        Ensures `` markers exist between slides.
+        Ensures slide markers exist between slides.
         Strategy:
         1. Check for standard Markdown horizontal rules '---' (Docling usually puts these).
         2. Fallback to Header heuristic (# Title) if no rules found.
         """
         # If markers already exist, skip
-        if "" in markdown:
+        if SLIDE_MARKER in markdown:
             return markdown
 
         # Strategy A: Replace Horizontal Rules (---)
         # Docling typically separates pages/slides with ---
         # We look for --- surrounded by newlines
         if re.search(r"\n\s*---\s*\n", markdown):
-            return re.sub(r"\n\s*---\s*\n", "\n\n\n\n", markdown)
+            return re.sub(r"\n\s*---\s*\n", f"\n\n{SLIDE_MARKER}\n\n", markdown)
 
         # Strategy B: Fallback to H1 Headers
         # Only if no --- found (e.g., custom template)
@@ -137,7 +140,7 @@ class PptxConverter(FormatConverter):
             # Detect H1 but exclude H2, H3...
             if line.startswith("# ") and not line.startswith("##"):
                 if first_heading_found:
-                    result.append("\n\n")
+                    result.append(f"\n{SLIDE_MARKER}\n")
                 first_heading_found = True
             result.append(line)
 

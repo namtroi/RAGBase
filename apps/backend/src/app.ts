@@ -22,6 +22,9 @@ import { callbackRoute } from './routes/internal/callback-route.js';
 import { searchRoute } from './routes/query/search-route.js';
 import { closeAllSSEConnections, sseRoute } from './routes/sse-route.js';
 import { disconnectPrisma } from './services/database.js';
+// Phase 5: Analytics Dashboard
+import { overviewRoute, processingRoute, qualityRoute, documentsRoute } from './routes/analytics/index.js';
+import { chunksRoute } from './routes/chunks/index.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -88,6 +91,13 @@ export async function createApp(): Promise<FastifyInstance> {
 
     // SSE real-time events
     await sseRoute(protectedScope);
+
+    // Phase 5: Analytics Dashboard routes
+    await overviewRoute(protectedScope);
+    await processingRoute(protectedScope);
+    await qualityRoute(protectedScope);
+    await documentsRoute(protectedScope);
+    await chunksRoute(protectedScope);
   });
 
   app.addHook('onClose', async () => {
@@ -100,4 +110,3 @@ export async function createApp(): Promise<FastifyInstance> {
 
   return app;
 }
-
