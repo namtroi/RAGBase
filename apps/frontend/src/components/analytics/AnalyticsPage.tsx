@@ -1,5 +1,5 @@
 import { useAnalyticsOverview, useAnalyticsProcessing, useAnalyticsQuality } from '@/hooks/use-analytics';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowDown, BarChart3, ChevronDown, Clock, FileText, Layers, Zap } from 'lucide-react';
 
 const formatOptions = [
@@ -109,6 +109,21 @@ function StageCard({ stageNum, title, icon, stats, footer, showArrow = true }: S
 export function AnalyticsPage() {
     const [format, setFormat] = useState('pdf'); // Default to PDF
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setDropdownOpen(false);
+            }
+        }
+
+        if (dropdownOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }
+    }, [dropdownOpen]);
 
     // Overview data (no filters)
     const { data: overview, isLoading: loadingOverview } = useAnalyticsOverview();
@@ -146,7 +161,7 @@ export function AnalyticsPage() {
                 <>
                     {/* Overview Section (All Time, All Formats) */}
                     <div>
-                        <p className="text-xs font-medium text-gray-400 mb-3">OVERVIEW (ALL TIME, ALL FORMATS)</p>
+                        <h3 className="text-lg font-semibold text-gray-800 mb-6">Overview (All Time, All Formats)</h3>
 
                         {/* Row 1: Counts */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -194,7 +209,7 @@ export function AnalyticsPage() {
                             <h3 className="text-lg font-semibold text-gray-800">Pipeline Stages</h3>
 
                             {/* Format Dropdown */}
-                            <div className="relative">
+                            <div className="relative" ref={dropdownRef}>
                                 <button
                                     onClick={() => setDropdownOpen(!dropdownOpen)}
                                     className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-white border border-gray-200 rounded-lg hover:bg-gray-50"

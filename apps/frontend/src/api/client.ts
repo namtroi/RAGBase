@@ -1,22 +1,5 @@
 const API_BASE = '/api';
 
-interface ApiConfig {
-  apiKey: string;
-}
-
-const config: ApiConfig = {
-  apiKey: localStorage.getItem('apiKey') || '',
-};
-
-export function setApiKey(key: string) {
-  config.apiKey = key;
-  localStorage.setItem('apiKey', key);
-}
-
-export function getApiKey(): string {
-  return config.apiKey;
-}
-
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
@@ -26,8 +9,7 @@ async function request<T>(
   const hasBody = options.body !== undefined;
 
   const headers: Record<string, string> = {
-    ...options.headers as Record<string, string>,
-    'X-API-Key': config.apiKey,
+    ...(options.headers as Record<string, string>),
   };
 
   // Only set Content-Type for non-FormData requests WITH a body

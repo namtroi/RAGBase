@@ -5,7 +5,6 @@
  * invalidates React Query caches on server events.
  */
 
-import { getApiKey } from '@/api/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { ReactNode, useEffect, useMemo } from 'react';
 import { EventContext } from '../contexts/EventContext';
@@ -18,12 +17,8 @@ interface EventProviderProps {
 export function EventProvider({ children }: EventProviderProps) {
     const queryClient = useQueryClient();
 
-    // Build SSE URL with API key (EventSource doesn't support headers)
-    const sseUrl = useMemo(() => {
-        const apiKey = getApiKey();
-        if (!apiKey) return null; // Don't connect without API key
-        return `/api/events?apiKey=${encodeURIComponent(apiKey)}`;
-    }, []);
+    // SSE URL - no auth required in demo mode
+    const sseUrl = useMemo(() => '/api/events', []);
 
     const handleEvent = (event: ServerEvent) => {
         console.log('📡 SSE Event:', event.type, event.payload);

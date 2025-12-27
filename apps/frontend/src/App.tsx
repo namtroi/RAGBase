@@ -1,4 +1,4 @@
-import { getApiKey, setApiKey } from '@/api/client';
+
 import { DocumentList } from '@/components/documents/document-list';
 import { UploadDropzone } from '@/components/documents/upload-dropzone';
 import { DriveSyncTab } from '@/components/drive/DriveSyncTab';
@@ -6,7 +6,7 @@ import { SearchForm } from '@/components/query/search-form';
 import { AnalyticsPage } from '@/components/analytics/AnalyticsPage';
 import { ChunksExplorerPage } from '@/components/chunks/ChunksExplorerPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { FileText, FolderSync, Key, Search, Settings, BarChart3, Layers } from 'lucide-react';
+import { FileText, FolderSync, Search, Settings, BarChart3, Layers } from 'lucide-react';
 import { useState } from 'react';
 
 const queryClient = new QueryClient({
@@ -22,19 +22,13 @@ type Tab = 'documents' | 'query' | 'analytics' | 'chunks' | 'settings' | 'drive'
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<Tab>('documents');
-  const [apiKey, setApiKeyState] = useState(getApiKey());
-
-  const handleApiKeyChange = (key: string) => {
-    setApiKeyState(key);
-    setApiKey(key);
-  };
 
   const tabs = [
-    { id: 'documents' as Tab, label: 'Documents', icon: FileText },
     { id: 'drive' as Tab, label: 'Drive Sync', icon: FolderSync },
-    { id: 'analytics' as Tab, label: 'Analytics', icon: BarChart3 },
+    { id: 'documents' as Tab, label: 'Documents', icon: FileText },
     { id: 'chunks' as Tab, label: 'Chunks', icon: Layers },
     { id: 'query' as Tab, label: 'Search', icon: Search },
+    { id: 'analytics' as Tab, label: 'Analytics', icon: BarChart3 },
   ];
 
   return (
@@ -80,12 +74,7 @@ function AppContent() {
               <Settings className="w-4 h-4" />
             </button>
 
-            {/* API Key Warning */}
-            {!apiKey && (
-              <span className="text-sm text-amber-600 flex items-center gap-1 ml-2">
-                <Key className="w-4 h-4" />
-              </span>
-            )}
+
           </div>
         </div>
       </header>
@@ -142,23 +131,13 @@ function AppContent() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
               Settings
             </h2>
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <label
-                htmlFor="apiKey"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                API Key
-              </label>
-              <input
-                id="apiKey"
-                type="password"
-                value={apiKey}
-                onChange={(e) => handleApiKeyChange(e.target.value)}
-                placeholder="Enter your API key"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
-              <p className="mt-2 text-sm text-gray-500">
-                Your API key is stored locally in your browser.
+            <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
+              <Settings className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+              <p className="text-sm text-gray-500">
+                No settings configured yet.
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                More options coming in Phase 5.
               </p>
             </div>
           </div>
