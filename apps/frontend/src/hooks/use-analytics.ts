@@ -1,33 +1,31 @@
 import { useQuery } from '@tanstack/react-query';
 import { analyticsApi } from '@/api/endpoints';
 
-export type Period = '24h' | '7d' | '30d' | 'all';
-
-export function useAnalyticsOverview(period: Period = '7d') {
+export function useAnalyticsOverview() {
     return useQuery({
-        queryKey: ['analytics', 'overview', period],
-        queryFn: () => analyticsApi.getOverview(period),
+        queryKey: ['analytics', 'overview'],
+        queryFn: () => analyticsApi.getOverview(),
         staleTime: 30000, // 30 seconds
     });
 }
 
-export function useAnalyticsProcessing(period: Period = '7d') {
+export function useAnalyticsProcessing(format?: string) {
     return useQuery({
-        queryKey: ['analytics', 'processing', period],
-        queryFn: () => analyticsApi.getProcessing(period),
+        queryKey: ['analytics', 'processing', format],
+        queryFn: () => analyticsApi.getProcessing(format),
         staleTime: 30000,
     });
 }
 
-export function useAnalyticsQuality(period: Period = '7d') {
+export function useAnalyticsQuality() {
     return useQuery({
-        queryKey: ['analytics', 'quality', period],
-        queryFn: () => analyticsApi.getQuality(period),
+        queryKey: ['analytics', 'quality'],
+        queryFn: () => analyticsApi.getQuality(),
         staleTime: 30000,
     });
 }
 
-export function useAnalyticsDocuments(params?: { page?: number; limit?: number; period?: string }) {
+export function useAnalyticsDocuments(params?: { page?: number; limit?: number }) {
     return useQuery({
         queryKey: ['analytics', 'documents', params],
         queryFn: () => analyticsApi.getDocuments(params),

@@ -184,13 +184,21 @@ export interface AnalyticsOverview {
   period: string;
   periodStart: string;
   periodEnd: string;
+  // New metrics
+  successRate: number;
+  formatDistribution: Record<string, number>;
+  avgUserWaitTimeMs: number;
 }
 
 export interface AnalyticsProcessing {
   period: string;
+  format: string;
   periodStart: string;
   periodEnd: string;
   documentsProcessed: number;
+  // New metrics
+  ocrUsagePercent: number;
+  avgConversionTimePerPage: number;
   breakdown: {
     avgConversionTimeMs: number;
     avgChunkingTimeMs: number;
@@ -217,6 +225,12 @@ export interface AnalyticsQuality {
   };
   flags: Record<string, number>;
   totalChunks: number;
+  // New rate metrics
+  fragmentRate: number;
+  noContextRate: number;
+  tooShortRate: number;
+  contextInjectionRate: number;
+  avgTokensPerChunk: number;
 }
 
 export interface DocumentMetrics {
@@ -282,14 +296,17 @@ export interface ChunksListParams {
 
 // Analytics endpoints
 export const analyticsApi = {
-  getOverview: (period: '24h' | '7d' | '30d' | 'all' = '7d') =>
-    api.get<AnalyticsOverview>(`/analytics/overview?period=${period}`),
+  getOverview: () =>
+    api.get<AnalyticsOverview>(`/analytics/overview?period=all`),
 
-  getProcessing: (period: '24h' | '7d' | '30d' | 'all' = '7d') =>
-    api.get<AnalyticsProcessing>(`/analytics/processing?period=${period}`),
+  getProcessing: (format?: string) => {
+    const params = new URLSearchParams({ period: 'all' });
+    if (format) params.set('format', format);
+    return api.get<AnalyticsProcessing>(`/analytics/processing?${params.toString()}`);
+  },
 
-  getQuality: (period: '24h' | '7d' | '30d' | 'all' = '7d') =>
-    api.get<AnalyticsQuality>(`/analytics/quality?period=${period}`),
+  getQuality: () =>
+    api.get<AnalyticsQuality>(`/analytics/quality?period=all`),
 
   getDocuments: (params?: { page?: number; limit?: number; period?: string }) => {
     const query = new URLSearchParams();

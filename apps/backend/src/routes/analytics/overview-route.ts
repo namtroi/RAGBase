@@ -1,61 +1,41 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { getPrismaClient } from '@/services/database.js';
+import { getPeriodDateRange } from '@/utils/analytics-utils.js';
 
 // Query parameters schema
 const PeriodQuerySchema = z.object({
   period: z.enum(['24h', '7d', '30d', 'all']).default('7d'),
 });
 
-/**
- * Calculate date range based on period string.
- */
-function getPeriodDateRange(period: string): { start: Date; end: Date } {
-  const end = new Date();
-  const start = new Date();
-  
-  switch (period) {
-    case '24h':
-      start.setHours(start.getHours() - 24);
-      break;
-    case '7d':
-      start.setDate(start.getDate() - 7);
-      break;
-    case '30d':
-      start.setDate(start.getDate() - 30);
-      break;
-    case 'all':
-      start.setFullYear(2000); // Effectively no lower bound
-      break;
-  }
-  
-  return { start, end };
-}
-
 export async function overviewRoute(fastify: FastifyInstance): Promise<void> {
   /**
    * GET /api/analytics/overview
    * Returns summary statistics for the analytics dashboard.
+   * Note: Overview returns ALL data (no period filter) as per Option C design.
    */
   fastify.get('/api/analytics/overview', async (request, reply) => {
     const queryResult = PeriodQuerySchema.safeParse(request.query);
-    
+
     if (!queryResult.success) {
       return reply.status(400).send({
         error: 'VALIDATION_ERROR',
         message: queryResult.error.message,
       });
     }
-    
+
     const { period } = queryResult.data;
     const { start, end } = getPeriodDateRange(period);
     const prisma = getPrismaClient();
-    
+
     // Query metrics within the period
     const [
       metricsAgg,
       totalDocuments,
       totalChunks,
+      completedCount,
+      failedCount,
+      formatCounts,
     ] = await Promise.all([
       // Aggregate processing metrics
       prisma.processingMetrics.aggregate({
@@ -87,14 +67,50 @@ export async function overviewRoute(fastify: FastifyInstance): Promise<void> {
           createdAt: { gte: start, lte: end },
         },
       }),
+      // Completed documents count
+      prisma.document.count({
+        where: {
+          status: 'COMPLETED',
+          createdAt: { gte: start, lte: end },
+        },
+      }),
+      // Failed documents count
+      prisma.document.count({
+        where: {
+          status: 'FAILED',
+          createdAt: { gte: start, lte: end },
+        },
+      }),
+      // Format distribution
+      prisma.document.groupBy({
+        by: ['format'],
+        where: {
+          createdAt: { gte: start, lte: end },
+        },
+        _count: true,
+      }),
     ]);
-    
+
+    // Calculate success rate
+    const totalProcessed = completedCount + failedCount;
+    const successRate = totalProcessed > 0
+      ? Number(((completedCount / totalProcessed) * 100).toFixed(2))
+      : 0;
+
+    // Build format distribution object
+    const formatDistribution: Record<string, number> = {};
+    for (const item of formatCounts) {
+      formatDistribution[item.format] = item._count;
+    }
+
     return reply.send({
       period,
       periodStart: start.toISOString(),
       periodEnd: end.toISOString(),
       totalDocuments,
       totalChunks,
+      successRate,
+      formatDistribution,
       avgProcessingTimeMs: Math.round(metricsAgg._avg.totalTimeMs || 0),
       avgQueueTimeMs: Math.round(metricsAgg._avg.queueTimeMs || 0),
       avgUserWaitTimeMs: Math.round(metricsAgg._avg.userWaitTimeMs || 0),
@@ -103,3 +119,4 @@ export async function overviewRoute(fastify: FastifyInstance): Promise<void> {
     });
   });
 }
+
