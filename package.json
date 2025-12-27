@@ -8,7 +8,9 @@
     "dev:all": "docker compose -f docker-compose.dev.yml up -d && concurrently -n backend,worker,frontend -c blue,green,cyan \"pnpm --filter @ragbase/backend dev\" \"cd apps/ai-worker && . .venv/bin/activate && python -m src.main\" \"pnpm --filter @ragbase/frontend dev\"",
     "build": "turbo run build",
     "test": "./scripts/test-all.sh",
-    "check": "./scripts/check-all.sh"
+    "check": "./scripts/check-all.sh",
+    "lint": "pnpm --filter @ragbase/backend lint && pnpm --filter @ragbase/frontend lint",
+    "type-check": "pnpm --filter @ragbase/backend type-check && pnpm --filter @ragbase/frontend type-check"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^10.13.0",
