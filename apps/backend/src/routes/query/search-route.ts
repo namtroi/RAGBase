@@ -63,6 +63,9 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
       char_end: number;
       page: number | null;
       heading: string | null;
+      quality_score: number | null;
+      chunk_type: string | null;
+      breadcrumbs: string[];
       similarity: number;
     }>>`
       SELECT
@@ -73,6 +76,9 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
         c.char_end,
         c.page,
         c.heading,
+        c.quality_score,
+        c.chunk_type,
+        c.breadcrumbs,
         1 - (c.embedding <=> ${JSON.stringify(queryEmbedding)}::vector) as similarity
       FROM chunks c
       JOIN documents d ON c.document_id = d.id
@@ -90,8 +96,11 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
         metadata: {
           charStart: r.char_start,
           charEnd: r.char_end,
-          page: r.page || undefined,
-          heading: r.heading || undefined,
+          page: r.page ?? undefined,
+          heading: r.heading ?? undefined,
+          qualityScore: r.quality_score ?? undefined,
+          chunkType: r.chunk_type ?? undefined,
+          breadcrumbs: r.breadcrumbs?.length > 0 ? r.breadcrumbs : undefined,
         },
       })),
     });

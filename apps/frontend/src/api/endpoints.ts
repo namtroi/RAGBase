@@ -235,11 +235,17 @@ export interface DocumentMetrics {
 export interface ChunkListItem {
   id: string;
   documentId: string;
-  filename: string;  // Backend returns filename directly
-  index: number;     // Backend returns index, not chunkIndex
+  filename: string;
+  format: string;
+  formatCategory: string | null;
+  index: number;
   content: string;
+  charStart: number;
+  charEnd: number;
   qualityScore: number | null;
   chunkType: string | null;
+  completeness: string | null;
+  hasTitle: boolean | null;
   qualityFlags: string[];
   tokenCount: number | null;
   breadcrumbs: string | null;

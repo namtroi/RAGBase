@@ -18,11 +18,25 @@ export function SearchForm() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      searchMutation.mutate({ 
-        query: query.trim(), 
+      searchMutation.mutate({
+        query: query.trim(),
         topK,
         mode,
         alpha: mode === 'hybrid' ? alpha : undefined,
+      });
+    }
+  };
+
+  // Auto-search when switching modes (only if we have previous results)
+  const handleModeChange = (newMode: SearchMode) => {
+    setMode(newMode);
+    // Only auto-search if there's a query and we've already searched
+    if (searchMutation.data && query.trim()) {
+      searchMutation.mutate({
+        query: query.trim(),
+        topK,
+        mode: newMode,
+        alpha: newMode === 'hybrid' ? alpha : undefined,
       });
     }
   };
@@ -68,7 +82,7 @@ export function SearchForm() {
             <div className="flex rounded-lg border border-gray-300 overflow-hidden">
               <button
                 type="button"
-                onClick={() => setMode('semantic')}
+                onClick={() => handleModeChange('semantic')}
                 className={clsx(
                   'flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors',
                   mode === 'semantic'
@@ -81,7 +95,7 @@ export function SearchForm() {
               </button>
               <button
                 type="button"
-                onClick={() => setMode('hybrid')}
+                onClick={() => handleModeChange('hybrid')}
                 className={clsx(
                   'flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors border-l border-gray-300',
                   mode === 'hybrid'
@@ -124,8 +138,8 @@ export function SearchForm() {
 
       {/* Results */}
       {searchMutation.data && (
-        <ResultsList 
-          results={searchMutation.data.results} 
+        <ResultsList
+          results={searchMutation.data.results}
           mode={searchMutation.data.mode}
           alpha={searchMutation.data.alpha}
         />

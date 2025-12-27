@@ -1,5 +1,5 @@
 import { QueryResult } from '@/api/endpoints';
-import { FileText, Search, Star, Sparkles, Zap } from 'lucide-react';
+import { FileText, Search, Star, Sparkles, Zap, BookOpen, Navigation } from 'lucide-react';
 
 interface ResultsListProps {
   results: QueryResult[];
@@ -42,30 +42,28 @@ export function ResultsList({ results, mode, alpha }: ResultsListProps) {
         )}
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {results.map((result, index) => (
           <div
             key={`${result.documentId}-${index}`}
-            className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+            className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
           >
-            {/* Score and metadata */}
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <FileText className="w-4 h-4" />
-                <span className="font-mono text-xs">
-                  {result.documentId.slice(0, 8)}...
-                </span>
-                {result.metadata.page && (
-                  <span>Page {result.metadata.page}</span>
-                )}
-                {result.metadata.heading && (
-                  <span className="text-primary-600">
-                    {result.metadata.heading}
+            {/* Header: Document ID, Page, Scores */}
+            <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
+              <div className="flex items-center gap-3 text-sm text-gray-600">
+                <div className="flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-gray-400" />
+                  <span className="font-mono text-xs">
+                    {result.documentId.slice(0, 8)}...
                   </span>
+                </div>
+                {result.metadata.page && (
+                  <span className="text-gray-500">Page {result.metadata.page}</span>
                 )}
               </div>
+
+              {/* Scores */}
               <div className="flex items-center gap-3">
-                {/* Hybrid score breakdown */}
                 {isHybrid && (result.vectorScore !== undefined || result.keywordScore !== undefined) && (
                   <div className="flex items-center gap-2 text-xs text-gray-400">
                     {result.vectorScore !== undefined && (
@@ -82,12 +80,11 @@ export function ResultsList({ results, mode, alpha }: ResultsListProps) {
                     )}
                   </div>
                 )}
-                {/* Combined score */}
                 <div className="flex items-center gap-1 text-amber-500">
                   <Star className="w-4 h-4 fill-current" />
                   <span className="text-sm font-medium">
-                    {isHybrid 
-                      ? (result.score * 1000).toFixed(1) 
+                    {isHybrid
+                      ? (result.score * 1000).toFixed(1)
                       : `${(result.score * 100).toFixed(1)}%`
                     }
                   </span>
@@ -95,20 +92,47 @@ export function ResultsList({ results, mode, alpha }: ResultsListProps) {
               </div>
             </div>
 
-            {/* Content */}
-            <p className="text-gray-700 text-sm line-clamp-4">
-              {result.content}
-            </p>
-
-            {/* Additional metadata for hybrid mode */}
-            {result.metadata.qualityScore !== undefined && (
-              <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
-                <span>Quality: {(result.metadata.qualityScore * 100).toFixed(0)}%</span>
-                {result.metadata.chunkType && (
-                  <span className="bg-gray-100 px-1.5 py-0.5 rounded">{result.metadata.chunkType}</span>
-                )}
+            {/* Breadcrumbs */}
+            {result.metadata.breadcrumbs && result.metadata.breadcrumbs.length > 0 && (
+              <div className="px-4 py-2 bg-blue-50 border-b border-blue-100">
+                <div className="flex items-center gap-2 text-xs text-blue-700">
+                  <Navigation className="w-3.5 h-3.5" />
+                  <span>{result.metadata.breadcrumbs.join(' › ')}</span>
+                </div>
               </div>
             )}
+
+            {/* Heading */}
+            {result.metadata.heading && (
+              <div className="px-4 py-2 bg-primary-50 border-b border-primary-100">
+                <div className="flex items-center gap-2 text-sm font-medium text-primary-700">
+                  <BookOpen className="w-4 h-4" />
+                  <span>{result.metadata.heading}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Full Content */}
+            <div className="px-4 py-3">
+              <p className="text-gray-700 text-sm whitespace-pre-wrap">
+                {result.content}
+              </p>
+            </div>
+
+            {/* Footer: Quality & Type */}
+            <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 flex items-center gap-3 text-xs text-gray-500">
+              {result.metadata.qualityScore !== undefined && (
+                <span className="flex items-center gap-1">
+                  <span className="text-gray-400">Quality:</span>
+                  <span className="font-medium">{(result.metadata.qualityScore * 100).toFixed(0)}%</span>
+                </span>
+              )}
+              {result.metadata.chunkType && (
+                <span className="bg-gray-200 text-gray-600 px-2 py-0.5 rounded">
+                  {result.metadata.chunkType}
+                </span>
+              )}
+            </div>
           </div>
         ))}
       </div>
