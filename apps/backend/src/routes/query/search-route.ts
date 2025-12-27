@@ -1,5 +1,6 @@
 import { getPrismaClient } from '@/services/database.js';
 import { EmbeddingClient } from '@/services/embedding-client.js';
+import { hybridSearchService } from '@/services/hybrid-search.js';
 import { QuerySchema } from '@/validators/index.js';
 import { FastifyInstance } from 'fastify';
 
@@ -16,7 +17,7 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
       });
     }
 
-    const { query, topK } = input.data;
+    const { query, topK, mode, alpha } = input.data;
 
     // Generate embedding for query via AI Worker
     let queryEmbedding: number[];
@@ -29,7 +30,30 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
       });
     }
 
-    // Search using pgvector (let Prisma handle parameter binding)
+    // Hybrid mode: use HybridSearchService with RRF
+    if (mode === 'hybrid') {
+      const hybridResults = await hybridSearchService.search({
+        queryEmbedding,
+        queryText: query,
+        topK,
+        alpha,
+      });
+
+      return reply.send({
+        mode: 'hybrid',
+        alpha,
+        results: hybridResults.map(r => ({
+          content: r.content,
+          score: r.score,
+          documentId: r.documentId,
+          vectorScore: r.vectorScore,
+          keywordScore: r.keywordScore,
+          metadata: r.metadata,
+        })),
+      });
+    }
+
+    // Semantic mode (default): pure vector search using pgvector
     const prisma = getPrismaClient();
     const results = await prisma.$queryRaw<Array<{
       id: string;
@@ -39,6 +63,9 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
       char_end: number;
       page: number | null;
       heading: string | null;
+      quality_score: number | null;
+      chunk_type: string | null;
+      breadcrumbs: string[];
       similarity: number;
     }>>`
       SELECT
@@ -49,6 +76,9 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
         c.char_end,
         c.page,
         c.heading,
+        c.quality_score,
+        c.chunk_type,
+        c.breadcrumbs,
         1 - (c.embedding <=> ${JSON.stringify(queryEmbedding)}::vector) as similarity
       FROM chunks c
       JOIN documents d ON c.document_id = d.id
@@ -58,6 +88,7 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
     `;
 
     return reply.send({
+      mode: 'semantic',
       results: results.map(r => ({
         content: r.content,
         score: Math.max(0, r.similarity),  // Ensure non-negative scores
@@ -65,8 +96,11 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
         metadata: {
           charStart: r.char_start,
           charEnd: r.char_end,
-          page: r.page || undefined,
-          heading: r.heading || undefined,
+          page: r.page ?? undefined,
+          heading: r.heading ?? undefined,
+          qualityScore: r.quality_score ?? undefined,
+          chunkType: r.chunk_type ?? undefined,
+          breadcrumbs: r.breadcrumbs?.length > 0 ? r.breadcrumbs : undefined,
         },
       })),
     });

@@ -58,4 +58,55 @@ describe('QuerySchema', () => {
       expect(() => QuerySchema.parse({ query: 'test', topK: 5.5 })).toThrow();
     });
   });
+
+  describe('mode field', () => {
+    it('should default mode to semantic', () => {
+      const result = QuerySchema.parse({ query: 'test' });
+      expect(result.mode).toBe('semantic');
+    });
+
+    it('should accept semantic mode', () => {
+      const result = QuerySchema.parse({ query: 'test', mode: 'semantic' });
+      expect(result.mode).toBe('semantic');
+    });
+
+    it('should accept hybrid mode', () => {
+      const result = QuerySchema.parse({ query: 'test', mode: 'hybrid' });
+      expect(result.mode).toBe('hybrid');
+    });
+
+    it('should reject invalid mode values', () => {
+      expect(() => QuerySchema.parse({ query: 'test', mode: 'keyword' })).toThrow();
+      expect(() => QuerySchema.parse({ query: 'test', mode: 'vector' })).toThrow();
+      expect(() => QuerySchema.parse({ query: 'test', mode: '' })).toThrow();
+    });
+  });
+
+  describe('alpha field', () => {
+    it('should default alpha to 0.7 when not provided', () => {
+      const result = QuerySchema.parse({ query: 'test' });
+      expect(result.alpha).toBe(0.7);
+    });
+
+    it('should accept alpha values between 0 and 1', () => {
+      expect(QuerySchema.parse({ query: 'test', alpha: 0 }).alpha).toBe(0);
+      expect(QuerySchema.parse({ query: 'test', alpha: 0.5 }).alpha).toBe(0.5);
+      expect(QuerySchema.parse({ query: 'test', alpha: 1 }).alpha).toBe(1);
+    });
+
+    it('should accept boundary values', () => {
+      expect(QuerySchema.parse({ query: 'test', alpha: 0.0 }).alpha).toBe(0);
+      expect(QuerySchema.parse({ query: 'test', alpha: 1.0 }).alpha).toBe(1);
+    });
+
+    it('should reject alpha below 0', () => {
+      expect(() => QuerySchema.parse({ query: 'test', alpha: -0.1 })).toThrow();
+      expect(() => QuerySchema.parse({ query: 'test', alpha: -1 })).toThrow();
+    });
+
+    it('should reject alpha above 1', () => {
+      expect(() => QuerySchema.parse({ query: 'test', alpha: 1.1 })).toThrow();
+      expect(() => QuerySchema.parse({ query: 'test', alpha: 2 })).toThrow();
+    });
+  });
 });

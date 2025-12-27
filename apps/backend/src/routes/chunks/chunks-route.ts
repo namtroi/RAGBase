@@ -19,25 +19,25 @@ export async function chunksRoute(fastify: FastifyInstance): Promise<void> {
    */
   fastify.get('/api/chunks', async (request, reply) => {
     const queryResult = ChunksQuerySchema.safeParse(request.query);
-    
+
     if (!queryResult.success) {
       return reply.status(400).send({
         error: 'VALIDATION_ERROR',
         message: queryResult.error.message,
       });
     }
-    
+
     const { page, limit, documentId, quality, type, flags, search } = queryResult.data;
     const prisma = getPrismaClient();
     const offset = (page - 1) * limit;
-    
+
     // Build where clause
     const where: Record<string, unknown> = {};
-    
+
     if (documentId) {
       where.documentId = documentId;
     }
-    
+
     if (quality) {
       switch (quality) {
         case 'excellent':
@@ -51,20 +51,20 @@ export async function chunksRoute(fastify: FastifyInstance): Promise<void> {
           break;
       }
     }
-    
+
     if (type) {
       where.chunkType = type;
     }
-    
+
     if (flags) {
       const flagList = flags.split(',').map(f => f.trim());
       where.qualityFlags = { hasSome: flagList };
     }
-    
+
     if (search) {
       where.content = { contains: search, mode: 'insensitive' };
     }
-    
+
     const [chunks, total] = await Promise.all([
       prisma.chunk.findMany({
         where,
@@ -73,14 +73,20 @@ export async function chunksRoute(fastify: FastifyInstance): Promise<void> {
           documentId: true,
           chunkIndex: true,
           content: true,
+          charStart: true,
+          charEnd: true,
           qualityScore: true,
           qualityFlags: true,
           chunkType: true,
+          completeness: true,
+          hasTitle: true,
           tokenCount: true,
           breadcrumbs: true,
           document: {
             select: {
               filename: true,
+              format: true,
+              formatCategory: true,
             },
           },
         },
@@ -93,17 +99,23 @@ export async function chunksRoute(fastify: FastifyInstance): Promise<void> {
       }),
       prisma.chunk.count({ where }),
     ]);
-    
+
     return reply.send({
       chunks: chunks.map(c => ({
         id: c.id,
         documentId: c.documentId,
         filename: c.document.filename,
+        format: c.document.format,
+        formatCategory: c.document.formatCategory,
         index: c.chunkIndex,
-        content: c.content.length > 200 ? c.content.substring(0, 200) + '...' : c.content,
+        content: c.content, // Full content, no truncation
+        charStart: c.charStart,
+        charEnd: c.charEnd,
         qualityScore: c.qualityScore,
         qualityFlags: c.qualityFlags,
         chunkType: c.chunkType,
+        completeness: c.completeness,
+        hasTitle: c.hasTitle,
         tokenCount: c.tokenCount,
         breadcrumbs: c.breadcrumbs,
       })),
@@ -123,7 +135,7 @@ export async function chunksRoute(fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { id: string } }>('/api/chunks/:id', async (request, reply) => {
     const { id } = request.params;
     const prisma = getPrismaClient();
-    
+
     const chunk = await prisma.chunk.findUnique({
       where: { id },
       select: {
@@ -152,14 +164,14 @@ export async function chunksRoute(fastify: FastifyInstance): Promise<void> {
         },
       },
     });
-    
+
     if (!chunk) {
       return reply.status(404).send({
         error: 'NOT_FOUND',
         message: 'Chunk not found',
       });
     }
-    
+
     return reply.send({
       id: chunk.id,
       documentId: chunk.documentId,

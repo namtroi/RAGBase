@@ -39,12 +39,31 @@ export interface QueryResult {
   content: string;
   score: number;
   documentId: string;
+  // Hybrid search: score breakdown (only present in hybrid mode)
+  vectorScore?: number;
+  keywordScore?: number;
   metadata: {
     charStart: number;
     charEnd: number;
     page?: number;
     heading?: string;
+    qualityScore?: number;
+    chunkType?: string;
+    breadcrumbs?: string[];
   };
+}
+
+export interface SearchParams {
+  query: string;
+  topK?: number;
+  mode?: 'semantic' | 'hybrid';
+  alpha?: number; // 0.0-1.0, weight for vector vs keyword
+}
+
+export interface SearchResponse {
+  mode: 'semantic' | 'hybrid';
+  alpha?: number; // Only present in hybrid mode
+  results: QueryResult[];
 }
 
 export interface ListParams {
@@ -147,8 +166,13 @@ export const driveApi = {
 
 // Query endpoint
 export const queryApi = {
-  search: (query: string, topK = 5) =>
-    api.post<{ results: QueryResult[] }>('/query', { query, topK }),
+  search: (params: SearchParams) =>
+    api.post<SearchResponse>('/query', {
+      query: params.query,
+      topK: params.topK ?? 5,
+      mode: params.mode ?? 'semantic',
+      alpha: params.alpha ?? 0.7,
+    }),
 };
 
 // Analytics types
@@ -211,11 +235,17 @@ export interface DocumentMetrics {
 export interface ChunkListItem {
   id: string;
   documentId: string;
-  filename: string;  // Backend returns filename directly
-  index: number;     // Backend returns index, not chunkIndex
+  filename: string;
+  format: string;
+  formatCategory: string | null;
+  index: number;
   content: string;
+  charStart: number;
+  charEnd: number;
   qualityScore: number | null;
   chunkType: string | null;
+  completeness: string | null;
+  hasTitle: boolean | null;
   qualityFlags: string[];
   tokenCount: number | null;
   breadcrumbs: string | null;
