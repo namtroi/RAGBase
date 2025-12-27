@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { getPrismaClient } from '@/services/database.js';
+import { getPeriodDateRange } from '@/utils/analytics-utils.js';
 
 const DocumentsQuerySchema = z.object({
   period: z.enum(['24h', '7d', '30d', 'all']).default('7d'),
@@ -15,28 +16,6 @@ const DocumentChunksQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
-function getPeriodDateRange(period: string): { start: Date; end: Date } {
-  const end = new Date();
-  const start = new Date();
-  
-  switch (period) {
-    case '24h':
-      start.setHours(start.getHours() - 24);
-      break;
-    case '7d':
-      start.setDate(start.getDate() - 7);
-      break;
-    case '30d':
-      start.setDate(start.getDate() - 30);
-      break;
-    case 'all':
-      start.setFullYear(2000);
-      break;
-  }
-  
-  return { start, end };
-}
-
 export async function documentsRoute(fastify: FastifyInstance): Promise<void> {
   /**
    * GET /api/analytics/documents
@@ -44,25 +23,25 @@ export async function documentsRoute(fastify: FastifyInstance): Promise<void> {
    */
   fastify.get('/api/analytics/documents', async (request, reply) => {
     const queryResult = DocumentsQuerySchema.safeParse(request.query);
-    
+
     if (!queryResult.success) {
       return reply.status(400).send({
         error: 'VALIDATION_ERROR',
         message: queryResult.error.message,
       });
     }
-    
+
     const { period, page, limit, sortBy, sortOrder } = queryResult.data;
     const { start, end } = getPeriodDateRange(period);
     const prisma = getPrismaClient();
     const offset = (page - 1) * limit;
-    
+
     // Build orderBy for processingMetrics
     const orderBy: Record<string, string> = {};
     if (sortBy === 'totalTimeMs' || sortBy === 'avgQualityScore') {
       orderBy[sortBy] = sortOrder;
     }
-    
+
     const [metrics, total] = await Promise.all([
       prisma.processingMetrics.findMany({
         where: {
@@ -81,10 +60,10 @@ export async function documentsRoute(fastify: FastifyInstance): Promise<void> {
             },
           },
         },
-        orderBy: sortBy === 'createdAt' 
+        orderBy: sortBy === 'createdAt'
           ? { createdAt: sortOrder }
-          : Object.keys(orderBy).length > 0 
-            ? orderBy 
+          : Object.keys(orderBy).length > 0
+            ? orderBy
             : { createdAt: 'desc' },
         skip: offset,
         take: limit,
@@ -95,7 +74,7 @@ export async function documentsRoute(fastify: FastifyInstance): Promise<void> {
         },
       }),
     ]);
-    
+
     return reply.send({
       period,
       documents: metrics.map(m => ({
@@ -140,31 +119,31 @@ export async function documentsRoute(fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { id: string } }>('/api/analytics/documents/:id/chunks', async (request, reply) => {
     const { id } = request.params;
     const queryResult = DocumentChunksQuerySchema.safeParse(request.query);
-    
+
     if (!queryResult.success) {
       return reply.status(400).send({
         error: 'VALIDATION_ERROR',
         message: queryResult.error.message,
       });
     }
-    
+
     const { page, limit } = queryResult.data;
     const prisma = getPrismaClient();
     const offset = (page - 1) * limit;
-    
+
     // Verify document exists
     const document = await prisma.document.findUnique({
       where: { id },
       select: { id: true, filename: true },
     });
-    
+
     if (!document) {
       return reply.status(404).send({
         error: 'NOT_FOUND',
         message: 'Document not found',
       });
     }
-    
+
     const [chunks, total] = await Promise.all([
       prisma.chunk.findMany({
         where: { documentId: id },
@@ -188,7 +167,7 @@ export async function documentsRoute(fastify: FastifyInstance): Promise<void> {
       }),
       prisma.chunk.count({ where: { documentId: id } }),
     ]);
-    
+
     return reply.send({
       documentId: id,
       filename: document.filename,

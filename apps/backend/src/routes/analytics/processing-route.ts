@@ -1,58 +1,46 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { getPrismaClient } from '@/services/database.js';
-import { Prisma } from '@prisma/client';
+import { FileFormat, Prisma } from '@prisma/client';
+import { getPeriodDateRange } from '@/utils/analytics-utils.js';
 
 const ProcessingQuerySchema = z.object({
   period: z.enum(['24h', '7d', '30d', 'all']).default('7d'),
+  format: z.enum(['pdf', 'docx', 'pptx', 'epub', 'md', 'txt', 'html', 'xlsx', 'csv', 'json']).optional(),
 });
-
-function getPeriodDateRange(period: string): { start: Date; end: Date } {
-  const end = new Date();
-  const start = new Date();
-  
-  switch (period) {
-    case '24h':
-      start.setHours(start.getHours() - 24);
-      break;
-    case '7d':
-      start.setDate(start.getDate() - 7);
-      break;
-    case '30d':
-      start.setDate(start.getDate() - 30);
-      break;
-    case 'all':
-      start.setFullYear(2000);
-      break;
-  }
-  
-  return { start, end };
-}
 
 export async function processingRoute(fastify: FastifyInstance): Promise<void> {
   /**
    * GET /api/analytics/processing
    * Returns processing time breakdown and trends.
+   * Supports format filter for format-specific metrics.
    */
   fastify.get('/api/analytics/processing', async (request, reply) => {
     const queryResult = ProcessingQuerySchema.safeParse(request.query);
-    
+
     if (!queryResult.success) {
       return reply.status(400).send({
         error: 'VALIDATION_ERROR',
         message: queryResult.error.message,
       });
     }
-    
-    const { period } = queryResult.data;
+
+    const { period, format } = queryResult.data;
     const { start, end } = getPeriodDateRange(period);
     const prisma = getPrismaClient();
-    
+
+    // Build where clause with optional format filter
+    const metricsWhere: Prisma.ProcessingMetricsWhereInput = {
+      createdAt: { gte: start, lte: end },
+    };
+
+    if (format) {
+      metricsWhere.document = { format: format as FileFormat };
+    }
+
     // Get time breakdown averages
     const breakdown = await prisma.processingMetrics.aggregate({
-      where: {
-        createdAt: { gte: start, lte: end },
-      },
+      where: metricsWhere,
       _avg: {
         conversionTimeMs: true,
         chunkingTimeMs: true,
@@ -60,14 +48,43 @@ export async function processingRoute(fastify: FastifyInstance): Promise<void> {
         totalTimeMs: true,
         queueTimeMs: true,
         userWaitTimeMs: true,
+        pageCount: true,
+      },
+      _sum: {
+        conversionTimeMs: true,
+        pageCount: true,
       },
       _count: true,
     });
-    
+
+    // Get OCR usage stats (PDF-specific)
+    const [ocrCount, totalWithOcr] = await Promise.all([
+      prisma.processingMetrics.count({
+        where: {
+          ...metricsWhere,
+          ocrApplied: true,
+        },
+      }),
+      prisma.processingMetrics.count({
+        where: metricsWhere,
+      }),
+    ]);
+
+    // Calculate OCR usage percentage
+    const ocrUsagePercent = totalWithOcr > 0
+      ? Math.round((ocrCount / totalWithOcr) * 100)
+      : 0;
+
+    // Calculate avg conversion time per page
+    const totalConversionTime = breakdown._sum.conversionTimeMs || 0;
+    const totalPages = breakdown._sum.pageCount || 0;
+    const avgConversionTimePerPage = totalPages > 0
+      ? Math.round(totalConversionTime / totalPages)
+      : 0;
+
     // Get trends over time (group by date)
-    // For 24h period, we'd ideally group by hour, but Prisma doesn't support this directly
-    // We'll use raw query for this
     const truncInterval = period === '24h' ? 'hour' : 'day';
+    const formatFilter = format ? Prisma.sql`AND d.format = ${format}` : Prisma.empty;
     const trends = await prisma.$queryRaw<Array<{
       date: Date;
       count: bigint;
@@ -76,29 +93,32 @@ export async function processingRoute(fastify: FastifyInstance): Promise<void> {
     }>>(
       Prisma.sql`
         SELECT 
-          DATE_TRUNC(${Prisma.raw(`'${truncInterval}'`)}, created_at) as date,
+          DATE_TRUNC(${Prisma.raw(`'${truncInterval}'`)}, pm.created_at) as date,
           COUNT(*) as count,
-          AVG(total_time_ms) as avg_total_time,
-          AVG(queue_time_ms) as avg_queue_time
-        FROM processing_metrics
-        WHERE created_at >= ${start} AND created_at <= ${end}
-        GROUP BY DATE_TRUNC(${Prisma.raw(`'${truncInterval}'`)}, created_at)
+          AVG(pm.total_time_ms) as avg_total_time,
+          AVG(pm.queue_time_ms) as avg_queue_time
+        FROM processing_metrics pm
+        JOIN documents d ON pm.document_id = d.id
+        WHERE pm.created_at >= ${start} AND pm.created_at <= ${end}
+        ${formatFilter}
+        GROUP BY DATE_TRUNC(${Prisma.raw(`'${truncInterval}'`)}, pm.created_at)
         ORDER BY date ASC
       `
     );
-    
-    // Get count of documents processed separately
+
+    // Get count of documents processed
     const count = await prisma.processingMetrics.count({
-      where: {
-        createdAt: { gte: start, lte: end },
-      },
+      where: metricsWhere,
     });
-    
+
     return reply.send({
       period,
+      format: format || 'all',
       periodStart: start.toISOString(),
       periodEnd: end.toISOString(),
       documentsProcessed: count,
+      ocrUsagePercent,
+      avgConversionTimePerPage,
       breakdown: {
         avgConversionTimeMs: Math.round(breakdown._avg.conversionTimeMs || 0),
         avgChunkingTimeMs: Math.round(breakdown._avg.chunkingTimeMs || 0),
@@ -116,3 +136,4 @@ export async function processingRoute(fastify: FastifyInstance): Promise<void> {
     });
   });
 }
+

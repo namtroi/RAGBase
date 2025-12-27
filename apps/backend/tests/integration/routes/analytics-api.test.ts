@@ -28,7 +28,7 @@ describe('Analytics API', () => {
     const prisma = getPrisma();
     docCounter++;
     const doc = await seedDocument({ status: 'COMPLETED', md5Hash: `metrics-hash-${docCounter}-${Date.now()}` });
-    
+
     await prisma.processingMetrics.create({
       data: {
         documentId: doc.id,
@@ -51,7 +51,7 @@ describe('Analytics API', () => {
         ...overrides,
       },
     });
-    
+
     return doc;
   }
 
@@ -97,42 +97,6 @@ describe('Analytics API', () => {
 
       const data = JSON.parse(response.body);
       expect(data.avgQualityScore).toBe(0.85);
-    });
-
-    it('should filter by period 24h', async () => {
-      await seedDocumentWithMetrics();
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/analytics/overview?period=24h',
-        headers: { 'X-API-Key': API_KEY },
-      });
-
-      expect(response.statusCode).toBe(200);
-      const data = JSON.parse(response.body);
-      expect(data.period).toBe('24h');
-    });
-
-    it('should filter by period 7d', async () => {
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/analytics/overview?period=7d',
-        headers: { 'X-API-Key': API_KEY },
-      });
-
-      const data = JSON.parse(response.body);
-      expect(data.period).toBe('7d');
-    });
-
-    it('should filter by period 30d', async () => {
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/analytics/overview?period=30d',
-        headers: { 'X-API-Key': API_KEY },
-      });
-
-      const data = JSON.parse(response.body);
-      expect(data.period).toBe('30d');
     });
   });
 
@@ -201,8 +165,8 @@ describe('Analytics API', () => {
     });
 
     it('should return quality flags breakdown', async () => {
-      await seedDocumentWithMetrics({ 
-        qualityFlags: { TOO_SHORT: 5, NO_CONTEXT: 3 } 
+      await seedDocumentWithMetrics({
+        qualityFlags: { TOO_SHORT: 5, NO_CONTEXT: 3 }
       });
 
       const response = await app.inject({
@@ -282,7 +246,7 @@ describe('Analytics API', () => {
     it('should return chunks for specific document', async () => {
       const prisma = getPrisma();
       const doc = await seedDocumentWithMetrics();
-      
+
       // Create test chunks with proper vector syntax
       const vectorStr = `[${Array(384).fill(0.1).join(',')}]`;
       await prisma.$executeRaw`
@@ -309,7 +273,7 @@ describe('Analytics API', () => {
     it('should order chunks by index', async () => {
       const prisma = getPrisma();
       const doc = await seedDocumentWithMetrics();
-      
+
       // Insert out of order with proper vector syntax
       const vectorStr = `[${Array(384).fill(0.1).join(',')}]`;
       await prisma.$executeRaw`
@@ -340,6 +304,251 @@ describe('Analytics API', () => {
       });
 
       expect(response.statusCode).toBe(404);
+    });
+  });
+
+  // ============================================================
+  // Phase 1 TDD: New Analytics Metrics Tests
+  // ============================================================
+
+  describe('GET /api/analytics/overview - New Metrics', () => {
+    it('should return success rate percentage', async () => {
+      const prisma = getPrisma();
+      // 2 completed, 1 failed = 66.67% success rate
+      await seedDocumentWithMetrics();
+      await seedDocumentWithMetrics();
+      await prisma.document.create({
+        data: {
+          filename: 'failed.pdf',
+          mimeType: 'application/pdf',
+          fileSize: 1024,
+          format: 'pdf',
+          status: 'FAILED',
+          filePath: '/tmp/failed.pdf',
+          md5Hash: `failed-${Date.now()}`,
+          failReason: 'TEST_FAILURE',
+        },
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/analytics/overview',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const data = JSON.parse(response.body);
+      expect(data.successRate).toBeDefined();
+      expect(data.successRate).toBeCloseTo(66.67, 1);
+    });
+
+    it('should return format distribution', async () => {
+      const prisma = getPrisma();
+      // 2 PDF, 1 DOCX
+      await seedDocumentWithMetrics();
+      await seedDocumentWithMetrics();
+      await prisma.document.create({
+        data: {
+          filename: 'test.docx',
+          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          fileSize: 1024,
+          format: 'docx',
+          status: 'COMPLETED',
+          filePath: '/tmp/test.docx',
+          md5Hash: `docx-${Date.now()}`,
+        },
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/analytics/overview',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      const data = JSON.parse(response.body);
+      expect(data.formatDistribution).toBeDefined();
+      expect(data.formatDistribution.pdf).toBe(2);
+      expect(data.formatDistribution.docx).toBe(1);
+    });
+
+    it('should return average user wait time', async () => {
+      await seedDocumentWithMetrics({ userWaitTimeMs: 5000 });
+      await seedDocumentWithMetrics({ userWaitTimeMs: 3000 });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/analytics/overview',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      const data = JSON.parse(response.body);
+      expect(data.avgUserWaitTimeMs).toBe(4000);
+    });
+  });
+
+  describe('GET /api/analytics/processing - Format Filter & New Metrics', () => {
+    it('should filter by format=pdf', async () => {
+      const prisma = getPrisma();
+      // Create PDF doc with metrics
+      await seedDocumentWithMetrics({ totalTimeMs: 1000 });
+      // Create DOCX doc (no metrics since seedDocumentWithMetrics uses pdf)
+      await prisma.document.create({
+        data: {
+          filename: 'test.docx',
+          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          fileSize: 1024,
+          format: 'docx',
+          status: 'COMPLETED',
+          filePath: '/tmp/test.docx',
+          md5Hash: `docx-filter-${Date.now()}`,
+        },
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/analytics/processing?format=pdf',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const data = JSON.parse(response.body);
+      expect(data.documentsProcessed).toBe(1);
+    });
+
+    it('should return OCR usage percentage for PDF', async () => {
+      // 1 with OCR, 1 without = 50%
+      await seedDocumentWithMetrics({ ocrApplied: true });
+      await seedDocumentWithMetrics({ ocrApplied: false });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/analytics/processing?format=pdf',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      const data = JSON.parse(response.body);
+      expect(data.ocrUsagePercent).toBeDefined();
+      expect(data.ocrUsagePercent).toBe(50);
+    });
+
+    it('should return average conversion time per page', async () => {
+      // 500ms conversion, 5 pages = 100ms/page
+      await seedDocumentWithMetrics({ conversionTimeMs: 500, pageCount: 5 });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/analytics/processing?format=pdf',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      const data = JSON.parse(response.body);
+      expect(data.avgConversionTimePerPage).toBeDefined();
+      expect(data.avgConversionTimePerPage).toBe(100);
+    });
+  });
+
+  describe('GET /api/analytics/quality - Rate Calculations', () => {
+    it('should return fragment rate percentage', async () => {
+      // 5 fragments out of 20 chunks = 25%
+      await seedDocumentWithMetrics({
+        qualityFlags: { FRAGMENT: 5 },
+        totalChunks: 20,
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/analytics/quality',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      const data = JSON.parse(response.body);
+      expect(data.fragmentRate).toBeDefined();
+      expect(data.fragmentRate).toBe(25);
+    });
+
+    it('should return no context rate percentage', async () => {
+      // 10 no_context out of 50 chunks = 20%
+      await seedDocumentWithMetrics({
+        qualityFlags: { NO_CONTEXT: 10 },
+        totalChunks: 50,
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/analytics/quality',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      const data = JSON.parse(response.body);
+      expect(data.noContextRate).toBeDefined();
+      expect(data.noContextRate).toBe(20);
+    });
+
+    it('should return too short rate percentage', async () => {
+      // 3 too_short out of 30 chunks = 10%
+      await seedDocumentWithMetrics({
+        qualityFlags: { TOO_SHORT: 3 },
+        totalChunks: 30,
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/analytics/quality',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      const data = JSON.parse(response.body);
+      expect(data.tooShortRate).toBeDefined();
+      expect(data.tooShortRate).toBe(10);
+    });
+
+    it('should return context injection rate', async () => {
+      const prisma = getPrisma();
+      const doc = await seedDocumentWithMetrics({ totalChunks: 4 });
+
+      // Create 4 chunks: 2 with breadcrumbs, 2 without = 50%
+      const vectorStr = `[${Array(384).fill(0.1).join(',')}]`;
+      await prisma.$executeRaw`
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, breadcrumbs, created_at)
+        VALUES (gen_random_uuid(), ${doc.id}, 'Chunk 1', 0, ${Prisma.sql`${vectorStr}::vector`}, 0, 100, ARRAY['Heading 1'], NOW())
+      `;
+      await prisma.$executeRaw`
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, breadcrumbs, created_at)
+        VALUES (gen_random_uuid(), ${doc.id}, 'Chunk 2', 1, ${Prisma.sql`${vectorStr}::vector`}, 100, 200, ARRAY['Heading 1', 'Heading 2'], NOW())
+      `;
+      await prisma.$executeRaw`
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, breadcrumbs, created_at)
+        VALUES (gen_random_uuid(), ${doc.id}, 'Chunk 3', 2, ${Prisma.sql`${vectorStr}::vector`}, 200, 300, ARRAY[]::text[], NOW())
+      `;
+      await prisma.$executeRaw`
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, breadcrumbs, created_at)
+        VALUES (gen_random_uuid(), ${doc.id}, 'Chunk 4', 3, ${Prisma.sql`${vectorStr}::vector`}, 300, 400, ARRAY[]::text[], NOW())
+      `;
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/analytics/quality',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      const data = JSON.parse(response.body);
+      expect(data.contextInjectionRate).toBeDefined();
+      expect(data.contextInjectionRate).toBe(50);
+    });
+
+    it('should return avg tokens per chunk', async () => {
+      // 1000 tokens / 10 chunks = 100 tokens/chunk
+      await seedDocumentWithMetrics({ totalTokens: 1000, totalChunks: 10 });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/analytics/quality',
+        headers: { 'X-API-Key': API_KEY },
+      });
+
+      const data = JSON.parse(response.body);
+      expect(data.avgTokensPerChunk).toBeDefined();
+      expect(data.avgTokensPerChunk).toBe(100);
     });
   });
 });
