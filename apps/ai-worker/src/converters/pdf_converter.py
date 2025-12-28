@@ -1,5 +1,5 @@
 # apps/ai-worker/src/converters/pdf_converter.py
-"""PDF/DOCX converter using Docling."""
+"""PDF converter using Docling."""
 
 import asyncio
 import gc

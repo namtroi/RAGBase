@@ -11,9 +11,10 @@ from .converters import (
     FormatConverter,
     HtmlConverter,
     JsonConverter,
+    MarkdownConverter,
     PptxConverter,
     PyMuPDFConverter,
-    TextConverter,
+    TxtConverter,
     XlsxConverter,
 )
 
@@ -22,8 +23,8 @@ from .converters import (
 FORMAT_CONVERTERS: Dict[str, Type[FormatConverter]] = {
     "pdf": PyMuPDFConverter,  # Default fast converter
     "docx": DocxConverter,  # Dedicated DOCX converter (Docling)
-    "txt": TextConverter,
-    "md": TextConverter,
+    "txt": TxtConverter,
+    "md": MarkdownConverter,
     "json": JsonConverter,
     "csv": CsvConverter,
     "html": HtmlConverter,

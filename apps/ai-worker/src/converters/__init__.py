@@ -6,22 +6,25 @@ from .csv_converter import CsvConverter
 from .docx_converter import DocxConverter
 from .epub_converter import EpubConverter
 from .html_converter import HtmlConverter
+from .json_converter import JsonConverter
+from .md_converter import MarkdownConverter
 from .pdf_converter import DoclingPdfConverter
 from .pptx_converter import PptxConverter
 from .pymupdf_converter import PyMuPDFConverter
-from .text_converter import JsonConverter, TextConverter
+from .txt_converter import TxtConverter
 from .xlsx_converter import XlsxConverter
 
 __all__ = [
     "FormatConverter",
     "CsvConverter",
-    "DocxConverter",
     "DoclingPdfConverter",
+    "DocxConverter",
     "EpubConverter",
     "HtmlConverter",
+    "JsonConverter",
+    "MarkdownConverter",
     "PptxConverter",
     "PyMuPDFConverter",
-    "TextConverter",
-    "JsonConverter",
+    "TxtConverter",
     "XlsxConverter",
 ]

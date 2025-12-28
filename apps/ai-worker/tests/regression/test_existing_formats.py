@@ -7,7 +7,12 @@ Ensures PDF, TXT, MD, JSON still work after Phase 4 changes.
 import pytest
 from pathlib import Path
 
-from src.converters import PdfConverter, TextConverter
+from src.converters import (
+    DoclingPdfConverter,
+    MarkdownConverter,
+    TxtConverter,
+    JsonConverter,
+)
 
 
 class TestPdfRegression:
@@ -25,7 +30,7 @@ class TestPdfRegression:
     @pytest.mark.asyncio
     async def test_pdf_still_works(self, sample_pdf):
         """PDF processing returns expected result."""
-        converter = PdfConverter()
+        converter = DoclingPdfConverter()
         result = await converter.to_markdown(sample_pdf)
 
         # ProcessorOutput has .markdown, not .success
@@ -62,7 +67,7 @@ class TestTextRegression:
     @pytest.mark.asyncio
     async def test_txt_still_works(self, txt_file):
         """TXT processing works correctly."""
-        converter = TextConverter()
+        converter = TxtConverter()
         result = await converter.to_markdown(txt_file, "txt")
 
         assert result.markdown is not None
@@ -71,7 +76,7 @@ class TestTextRegression:
     @pytest.mark.asyncio
     async def test_md_still_works(self, md_file):
         """Markdown processing preserves content."""
-        converter = TextConverter()
+        converter = MarkdownConverter()
         result = await converter.to_markdown(md_file, "md")
 
         assert result.markdown is not None
@@ -80,7 +85,7 @@ class TestTextRegression:
     @pytest.mark.asyncio
     async def test_json_still_works(self, json_file):
         """JSON processing works correctly."""
-        converter = TextConverter()
+        converter = JsonConverter()
         result = await converter.to_markdown(json_file, "json")
 
         assert result.markdown is not None

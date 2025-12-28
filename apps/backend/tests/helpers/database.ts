@@ -37,6 +37,8 @@ export async function seedProcessingProfile(data: Partial<{
   pdfConverter: string;
   pdfOcrMode: string;
   pdfOcrLanguages: string;
+  conversionTableRows: number;
+  conversionTableCols: number;
   documentChunkSize: number;
   documentChunkOverlap: number;
   documentHeaderLevels: number;

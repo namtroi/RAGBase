@@ -42,6 +42,8 @@ describe('ProcessingProfile Model', () => {
             expect(profile.pdfConverter).toBe('pymupdf');
             expect(profile.pdfOcrMode).toBe('auto');
             expect(profile.pdfOcrLanguages).toBe('en');
+            expect(profile.conversionTableRows).toBe(35);
+            expect(profile.conversionTableCols).toBe(20);
 
             // Check default chunking settings
             expect(profile.documentChunkSize).toBe(1000);
