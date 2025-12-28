@@ -99,6 +99,25 @@ export function ProfileCard({ profile, onDelete, onDuplicate }: ProfileCardProps
           description="Convert documents to Markdown format"
         >
           <SettingItem
+            label={CONVERSION_FIELDS.pdfConverter.label}
+            value={profile.pdfConverter === 'docling' ? 'Docling (High Quality)' : 'PyMuPDF4LLM (Fast)'}
+            tooltip={CONVERSION_FIELDS.pdfConverter.tooltip}
+          />
+          {profile.pdfConverter === 'docling' && (
+            <>
+              <SettingItem
+                label={CONVERSION_FIELDS.pdfOcrMode.label}
+                value={profile.pdfOcrMode}
+                tooltip={CONVERSION_FIELDS.pdfOcrMode.tooltip}
+              />
+              <SettingItem
+                label={CONVERSION_FIELDS.pdfOcrLanguages.label}
+                value={profile.pdfOcrLanguages}
+                tooltip={CONVERSION_FIELDS.pdfOcrLanguages.tooltip}
+              />
+            </>
+          )}
+          <SettingItem
             label={CONVERSION_FIELDS.conversionTableRows.label}
             value={profile.conversionTableRows}
             tooltip={CONVERSION_FIELDS.conversionTableRows.tooltip}
@@ -107,26 +126,6 @@ export function ProfileCard({ profile, onDelete, onDuplicate }: ProfileCardProps
             label={CONVERSION_FIELDS.conversionTableCols.label}
             value={profile.conversionTableCols}
             tooltip={CONVERSION_FIELDS.conversionTableCols.tooltip}
-          />
-          <SettingItem
-            label={CONVERSION_FIELDS.pdfOcrMode.label}
-            value={profile.pdfOcrMode}
-            tooltip={CONVERSION_FIELDS.pdfOcrMode.tooltip}
-          />
-          <SettingItem
-            label={CONVERSION_FIELDS.pdfOcrLanguages.label}
-            value={profile.pdfOcrLanguages}
-            tooltip={CONVERSION_FIELDS.pdfOcrLanguages.tooltip}
-          />
-          <SettingItem
-            label={CONVERSION_FIELDS.pdfNumThreads.label}
-            value={profile.pdfNumThreads}
-            tooltip={CONVERSION_FIELDS.pdfNumThreads.tooltip}
-          />
-          <SettingItem
-            label={CONVERSION_FIELDS.pdfTableStructure.label}
-            value={profile.pdfTableStructure ? 'On' : 'Off'}
-            tooltip={CONVERSION_FIELDS.pdfTableStructure.tooltip}
           />
           <SettingItem
             label={CONVERSION_FIELDS.maxFileSizeMb.label}

@@ -13,29 +13,25 @@ export interface FieldConfig {
 // ============================================================
 
 export const CONVERSION_FIELDS = {
-    conversionTableRows: {
-        label: 'Max Rows/Table',
-        tooltip: 'What: Max rows to preserve from spreadsheets. Why: Large tables overflow LLM context. How: Reduce for very long tables.',
-    },
-    conversionTableCols: {
-        label: 'Max Cols/Table',
-        tooltip: 'What: Max columns to preserve. Why: Wide tables break formatting. How: Reduce for tables with many columns.',
+    pdfConverter: {
+        label: 'PDF Converter',
+        tooltip: 'What: Library for PDF conversion. Why: Trade-off between speed and quality. How: PyMuPDF4LLM is 40x faster but weak on tables. Docling is slower but better for complex PDFs.',
     },
     pdfOcrMode: {
         label: 'OCR Mode',
-        tooltip: 'What: Text extraction method. Why: Scanned PDFs need OCR. How: auto (detect), force (always OCR), never (text only).',
+        tooltip: 'What: Text extraction method for Docling. Why: Scanned PDFs need OCR. How: auto (detect), force (always OCR), never (text only). Only applies when using Docling.',
     },
     pdfOcrLanguages: {
         label: 'OCR Languages',
-        tooltip: "What: Language codes for OCR. Why: Accuracy depends on language model. How: Use ISO codes like 'en', 'vi', 'ja'.",
+        tooltip: "What: Language codes for OCR. Why: Accuracy depends on language model. How: Use ISO codes like 'en', 'vi', 'ja'. Only applies when using Docling.",
     },
-    pdfNumThreads: {
-        label: 'Threads',
-        tooltip: 'What: Parallel processing threads. Why: More threads = faster but uses more CPU. How: Match your CPU cores.',
+    conversionTableRows: {
+        label: 'Table Max Rows',
+        tooltip: 'What: Max rows before table becomes sentences. Why: Large tables break Markdown formatting. How: Tables exceeding this use sentence serialization for XLSX/CSV.',
     },
-    pdfTableStructure: {
-        label: 'Table Structure',
-        tooltip: 'What: Identify table structures in PDFs. Why: Better Markdown formatting. How: Enable for docs with tables.',
+    conversionTableCols: {
+        label: 'Table Max Cols',
+        tooltip: 'What: Max columns before table becomes sentences. Why: Wide tables are hard to read. How: Tables exceeding this use sentence serialization for XLSX/CSV.',
     },
     maxFileSizeMb: {
         label: 'Max File Size',

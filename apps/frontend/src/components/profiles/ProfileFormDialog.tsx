@@ -29,12 +29,11 @@ const DEFAULT_FORM_DATA: ProfileCreateData = {
     name: '',
     description: '',
     // Conversion defaults
-    conversionTableRows: 35,
-    conversionTableCols: 20,
+    pdfConverter: 'pymupdf',
     pdfOcrMode: 'auto',
     pdfOcrLanguages: 'en',
-    pdfNumThreads: 4,
-    pdfTableStructure: false,
+    conversionTableRows: 35,
+    conversionTableCols: 20,
     // Chunking defaults
     documentChunkSize: 1000,
     documentChunkOverlap: 100,
@@ -64,12 +63,11 @@ export function ProfileFormDialog({ open, onClose, sourceProfile }: ProfileFormD
                 setFormData({
                     name: generateDuplicateName(sourceProfile.name),
                     description: sourceProfile.description || '',
-                    conversionTableRows: sourceProfile.conversionTableRows,
-                    conversionTableCols: sourceProfile.conversionTableCols,
+                    pdfConverter: sourceProfile.pdfConverter || 'pymupdf',
                     pdfOcrMode: sourceProfile.pdfOcrMode,
                     pdfOcrLanguages: sourceProfile.pdfOcrLanguages,
-                    pdfNumThreads: sourceProfile.pdfNumThreads,
-                    pdfTableStructure: sourceProfile.pdfTableStructure,
+                    conversionTableRows: sourceProfile.conversionTableRows,
+                    conversionTableCols: sourceProfile.conversionTableCols,
                     documentChunkSize: sourceProfile.documentChunkSize,
                     documentChunkOverlap: sourceProfile.documentChunkOverlap,
                     documentHeaderLevels: sourceProfile.documentHeaderLevels,
@@ -164,12 +162,52 @@ export function ProfileFormDialog({ open, onClose, sourceProfile }: ProfileFormD
 
                     {/* Conversion Section */}
                     <SettingsSection title="Conversion">
-                        <NumberInput label={CONVERSION_FIELDS.conversionTableRows.label} tooltip={CONVERSION_FIELDS.conversionTableRows.tooltip} tooltipPosition="right" value={formData.conversionTableRows!} onChange={(v) => setFormData({ ...formData, conversionTableRows: v })} />
-                        <NumberInput label={CONVERSION_FIELDS.conversionTableCols.label} tooltip={CONVERSION_FIELDS.conversionTableCols.tooltip} value={formData.conversionTableCols!} onChange={(v) => setFormData({ ...formData, conversionTableCols: v })} />
-                        <SelectInput label={CONVERSION_FIELDS.pdfOcrMode.label} tooltip={CONVERSION_FIELDS.pdfOcrMode.tooltip} value={formData.pdfOcrMode!} onChange={(v) => setFormData({ ...formData, pdfOcrMode: v })} options={['auto', 'force', 'never']} />
-                        <TextInput label={CONVERSION_FIELDS.pdfOcrLanguages.label} tooltip={CONVERSION_FIELDS.pdfOcrLanguages.tooltip} tooltipPosition="right" value={formData.pdfOcrLanguages!} onChange={(v) => setFormData({ ...formData, pdfOcrLanguages: v })} />
-                        <NumberInput label={CONVERSION_FIELDS.pdfNumThreads.label} tooltip={CONVERSION_FIELDS.pdfNumThreads.tooltip} value={formData.pdfNumThreads!} onChange={(v) => setFormData({ ...formData, pdfNumThreads: v })} />
-                        <CheckboxInput label={CONVERSION_FIELDS.pdfTableStructure.label} tooltip={CONVERSION_FIELDS.pdfTableStructure.tooltip} checked={formData.pdfTableStructure!} onChange={(v) => setFormData({ ...formData, pdfTableStructure: v })} />
+                        <SelectInput
+                            label={CONVERSION_FIELDS.pdfConverter.label}
+                            tooltip={CONVERSION_FIELDS.pdfConverter.tooltip}
+                            tooltipPosition="right"
+                            value={formData.pdfConverter || 'pymupdf'}
+                            onChange={(v) => setFormData({ ...formData, pdfConverter: v })}
+                            options={[
+                                { value: 'pymupdf', label: 'PyMuPDF4LLM (Fast)' },
+                                { value: 'docling', label: 'Docling (High Quality)' }
+                            ]}
+                        />
+                        {/* OCR settings - only show when Docling is selected */}
+                        {formData.pdfConverter === 'docling' && (
+                            <>
+                                <SelectInput
+                                    label={CONVERSION_FIELDS.pdfOcrMode.label}
+                                    tooltip={CONVERSION_FIELDS.pdfOcrMode.tooltip}
+                                    value={formData.pdfOcrMode!}
+                                    onChange={(v) => setFormData({ ...formData, pdfOcrMode: v })}
+                                    options={[
+                                        { value: 'auto', label: 'Auto' },
+                                        { value: 'force', label: 'Force' },
+                                        { value: 'never', label: 'Never' }
+                                    ]}
+                                />
+                                <TextInput
+                                    label={CONVERSION_FIELDS.pdfOcrLanguages.label}
+                                    tooltip={CONVERSION_FIELDS.pdfOcrLanguages.tooltip}
+                                    value={formData.pdfOcrLanguages!}
+                                    onChange={(v) => setFormData({ ...formData, pdfOcrLanguages: v })}
+                                />
+                            </>
+                        )}
+                        {/* Table conversion settings for XLSX/CSV */}
+                        <NumberInput 
+                            label={CONVERSION_FIELDS.conversionTableRows.label} 
+                            tooltip={CONVERSION_FIELDS.conversionTableRows.tooltip} 
+                            value={formData.conversionTableRows!} 
+                            onChange={(v) => setFormData({ ...formData, conversionTableRows: v })} 
+                        />
+                        <NumberInput 
+                            label={CONVERSION_FIELDS.conversionTableCols.label} 
+                            tooltip={CONVERSION_FIELDS.conversionTableCols.tooltip} 
+                            value={formData.conversionTableCols!} 
+                            onChange={(v) => setFormData({ ...formData, conversionTableCols: v })} 
+                        />
                     </SettingsSection>
 
                     {/* Chunking Section */}
@@ -334,10 +372,15 @@ function SelectInput({
     label: string;
     value: string;
     onChange: (v: string) => void;
-    options: string[];
+    options: string[] | { value: string; label: string }[];
     tooltip?: string;
     tooltipPosition?: 'left' | 'right';
 }) {
+    // Normalize options to always be { value, label } format
+    const normalizedOptions = options.map((opt) =>
+        typeof opt === 'string' ? { value: opt, label: opt } : opt
+    );
+
     return (
         <div>
             <label className="flex items-center gap-1 text-xs text-gray-500 mb-1">
@@ -349,8 +392,8 @@ function SelectInput({
                 onChange={(e) => onChange(e.target.value)}
                 className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
             >
-                {options.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
+                {normalizedOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
             </select>
         </div>

@@ -50,12 +50,9 @@ class ProfileConfig(BaseModel):
     """
 
     # Stage 1: Conversion
-    conversionTableRows: int = 35
-    conversionTableCols: int = 20
-    pdfOcrMode: str = "auto"
+    pdfConverter: str = "pymupdf"  # "pymupdf" (fast) | "docling" (high quality)
+    pdfOcrMode: str = "auto"  # Only used when pdfConverter = "docling"
     pdfOcrLanguages: str = "en"  # Comma-separated: "en,vi"
-    pdfNumThreads: int = 4
-    pdfTableStructure: bool = False
 
     # Stage 2: Chunking
     documentChunkSize: int = 1000
