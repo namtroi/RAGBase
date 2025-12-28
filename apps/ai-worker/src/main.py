@@ -20,8 +20,9 @@ from .models import (
     ProcessRequest,
     ProcessResponse,
     ProcessingResult,
+    ProfileConfig,
 )
-from .pipeline import processing_pipeline
+from .pipeline import create_pipeline
 from .router import get_category, get_converter, is_supported_format
 
 # Configure logging first
@@ -115,10 +116,17 @@ async def process_document(request: ProcessRequest):
         converter = get_converter(file_format)
         category = get_category(file_format)
 
+        # Extract profile config from request (if provided)
+        profile_config = None
+        if request.config and request.config.profileConfig:
+            profile_config = request.config.profileConfig
+        else:
+            profile_config = ProfileConfig()  # Use defaults
+
         # Get OCR mode for PDF/DOCX
-        ocr_mode = "auto"
+        ocr_mode = profile_config.pdfOcrMode
         if request.config:
-            ocr_mode = request.config.ocrMode
+            ocr_mode = request.config.ocrMode  # Legacy override
 
         # 1. Convert to Markdown (with timing)
         metrics_collector.start_stage()
@@ -151,10 +159,11 @@ async def process_document(request: ProcessRequest):
             )
         else:
             # 2. Run pipeline: sanitize → chunk → quality → embed (with timing)
+            # Create pipeline with profile config for chunking/quality settings
+            pipeline = create_pipeline(profile_config)
+
             metrics_collector.start_stage()
-            chunks, embedding_time_ms = processing_pipeline.run(
-                output.markdown, category
-            )
+            chunks, embedding_time_ms = pipeline.run(output.markdown, category)
             metrics_collector.end_chunking()
             metrics_collector.set_embedding_time(embedding_time_ms)
 

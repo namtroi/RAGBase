@@ -2,13 +2,14 @@
 """Centralized processing pipeline: chunk → quality → embed."""
 
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .chunkers.document_chunker import DocumentChunker
 from .chunkers.presentation_chunker import PresentationChunker
 from .chunkers.tabular_chunker import TabularChunker
 from .embedder import Embedder
 from .logging_config import get_logger
+from .models import ProfileConfig
 from .quality.analyzer import QualityAnalyzer
 
 logger = get_logger(__name__)
@@ -18,13 +19,33 @@ class ProcessingPipeline:
     """
     Unified processing pipeline for all document formats.
     Handles: sanitization → chunking → quality analysis → embedding.
+
+    Accepts ProfileConfig to customize chunking and quality parameters.
     """
 
-    def __init__(self):
-        self.document_chunker = DocumentChunker()
-        self.presentation_chunker = PresentationChunker()
-        self.tabular_chunker = TabularChunker()
-        self.analyzer = QualityAnalyzer()
+    def __init__(self, config: Optional[ProfileConfig] = None):
+        """Initialize pipeline with optional profile configuration."""
+        self.config = config or ProfileConfig()
+
+        # Initialize chunkers with config values
+        self.document_chunker = DocumentChunker(
+            chunk_size=self.config.documentChunkSize,
+            chunk_overlap=self.config.documentChunkOverlap,
+        )
+        self.presentation_chunker = PresentationChunker(
+            min_chunk_size=self.config.presentationMinChunk,
+        )
+        self.tabular_chunker = TabularChunker(
+            rows_per_chunk=self.config.tabularRowsPerChunk,
+        )
+
+        # Initialize analyzer with config values
+        self.analyzer = QualityAnalyzer(
+            min_chars=self.config.qualityMinChars,
+            max_chars=self.config.qualityMaxChars,
+            penalty_per_flag=self.config.qualityPenaltyPerFlag,
+        )
+
         self.embedder = Embedder()
 
     def run(
@@ -90,5 +111,10 @@ class ProcessingPipeline:
         return chunks, embedding_time_ms
 
 
-# Singleton instance for reuse
+def create_pipeline(config: Optional[ProfileConfig] = None) -> ProcessingPipeline:
+    """Factory function to create a pipeline with optional config."""
+    return ProcessingPipeline(config)
+
+
+# Default singleton instance for backward compatibility
 processing_pipeline = ProcessingPipeline()
