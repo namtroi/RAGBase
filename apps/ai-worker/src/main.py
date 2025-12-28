@@ -131,7 +131,10 @@ async def process_document(request: ProcessRequest):
         # 1. Convert to Markdown (with timing)
         metrics_collector.start_stage()
         if file_format in ("pdf", "docx"):
-            output = await converter.to_markdown(request.filePath, ocr_mode)
+            num_threads = profile_config.pdfNumThreads
+            output = await converter.to_markdown(
+                request.filePath, ocr_mode, num_threads
+            )
         elif file_format in ("txt", "md", "json"):
             output = await converter.to_markdown(request.filePath, file_format)
         else:

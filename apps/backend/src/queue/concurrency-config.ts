@@ -2,7 +2,7 @@
  * PDF Processing Concurrency Configuration
  * 
  * Controls how many PDF documents can be processed in parallel.
- * Default: 1 (sequential processing for thread-safety)
+ * Reads from PDF_CONCURRENCY env var, defaults to 1.
  */
 
 const DEFAULT_CONCURRENCY = 1;
@@ -10,7 +10,6 @@ const MIN_CONCURRENCY = 1;
 
 /**
  * Get PDF processing concurrency from environment.
- * 
  * @returns Number of concurrent PDF processing jobs allowed
  */
 export function getPdfConcurrency(): number {

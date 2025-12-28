@@ -212,6 +212,7 @@ model ProcessingProfile {
   pdfOcrLanguages        String  @default("en")   @map("pdf_ocr_languages")
   pdfNumThreads          Int     @default(4)    @map("pdf_num_threads")
   pdfTableStructure      Boolean @default(false) @map("pdf_table_structure")
+  maxFileSizeMb          Int     @default(50)   @map("max_file_size_mb")
   
   // === Stage 2: Chunking ===
   documentChunkSize       Int @default(1000) @map("document_chunk_size")

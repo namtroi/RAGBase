@@ -29,9 +29,8 @@ const ALLOWED_EXTENSIONS = new Set([
   'docx', 'xlsx', 'csv', 'pptx', 'html', 'htm', 'epub',
 ]);
 
-// Config (from env)
-const MAX_FILE_SIZE_MB = parseInt(process.env.MAX_FILE_SIZE_MB || '50', 10);
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+// Default max file size (used when no profile available)
+const DEFAULT_MAX_FILE_SIZE_MB = 50;
 
 interface FileInfo {
   filename: string;
@@ -47,14 +46,22 @@ interface ValidationResult {
   };
 }
 
-export function validateUpload(file: FileInfo): ValidationResult {
+/**
+ * Validate upload file.
+ * @param file - File info to validate
+ * @param maxFileSizeMb - Max file size from profile (defaults to 50MB)
+ */
+export function validateUpload(file: FileInfo, maxFileSizeMb?: number): ValidationResult {
+  const maxSizeMb = maxFileSizeMb ?? DEFAULT_MAX_FILE_SIZE_MB;
+  const maxSizeBytes = maxSizeMb * 1024 * 1024;
+
   // Size check
-  if (file.size > MAX_FILE_SIZE_BYTES) {
+  if (file.size > maxSizeBytes) {
     return {
       valid: false,
       error: {
         code: 'FILE_TOO_LARGE',
-        message: `File exceeds ${MAX_FILE_SIZE_MB}MB limit`,
+        message: `File exceeds ${maxSizeMb}MB limit`,
       },
     };
   }

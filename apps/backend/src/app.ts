@@ -28,6 +28,8 @@ import { chunksRoute } from './routes/chunks/index.js';
 import { profileRoutes } from './routes/profiles/index.js';
 // Hybrid Search Infrastructure
 import { initializeHybridSearch } from './services/hybrid-search-init.js';
+// Default Profile
+import { ensureDefaultProfile } from './services/default-profile.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -68,6 +70,9 @@ export async function createApp(): Promise<FastifyInstance> {
 
   // Initialize BullMQ worker and cron jobs (if not in test mode)
   if (process.env.NODE_ENV !== 'test') {
+    // Ensure default profile exists
+    await ensureDefaultProfile();
+    
     initWorker();
     // Initialize Drive sync cron jobs
     initializeCronJobs().catch(err => {

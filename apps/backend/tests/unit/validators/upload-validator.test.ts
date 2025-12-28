@@ -51,6 +51,28 @@ describe('validateUpload', () => {
       expect(result.valid).toBe(false);
       expect(result.error?.code).toBe('FILE_TOO_LARGE');
     });
+
+    it('should use custom maxFileSizeMb when provided', () => {
+      const customMaxMb = 10; // 10MB
+      const result = validateUpload({
+        filename: 'test.pdf',
+        mimeType: 'application/pdf',
+        size: 15 * 1024 * 1024, // 15MB - over custom limit
+      }, customMaxMb);
+      expect(result.valid).toBe(false);
+      expect(result.error?.code).toBe('FILE_TOO_LARGE');
+      expect(result.error?.message).toContain('10MB');
+    });
+
+    it('should accept file under custom maxFileSizeMb', () => {
+      const customMaxMb = 100; // 100MB
+      const result = validateUpload({
+        filename: 'test.pdf',
+        mimeType: 'application/pdf',
+        size: 80 * 1024 * 1024, // 80MB - under custom limit
+      }, customMaxMb);
+      expect(result.valid).toBe(true);
+    });
   });
 
   describe('format validation', () => {

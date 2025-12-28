@@ -35,12 +35,13 @@ class PdfConverter(FormatConverter):
             logger.info("semaphore_created", max_workers=max_workers)
         return self._semaphore
 
-    def _get_docling_converter(self, ocr_mode: str):
-        """Get or create cached Docling converter for the OCR mode."""
-        if ocr_mode in self._converters:
-            return self._converters[ocr_mode]
+    def _get_docling_converter(self, ocr_mode: str, num_threads: int = 4):
+        """Get or create cached Docling converter for the OCR mode and thread count."""
+        cache_key = f"{ocr_mode}_{num_threads}"
+        if cache_key in self._converters:
+            return self._converters[cache_key]
 
-        logger.info("creating_converter", ocr_mode=ocr_mode)
+        logger.info("creating_converter", ocr_mode=ocr_mode, num_threads=num_threads)
 
         from docling.datamodel.base_models import InputFormat
         from docling.datamodel.pipeline_options import (
@@ -50,9 +51,9 @@ class PdfConverter(FormatConverter):
         )
         from docling.document_converter import DocumentConverter, PdfFormatOption
 
-        # Force CPU to avoid GPU meta tensor errors
+        # Use num_threads from profile config
         accelerator_options = AcceleratorOptions(
-            num_threads=4,
+            num_threads=num_threads,
             device=AcceleratorDevice.CPU,
         )
 
@@ -63,17 +64,32 @@ class PdfConverter(FormatConverter):
             do_table_structure=False,
         )
 
-        if ocr_mode == "force" or (ocr_mode == "auto" and settings.ocr_enabled):
+        # OCR based on profile's pdfOcrMode (no env dependency)
+        if ocr_mode == "force":
             try:
                 from docling.datamodel.pipeline_options import EasyOcrOptions
 
                 languages = settings.ocr_languages.split(",")
                 pipeline_options.do_ocr = True
                 pipeline_options.ocr_options = EasyOcrOptions(lang=languages)
+                logger.info("ocr_enabled", mode="force", languages=languages)
+            except ImportError:
+                logger.warning("ocr_not_available", reason="easyocr not installed")
+                pipeline_options.do_ocr = False
+        elif ocr_mode == "auto":
+            # Auto mode: enable OCR (Docling will detect if needed)
+            try:
+                from docling.datamodel.pipeline_options import EasyOcrOptions
+
+                languages = settings.ocr_languages.split(",")
+                pipeline_options.do_ocr = True
+                pipeline_options.ocr_options = EasyOcrOptions(lang=languages)
+                logger.info("ocr_enabled", mode="auto", languages=languages)
             except ImportError:
                 logger.warning("ocr_not_available", reason="easyocr not installed")
                 pipeline_options.do_ocr = False
         else:
+            # never mode
             pipeline_options.do_ocr = False
 
         pdf_format_option = PdfFormatOption(pipeline_options=pipeline_options)
@@ -83,20 +99,20 @@ class PdfConverter(FormatConverter):
             format_options={InputFormat.PDF: pdf_format_option},
         )
 
-        self._converters[ocr_mode] = converter
-        logger.info("converter_cached", ocr_mode=ocr_mode)
+        self._converters[cache_key] = converter
+        logger.info("converter_cached", ocr_mode=ocr_mode, num_threads=num_threads)
 
         return converter
 
     async def to_markdown(
-        self, file_path: str, ocr_mode: str = "auto"
+        self, file_path: str, ocr_mode: str = "auto", num_threads: int = 4
     ) -> ProcessorOutput:
         """Convert PDF/DOCX to Markdown."""
         async with self._get_semaphore():
-            return await self._convert_internal(file_path, ocr_mode)
+            return await self._convert_internal(file_path, ocr_mode, num_threads)
 
     async def _convert_internal(
-        self, file_path: str, ocr_mode: str = "auto"
+        self, file_path: str, ocr_mode: str = "auto", num_threads: int = 4
     ) -> ProcessorOutput:
         """Internal conversion logic."""
         path = Path(file_path)
@@ -118,7 +134,7 @@ class PdfConverter(FormatConverter):
                     },
                 )
 
-            converter = self._get_docling_converter(ocr_mode)
+            converter = self._get_docling_converter(ocr_mode, num_threads)
             result = await asyncio.to_thread(converter.convert, str(path))
 
             markdown = result.document.export_to_markdown()

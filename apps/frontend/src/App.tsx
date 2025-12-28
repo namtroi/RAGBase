@@ -5,8 +5,9 @@ import { DriveSyncTab } from '@/components/drive/DriveSyncTab';
 import { SearchForm } from '@/components/query/search-form';
 import { AnalyticsPage } from '@/components/analytics/AnalyticsPage';
 import { ChunksExplorerPage } from '@/components/chunks/ChunksExplorerPage';
+import { ProfilePage } from '@/components/profiles/ProfilePage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { FileText, FolderSync, Search, Settings, BarChart3, Layers } from 'lucide-react';
+import { FileText, FolderSync, Search, Settings, BarChart3, Layers, Sliders } from 'lucide-react';
 import { useState } from 'react';
 
 const queryClient = new QueryClient({
@@ -18,7 +19,7 @@ const queryClient = new QueryClient({
   },
 });
 
-type Tab = 'documents' | 'query' | 'analytics' | 'chunks' | 'settings' | 'drive';
+type Tab = 'documents' | 'query' | 'analytics' | 'chunks' | 'settings' | 'drive' | 'profiles';
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<Tab>('documents');
@@ -29,6 +30,7 @@ function AppContent() {
     { id: 'chunks' as Tab, label: 'Chunks', icon: Layers },
     { id: 'query' as Tab, label: 'Search', icon: Search },
     { id: 'analytics' as Tab, label: 'Analytics', icon: BarChart3 },
+    { id: 'profiles' as Tab, label: 'Profiles', icon: Sliders },
   ];
 
   return (
@@ -124,6 +126,10 @@ function AppContent() {
 
         {activeTab === 'drive' && (
           <DriveSyncTab />
+        )}
+
+        {activeTab === 'profiles' && (
+          <ProfilePage />
         )}
 
         {activeTab === 'settings' && (

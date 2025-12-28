@@ -42,6 +42,7 @@ export class SyncService {
         // Get config
         const config = await this.prisma.driveConfig.findUnique({
             where: { id: configId },
+            include: { processingProfile: true },
         });
 
         if (!config) {
@@ -62,11 +63,32 @@ export class SyncService {
         eventBus.emit('sync:start', { configId });
 
         try {
+            // Build profile config from the drive config's assigned profile
+            const processingProfileId = config.processingProfile?.id;
+            const profileConfig = config.processingProfile ? {
+                conversionTableRows: config.processingProfile.conversionTableRows,
+                conversionTableCols: config.processingProfile.conversionTableCols,
+                pdfOcrMode: config.processingProfile.pdfOcrMode,
+                pdfOcrLanguages: config.processingProfile.pdfOcrLanguages,
+                pdfNumThreads: config.processingProfile.pdfNumThreads,
+                pdfTableStructure: config.processingProfile.pdfTableStructure,
+                documentChunkSize: config.processingProfile.documentChunkSize,
+                documentChunkOverlap: config.processingProfile.documentChunkOverlap,
+                documentHeaderLevels: config.processingProfile.documentHeaderLevels,
+                presentationMinChunk: config.processingProfile.presentationMinChunk,
+                tabularRowsPerChunk: config.processingProfile.tabularRowsPerChunk,
+                qualityMinChars: config.processingProfile.qualityMinChars,
+                qualityMaxChars: config.processingProfile.qualityMaxChars,
+                qualityPenaltyPerFlag: config.processingProfile.qualityPenaltyPerFlag,
+                autoFixEnabled: config.processingProfile.autoFixEnabled,
+                autoFixMaxPasses: config.processingProfile.autoFixMaxPasses,
+            } : undefined;
+
             // Use incremental sync if we have a page token, otherwise full sync
             if (config.pageToken) {
-                await this.incrementalSync(config.id, config.folderId, config.pageToken, result);
+                await this.incrementalSync(config.id, config.folderId, config.pageToken, result, processingProfileId, profileConfig);
             } else {
-                await this.fullSync(config.id, config.folderId, config.recursive, result);
+                await this.fullSync(config.id, config.folderId, config.recursive, result, processingProfileId, profileConfig);
             }
 
             // Update config after successful sync
@@ -112,7 +134,9 @@ export class SyncService {
         configId: string,
         folderId: string,
         recursive: boolean,
-        result: SyncResult
+        result: SyncResult,
+        processingProfileId?: string,
+        profileConfig?: Record<string, unknown>
     ): Promise<void> {
         // Get all files from Drive
         const driveFiles = recursive
@@ -135,11 +159,11 @@ export class SyncService {
 
                 if (!existing) {
                     // New file
-                    await this.addFile(configId, file);
+                    await this.addFile(configId, file, processingProfileId, profileConfig);
                     result.added++;
                 } else if (file.md5Checksum && file.md5Checksum !== existing.md5Hash) {
                     // File changed
-                    await this.updateFile(existing.id, file);
+                    await this.updateFile(existing.id, file, configId, processingProfileId, profileConfig);
                     result.updated++;
                 }
                 // Skip unchanged files
@@ -174,7 +198,9 @@ export class SyncService {
         configId: string,
         folderId: string,
         pageToken: string,
-        result: SyncResult
+        result: SyncResult,
+        processingProfileId?: string,
+        profileConfig?: Record<string, unknown>
     ): Promise<void> {
         let currentToken = pageToken;
 
@@ -207,11 +233,11 @@ export class SyncService {
                         // Check if file is in our folder (for non-recursive, this is simplified)
                         if (!existing) {
                             // New file
-                            await this.addFile(configId, change.file);
+                            await this.addFile(configId, change.file, processingProfileId, profileConfig);
                             result.added++;
                         } else {
                             // Updated file
-                            await this.updateFile(existing.id, change.file);
+                            await this.updateFile(existing.id, change.file, configId, processingProfileId, profileConfig);
                             result.updated++;
                         }
                     }
@@ -234,7 +260,12 @@ export class SyncService {
     /**
      * Add a new file from Drive
      */
-    private async addFile(configId: string, file: { id: string; name: string; mimeType: string; size: number; md5Checksum?: string; modifiedTime?: string; webViewLink?: string }): Promise<void> {
+    private async addFile(
+        configId: string, 
+        file: { id: string; name: string; mimeType: string; size: number; md5Checksum?: string; modifiedTime?: string; webViewLink?: string },
+        processingProfileId?: string,
+        profileConfig?: Record<string, unknown>
+    ): Promise<void> {
         // 1. Global Lookup by driveFileId
         const existingByDriveId = await this.prisma.document.findUnique({
             where: { driveFileId: file.id },
@@ -246,7 +277,7 @@ export class SyncService {
 
             if (needsProcessing) {
                 // Proceded to re-processing via updateFile
-                await this.updateFile(existingByDriveId.id, file, configId);
+                await this.updateFile(existingByDriveId.id, file, configId, processingProfileId, profileConfig);
             } else {
                 // Update config info and status (if it was FAILED/REMOVED)
                 await this.prisma.document.update({
@@ -324,6 +355,7 @@ export class SyncService {
                 driveWebViewLink: file.webViewLink ?? undefined,
                 driveModifiedTime: file.modifiedTime ? new Date(file.modifiedTime) : undefined,
                 lastSyncedAt: new Date(),
+                processingProfileId,
             },
         });
 
@@ -332,14 +364,24 @@ export class SyncService {
             documentId: document.id,
             filePath,
             format,
-            config: { ocrMode: 'auto', ocrLanguages: ['en'] },
+            config: { 
+                ocrMode: 'auto', 
+                ocrLanguages: ['en'],
+                profileConfig,
+            },
         });
     }
 
     /**
      * Update an existing file from Drive
      */
-    private async updateFile(documentId: string, file: { id: string; name: string; mimeType: string; size: number; md5Checksum?: string; modifiedTime?: string; webViewLink?: string }, configId?: string): Promise<void> {
+    private async updateFile(
+        documentId: string, 
+        file: { id: string; name: string; mimeType: string; size: number; md5Checksum?: string; modifiedTime?: string; webViewLink?: string }, 
+        configId?: string,
+        processingProfileId?: string,
+        profileConfig?: Record<string, unknown>
+    ): Promise<void> {
         // Download new version
         const filePath = path.join(UPLOAD_DIR, `drive_${file.id}`);
         await this.driveService.downloadFile(file.id, filePath);
@@ -366,6 +408,7 @@ export class SyncService {
                 driveWebViewLink: file.webViewLink ?? undefined,
                 driveModifiedTime: file.modifiedTime ? new Date(file.modifiedTime) : undefined,
                 lastSyncedAt: new Date(),
+                processingProfileId,
             },
         });
 
@@ -383,7 +426,11 @@ export class SyncService {
             documentId,
             filePath,
             format,
-            config: { ocrMode: 'auto', ocrLanguages: ['en'] },
+            config: { 
+                ocrMode: 'auto', 
+                ocrLanguages: ['en'],
+                profileConfig,
+            },
         });
     }
 }
