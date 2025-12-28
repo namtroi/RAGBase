@@ -26,9 +26,16 @@ class CsvConverter(FormatConverter):
     """
 
     category = "tabular"
-    # Phase 4: Thresholds
-    MAX_TABLE_ROWS = 35
-    MAX_TABLE_COLS = 20
+
+    def __init__(self, max_table_rows: int = 35, max_table_cols: int = 20):
+        """Initialize converter with configurable table size thresholds.
+
+        Args:
+            max_table_rows: Max rows before switching to sentence format.
+            max_table_cols: Max columns before switching to sentence format.
+        """
+        self.max_table_rows = max_table_rows
+        self.max_table_cols = max_table_cols
 
     async def to_markdown(self, file_path: str) -> ProcessorOutput:
         """Convert CSV to Markdown."""
@@ -71,8 +78,8 @@ class CsvConverter(FormatConverter):
 
             # Phase 4: Decision Logic
             if (
-                len(df) <= self.MAX_TABLE_ROWS
-                and len(df.columns) <= self.MAX_TABLE_COLS
+                len(df) <= self.max_table_rows
+                and len(df.columns) <= self.max_table_cols
             ):
                 metadata["strategy"] = "markdown_table"
                 markdown = self._to_markdown_table(df)

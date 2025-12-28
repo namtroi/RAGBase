@@ -34,12 +34,26 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
 
       logger.info({ filename, mimeType, size: buffer.length }, 'upload_file_details');
 
-      // Validate file
+      // Get active profile for this upload (snapshot at upload time)
+      const prisma = getPrismaClient();
+      const activeProfile = await prisma.processingProfile.findFirst({
+        where: { isActive: true },
+      });
+
+      if (!activeProfile) {
+        logger.error('No active processing profile found');
+        return reply.status(500).send({
+          error: 'NO_ACTIVE_PROFILE',
+          message: 'No active processing profile configured',
+        });
+      }
+
+      // Validate file with profile's max file size
       const validation = validateUpload({
         filename,
         mimeType,
         size: buffer.length,
-      });
+      }, activeProfile.maxFileSizeMb);
 
       if (!validation.valid) {
         logger.warn({ error: validation.error }, 'upload_validation_failed');
@@ -76,7 +90,6 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
       logger.debug({ md5Hash }, 'upload_hash_calculated');
 
       // Check for duplicates
-      const prisma = getPrismaClient();
       const existing = await prisma.document.findUnique({
         where: { md5Hash },
       });
@@ -90,7 +103,7 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
         });
       }
 
-
+      logger.debug({ profileId: activeProfile.id, profileName: activeProfile.name }, 'upload_profile_captured');
 
       // Use MD5 hash only for unique storage (prevents path traversal)
       const filePath = path.join(UPLOAD_DIR, md5Hash);
@@ -121,9 +134,10 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
             status: 'PENDING',
             filePath,
             md5Hash,
+            processingProfileId: activeProfile.id,
           },
         });
-        logger.info({ documentId: document.id, filename: sanitizedFilename }, 'upload_document_created');
+        logger.info({ documentId: document.id, filename: sanitizedFilename, profileId: activeProfile.id }, 'upload_document_created');
 
         // Emit SSE event for new document
         eventBus.emit('document:created', {
@@ -138,14 +152,35 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
         throw error;
       }
 
+      // Build profileConfig for AI worker
+      const profileConfig = {
+        conversionTableRows: activeProfile.conversionTableRows,
+        conversionTableCols: activeProfile.conversionTableCols,
+        pdfOcrMode: activeProfile.pdfOcrMode,
+        pdfOcrLanguages: activeProfile.pdfOcrLanguages,
+        pdfNumThreads: activeProfile.pdfNumThreads,
+        pdfTableStructure: activeProfile.pdfTableStructure,
+        documentChunkSize: activeProfile.documentChunkSize,
+        documentChunkOverlap: activeProfile.documentChunkOverlap,
+        documentHeaderLevels: activeProfile.documentHeaderLevels,
+        presentationMinChunk: activeProfile.presentationMinChunk,
+        tabularRowsPerChunk: activeProfile.tabularRowsPerChunk,
+        qualityMinChars: activeProfile.qualityMinChars,
+        qualityMaxChars: activeProfile.qualityMaxChars,
+        qualityPenaltyPerFlag: activeProfile.qualityPenaltyPerFlag,
+        autoFixEnabled: activeProfile.autoFixEnabled,
+        autoFixMaxPasses: activeProfile.autoFixMaxPasses,
+      };
+
       // Queue for processing (all formats now go through queue)
       await getProcessingQueue().add('process', {
         documentId: document.id,
         filePath: filePath,
         format: format as any,
         config: {
-          ocrMode: 'auto',
-          ocrLanguages: ['en'],
+          ocrMode: activeProfile.pdfOcrMode as 'auto' | 'force' | 'never',
+          ocrLanguages: activeProfile.pdfOcrLanguages.split(',').map(l => l.trim()),
+          profileConfig,
         },
       });
       logger.debug({ documentId: document.id }, 'upload_queued');

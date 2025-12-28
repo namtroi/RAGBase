@@ -79,12 +79,17 @@ model Document {
   chunks              Chunk[]
   driveConfig         DriveConfig?  @relation(fields: [driveConfigId], references: [id], onDelete: SetNull)
   processingMetrics   ProcessingMetrics?
+  
+  // Phase 5: Processing Profile
+  processingProfileId  String?  @map("processing_profile_id")
+  processingProfile    ProcessingProfile? @relation(fields: [processingProfileId], references: [id], onDelete: SetNull)
 
   @@index([sourceType])
   @@index([driveConfigId])
   @@index([isActive])
   @@index([connectionState])
   @@index([formatCategory])
+  @@index([processingProfileId])
   @@map("documents")
 }
 
@@ -138,7 +143,12 @@ model DriveConfig {
 
   documents     Document[]
 
+  // Phase 5: Processing Profile
+  processingProfileId  String?  @map("processing_profile_id")
+  processingProfile    ProcessingProfile? @relation(fields: [processingProfileId], references: [id], onDelete: SetNull)
+
   @@index([enabled])
+  @@index([processingProfileId])
   @@map("drive_configs")
 }
 
@@ -183,5 +193,49 @@ model ProcessingMetrics {
   
   @@index([createdAt])
   @@map("processing_metrics")
+}
+
+// Phase 5: Processing Profile - Configurable pipeline settings
+model ProcessingProfile {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  description  String?
+  isActive     Boolean  @default(false) @map("is_active")
+  isDefault    Boolean  @default(false) @map("is_default")
+  isArchived   Boolean  @default(false) @map("is_archived")
+  createdAt    DateTime @default(now()) @map("created_at")
+  
+  // === Stage 1: Conversion ===
+  conversionTableRows    Int     @default(35)   @map("conversion_table_rows")
+  conversionTableCols    Int     @default(20)   @map("conversion_table_cols")
+  pdfOcrMode             String  @default("auto") @map("pdf_ocr_mode")
+  pdfOcrLanguages        String  @default("en")   @map("pdf_ocr_languages")
+  pdfNumThreads          Int     @default(4)    @map("pdf_num_threads")
+  pdfTableStructure      Boolean @default(false) @map("pdf_table_structure")
+  maxFileSizeMb          Int     @default(50)   @map("max_file_size_mb")
+  
+  // === Stage 2: Chunking ===
+  documentChunkSize       Int @default(1000) @map("document_chunk_size")
+  documentChunkOverlap    Int @default(100)  @map("document_chunk_overlap")
+  documentHeaderLevels    Int @default(3)    @map("document_header_levels")
+  presentationMinChunk    Int @default(200)  @map("presentation_min_chunk")
+  tabularRowsPerChunk     Int @default(20)   @map("tabular_rows_per_chunk")
+  
+  // === Stage 3: Quality ===
+  qualityMinChars         Int     @default(50)   @map("quality_min_chars")
+  qualityMaxChars         Int     @default(2000) @map("quality_max_chars")
+  qualityPenaltyPerFlag   Float   @default(0.15) @map("quality_penalty_per_flag")
+  autoFixEnabled          Boolean @default(true) @map("auto_fix_enabled")
+  autoFixMaxPasses        Int     @default(2)    @map("auto_fix_max_passes")
+  
+  // === Stage 4: Embedding (display-only, not editable) ===
+  embeddingModel          String  @default("BAAI/bge-small-en-v1.5") @map("embedding_model")
+  embeddingDimension      Int     @default(384) @map("embedding_dimension")
+  embeddingMaxTokens      Int     @default(512) @map("embedding_max_tokens")
+  
+  documents     Document[]
+  driveConfigs  DriveConfig[]
+  
+  @@map("processing_profiles")
 }
 

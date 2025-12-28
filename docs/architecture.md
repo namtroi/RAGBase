@@ -1,6 +1,6 @@
 # RAGBase Architecture
 
-**Phase 3 Complete** | **Last Updated:** 2025-12-24
+**Phase 4 Complete** | **Last Updated:** 2025-12-27
 
 High-level system design & key architectural decisions.
 
@@ -32,15 +32,15 @@ graph TB
 | Container | Technology | Purpose |
 |-----------|------------|---------|
 | **backend** | Node.js 20 + Fastify 4.29 | API server, queue consumer, SSE events, Drive sync |
-| **ai-worker** | Python 3.11 + FastAPI 0.126 | PDF/text processing, embedding, chunking |
-| **postgres** | PostgreSQL 16 + pgvector | Documents, chunks, vectors, DriveConfig |
+| **ai-worker** | Python 3.11 + FastAPI 0.126 | 10 format converters, chunking, quality, embedding |
+| **postgres** | PostgreSQL 16 + pgvector | Documents, chunks, vectors, quality metadata |
 | **redis** | Redis 7 | BullMQ job queue |
 
 ---
 
 ## 2. HTTP Dispatch Pattern
 
-### 2.1 Unified Processing Pipeline (Phase 2)
+### 2.1 Unified Processing Pipeline (Phase 4)
 
 ```mermaid
 sequenceDiagram
@@ -50,7 +50,7 @@ sequenceDiagram
     participant W as AI Worker
     participant SSE as SSE Clients
     
-    U->>B: Upload file (any format)
+    U->>B: Upload file (10 formats)
     B->>B: Validate & Save
     B->>Q: Add job
     B->>SSE: Emit document:created
@@ -59,57 +59,82 @@ sequenceDiagram
     Q->>B: Job data
     B->>W: HTTP POST /process (with format)
     
-    Note over W: Route by format:<br/>PDF → Docling<br/>MD/TXT/JSON → TextProcessor<br/>Then: Chunk → Embed
+    Note over W: Router → Converter → Sanitize<br/>→ Chunk (by category)<br/>→ Quality Analyze → Embed
     
     W->>B: HTTP POST /internal/callback
-    B->>B: Store processedContent + chunks + vectors
+    B->>B: Store content + chunks + vectors + quality
     B->>SSE: Emit document:status
 ```
 
 **Key Points:**
 - Backend owns the queue (single consumer)
-- All formats (PDF, JSON, TXT, MD) go through queue
-- AI Worker handles processing + embedding + chunking
+- 10 formats: PDF, DOCX, PPTX, HTML, EPUB, XLSX, CSV, TXT, MD, JSON
+- Strategy pattern: Router → Converter → Pipeline
 - SSE real-time updates to frontend
 
 ---
 
 ## 3. Processing Pipeline
 
-### 3.1 Python-First Architecture (Phase 2)
+### 3.1 Strategy Pattern Architecture (Phase 4)
 
 ```mermaid
 graph LR
     Upload[File Upload] --> Queue[BullMQ Queue]
     Queue --> Dispatch[HTTP Dispatch]
-    Dispatch --> AIWorker{AI Worker}
+    Dispatch --> Router{Router}
     
-    AIWorker -->|PDF| Docling[Docling + OCR]
-    AIWorker -->|MD/TXT/JSON| TextProcessor[TextProcessor]
+    Router -->|PDF/DOCX/PPTX| Docling[Docling Converter]
+    Router -->|HTML| BS[BeautifulSoup Converter]
+    Router -->|EPUB| Ebook[EbookLib Converter]
+    Router -->|XLSX| Excel[OpenPyXL Converter]
+    Router -->|CSV| CSV[Pandas Converter]
+    Router -->|TXT/MD/JSON| Text[Text Converter]
     
-    Docling --> Markdown[Markdown Output]
-    TextProcessor --> Markdown
+    Docling --> Sanitize[Sanitizer]
+    BS --> Sanitize
+    Ebook --> Sanitize
+    Excel --> Sanitize
+    CSV --> Sanitize
+    Text --> Sanitize
     
-    Markdown --> Chunk[LangChain Chunking]
-    Chunk --> Embed[sentence-transformers<br/>bge-small-en-v1.5]
+    Sanitize --> Chunker{Chunker by Category}
+    Chunker -->|Document| DocChunk[Header-based]
+    Chunker -->|Presentation| SlideChunk[Slide-based]
+    Chunker -->|Tabular| RowChunk[Row-based]
+    
+    DocChunk --> Quality[Quality Analyzer]
+    SlideChunk --> Quality
+    RowChunk --> Quality
+    
+    Quality --> AutoFix[Auto-Fix Rules]
+    AutoFix --> Embed[Embedder bge-small-en-v1.5]
     Embed --> Callback[HTTP Callback]
-    Callback --> Store[(Store in DB)]
     
-    style AIWorker fill:#2196F3
-    style Docling fill:#4CAF50
-    style TextProcessor fill:#4CAF50
+    style Router fill:#2196F3
+    style Quality fill:#FF9800
 ```
 
-**Why Python-First?**
-- Single source of truth for embedding/chunking
-- Better ML ecosystem (sentence-transformers, LangChain)
-- Eliminates code duplication (was dual-path in Phase 1)
+### 3.2 Format Categories
+
+| Category | Formats | Chunking Strategy |
+|----------|---------|-------------------|
+| **Document** | PDF, DOCX, TXT, MD, HTML, EPUB | Header-based with breadcrumbs |
+| **Presentation** | PPTX | Slide-based with grouping |
+| **Tabular** | XLSX, CSV, JSON | Row-based or table format |
+
+### 3.3 Quality Pipeline
+
+| Stage | Purpose |
+|-------|--------|
+| **Analyzer** | Detect flags: TOO_SHORT, TOO_LONG, NO_CONTEXT, FRAGMENT, EMPTY |
+| **Auto-Fix** | Merge short, split long, inject context, skip empty |
+| **Scoring** | Base 1.0, -0.15 per flag |
 
 **Embedding Model:**
 - **Library:** sentence-transformers 2.3+
 - **Model:** BAAI/bge-small-en-v1.5
 - **Dimensions:** 384
-- **Upgrade from Phase 1:** all-MiniLM-L6-v2 → bge-small-en-v1.5 (~10% better retrieval)
 
 ---
 
@@ -182,12 +207,14 @@ graph LR
 ### 6.1 Schema Overview
 
 **Document:** Stores file metadata + processed content
-- Phase 2: `processedContent`, `sourceType`, `driveFileId`, `driveConfigId`
-- Phase 3: `isActive`, `connectionState`
+- `processedContent`, `sourceType`, `driveFileId`, `driveConfigId`
+- `isActive`, `connectionState`
+- Phase 4: `formatCategory` (document/presentation/tabular)
 
-**Chunk:** Text content + 384d vector embeddings
+**Chunk:** Text content + 384d vector embeddings + quality metadata
+- Phase 4: `qualityScore`, `qualityFlags[]`, `chunkType`, `breadcrumbs[]`, `tokenCount`, `location`
 
-**DriveConfig (NEW):** Folder sync configuration
+**DriveConfig:** Folder sync configuration
 
 ### 6.2 Vector Storage (pgvector)
 
@@ -242,6 +269,7 @@ graph TD
 - `CORRUPT_FILE` - File cannot be read
 - `UNSUPPORTED_FORMAT` - Format not supported
 - `OCR_FAILED` - OCR processing failed
+- `EMPTY_CONTENT` - No extractable content
 - `TIMEOUT` - Processing exceeded time limit
 - `INTERNAL_ERROR` - Unexpected error
 
@@ -280,12 +308,13 @@ sequenceDiagram
 
 | Decision | Rationale | Trade-off |
 |----------|-----------|-----------|
+| **Strategy Pattern** | Clean converter architecture, easy to add formats | More files to maintain |
+| **Category-Based Chunking** | Optimal chunking per content type | Complexity in routing |
+| **Quality Analysis** | Better RAG retrieval, auto-fix issues | Processing overhead (~5%) |
 | **Python-First Embedding** | Single source of truth, ML ecosystem | All files queued (1-2s latency) |
 | **SSE (not WebSockets)** | Simpler, one-way communication | Auth via query param |
 | **HTTP Dispatch Pattern** | Avoids race conditions | AI worker must be running |
-| **Drive Service Account** | No user OAuth, server-to-server | Shared access only |
-| **Soft Delete** | Preserve history for Drive files | Cleanup needed |
-| **Multi-format TextProcessor** | Consistent processing for all | More Python code |
+| **Auto-Delete Source Files** | Save disk space after processing | No re-processing without re-upload |
 
 ---
 
@@ -308,13 +337,15 @@ sequenceDiagram
 - `CALLBACK_URL` - Backend callback endpoint
 - `EMBEDDING_MODEL` - BAAI/bge-small-en-v1.5
 - `CHUNK_SIZE`, `CHUNK_OVERLAP` - Chunking params
+- `OCR_MODE` - auto/force/never (PDF only)
 
 ---
 
-**Phase 3 Status:** ✅ COMPLETE (2025-12-24)
+**Phase 4 Status:** ✅ COMPLETE (2025-12-27)
 
 **Documentation:**
 - [product.md](./product.md) - Product overview
 - [api.md](./api.md) - API contracts
-- [roadmap-phase3.md](./roadmap-phase3.md) - Phase 3 details
+- [detailed-plan-phase4-part1.md](./detailed-plan-phase4-part1.md) - Format converters
+- [detailed-plan-phase4-part2.md](./detailed-plan-phase4-part2.md) - Chunking + quality
 

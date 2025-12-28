@@ -8,10 +8,10 @@ mockEmbeddingClient();
 
 describe('POST /api/query', () => {
   let app: any;
-  const API_KEY = 'test-key';
+  
 
   beforeAll(async () => {
-    process.env.API_KEY = API_KEY;
+    
     app = await createTestApp();
   });
 
@@ -40,7 +40,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'test content', topK: 5 },
       });
 
@@ -69,7 +69,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'machine learning', topK: 2 },
       });
 
@@ -96,7 +96,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'test', topK: 3 },
       });
 
@@ -117,7 +117,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'test', topK: 1 },
       });
 
@@ -134,7 +134,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: '' },
       });
 
@@ -145,7 +145,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'a'.repeat(1001) },
       });
 
@@ -156,7 +156,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'test' },
       });
 
@@ -168,7 +168,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'test', mode: 'invalid' },
       });
 
@@ -179,7 +179,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'test', alpha: -0.1 },
       });
 
@@ -190,7 +190,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'test', alpha: 1.5 },
       });
 
@@ -203,7 +203,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'test', topK: 5 },
       });
 
@@ -232,7 +232,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'content', topK: 10 },
       });
 
@@ -253,7 +253,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'content', topK: 10 },
       });
 
@@ -270,7 +270,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'content', topK: 10 },
       });
 
@@ -293,7 +293,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'test' },
       });
 
@@ -305,7 +305,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'test', mode: 'semantic' },
       });
 
@@ -317,7 +317,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'test', mode: 'hybrid' },
       });
 
@@ -329,7 +329,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'test', mode: 'hybrid', alpha: 0.5 },
       });
 
@@ -343,7 +343,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'test', mode: 'hybrid' },
       });
 
@@ -358,7 +358,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'machine learning', mode: 'hybrid', topK: 5 },
       });
 
@@ -380,7 +380,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { query: 'test content', mode: 'semantic', topK: 5 },
       });
 

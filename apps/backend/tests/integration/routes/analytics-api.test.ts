@@ -5,10 +5,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 describe('Analytics API', () => {
   let app: any;
-  const API_KEY = 'test-key';
+  
 
   beforeAll(async () => {
-    process.env.API_KEY = API_KEY;
+    
     app = await createTestApp();
   });
 
@@ -63,7 +63,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/overview',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(200);
@@ -78,7 +78,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/overview',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -92,7 +92,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/overview',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -111,7 +111,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/processing',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(200);
@@ -127,7 +127,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/processing',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -141,7 +141,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/processing',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -156,7 +156,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/quality',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(200);
@@ -172,7 +172,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/quality',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -189,7 +189,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/documents',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(200);
@@ -205,7 +205,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/documents',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -218,7 +218,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/documents',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -233,7 +233,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/documents?page=1&limit=2',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -261,7 +261,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: `/api/analytics/documents/${doc.id}/chunks`,
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(200);
@@ -288,7 +288,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: `/api/analytics/documents/${doc.id}/chunks`,
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -300,7 +300,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/documents/00000000-0000-0000-0000-000000000000/chunks',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(404);
@@ -333,7 +333,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/overview',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(200);
@@ -362,7 +362,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/overview',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -378,7 +378,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/overview',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -407,7 +407,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/processing?format=pdf',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(200);
@@ -423,7 +423,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/processing?format=pdf',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -438,7 +438,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/processing?format=pdf',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -458,7 +458,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/quality',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -476,7 +476,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/quality',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -494,7 +494,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/quality',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -528,7 +528,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/quality',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -543,7 +543,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/quality',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);

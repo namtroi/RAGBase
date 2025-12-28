@@ -21,12 +21,26 @@ class QualityFlag(str, Enum):
 class QualityAnalyzer:
     """
     Analyze chunks for quality issues.
+
+    Accepts configurable thresholds for quality assessment.
     """
 
-    # Thresholds
-    MIN_CHARS = 50
-    MAX_CHARS = 2000
-    PENALTY_PER_FLAG = 0.15
+    def __init__(
+        self,
+        min_chars: int = 50,
+        max_chars: int = 2000,
+        penalty_per_flag: float = 0.15,
+    ):
+        """Initialize analyzer with configurable thresholds.
+
+        Args:
+            min_chars: Minimum characters for a chunk to be considered complete.
+            max_chars: Maximum characters before flagging as TOO_LONG.
+            penalty_per_flag: Score reduction per quality flag.
+        """
+        self.min_chars = min_chars
+        self.max_chars = max_chars
+        self.penalty_per_flag = penalty_per_flag
 
     def analyze(self, chunk: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -59,11 +73,11 @@ class QualityAnalyzer:
         char_count = len(stripped)
 
         # 2. Check TOO_SHORT
-        if char_count < self.MIN_CHARS:
+        if char_count < self.min_chars:
             flags.append(QualityFlag.TOO_SHORT)
 
         # 3. Check TOO_LONG
-        if char_count > self.MAX_CHARS:
+        if char_count > self.max_chars:
             flags.append(QualityFlag.TOO_LONG)
 
         # 4. Check NO_CONTEXT
@@ -79,7 +93,7 @@ class QualityAnalyzer:
             flags.append(QualityFlag.FRAGMENT)
 
         # Calculate score
-        score = max(0.0, 1.0 - (self.PENALTY_PER_FLAG * len(flags)))
+        score = max(0.0, 1.0 - (self.penalty_per_flag * len(flags)))
 
         # Determine completeness
         if QualityFlag.FRAGMENT in flags:

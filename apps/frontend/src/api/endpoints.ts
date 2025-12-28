@@ -344,3 +344,125 @@ export const chunksApi = {
 
   get: (id: string) => api.get<ChunkDetail>(`/chunks/${id}`),
 };
+
+// Processing Profile types
+export interface ProcessingProfile {
+  id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  isDefault: boolean;
+  isArchived: boolean;
+  createdAt: string;
+  // Conversion settings
+  conversionTableRows: number;
+  conversionTableCols: number;
+  pdfOcrMode: string;
+  pdfOcrLanguages: string;
+  pdfNumThreads: number;
+  pdfTableStructure: boolean;
+  maxFileSizeMb: number;
+  // Chunking settings
+  documentChunkSize: number;
+  documentChunkOverlap: number;
+  documentHeaderLevels: number;
+  presentationMinChunk: number;
+  tabularRowsPerChunk: number;
+  // Quality settings
+  qualityMinChars: number;
+  qualityMaxChars: number;
+  qualityPenaltyPerFlag: number;
+  autoFixEnabled: boolean;
+  autoFixMaxPasses: number;
+  // Embedding settings (display only)
+  embeddingModel: string;
+  embeddingDimension: number;
+  embeddingMaxTokens: number;
+  // Counts
+  documentCount?: number;
+}
+
+export interface ProfileCreateData {
+  name: string;
+  description?: string;
+  conversionTableRows?: number;
+  conversionTableCols?: number;
+  pdfOcrMode?: string;
+  pdfOcrLanguages?: string;
+  pdfNumThreads?: number;
+  pdfTableStructure?: boolean;
+  documentChunkSize?: number;
+  documentChunkOverlap?: number;
+  documentHeaderLevels?: number;
+  presentationMinChunk?: number;
+  tabularRowsPerChunk?: number;
+  qualityMinChars?: number;
+  qualityMaxChars?: number;
+  qualityPenaltyPerFlag?: number;
+  autoFixEnabled?: boolean;
+  autoFixMaxPasses?: number;
+}
+
+export interface ProfileDeleteConfirmation {
+  requireConfirmation: boolean;
+  message: string;
+  documentCount: number;
+  chunkCount: number;
+}
+
+// Processing Profile endpoints
+export const profilesApi = {
+  list: async (includeArchived = false) => {
+    const response = await api.get<{ profiles: ProcessingProfile[] }>(
+      `/profiles${includeArchived ? '?includeArchived=true' : ''}`
+    );
+    return response.profiles;
+  },
+
+  getActive: async () => {
+    const response = await api.get<{ profile: ProcessingProfile }>('/profiles/active');
+    return response.profile;
+  },
+
+  create: async (data: ProfileCreateData) => {
+    const response = await api.post<{ profile: ProcessingProfile }>('/profiles', data);
+    return response.profile;
+  },
+
+  duplicate: async (id: string, newName?: string) => {
+    const response = await api.post<{ profile: ProcessingProfile }>(
+      `/profiles/${id}/duplicate`,
+      newName ? { newName } : {}
+    );
+    return response.profile;
+  },
+
+  activate: async (id: string) => {
+    const response = await api.put<{ profile: ProcessingProfile }>(
+      `/profiles/${id}/activate`,
+      {}
+    );
+    return response.profile;
+  },
+
+  archive: async (id: string) => {
+    const response = await api.put<{ profile: ProcessingProfile }>(
+      `/profiles/${id}/archive`,
+      {}
+    );
+    return response.profile;
+  },
+
+  unarchive: async (id: string) => {
+    const response = await api.put<{ profile: ProcessingProfile }>(
+      `/profiles/${id}/unarchive`,
+      {}
+    );
+    return response.profile;
+  },
+
+  delete: (id: string, confirmed = false) =>
+    api.delete<{ success: boolean } | ProfileDeleteConfirmation>(
+      `/profiles/${id}${confirmed ? '?confirmed=true' : ''}`
+    ),
+};

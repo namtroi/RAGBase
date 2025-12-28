@@ -25,8 +25,11 @@ import { disconnectPrisma } from './services/database.js';
 // Phase 5: Analytics Dashboard
 import { overviewRoute, processingRoute, qualityRoute, documentsRoute } from './routes/analytics/index.js';
 import { chunksRoute } from './routes/chunks/index.js';
+import { profileRoutes } from './routes/profiles/index.js';
 // Hybrid Search Infrastructure
 import { initializeHybridSearch } from './services/hybrid-search-init.js';
+// Default Profile
+import { ensureDefaultProfile } from './services/default-profile.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -67,6 +70,9 @@ export async function createApp(): Promise<FastifyInstance> {
 
   // Initialize BullMQ worker and cron jobs (if not in test mode)
   if (process.env.NODE_ENV !== 'test') {
+    // Ensure default profile exists
+    await ensureDefaultProfile();
+    
     initWorker();
     // Initialize Drive sync cron jobs
     initializeCronJobs().catch(err => {
@@ -104,6 +110,9 @@ export async function createApp(): Promise<FastifyInstance> {
     await qualityRoute(protectedScope);
     await documentsRoute(protectedScope);
     await chunksRoute(protectedScope);
+
+    // Phase 5: Processing Profiles
+    await profileRoutes(protectedScope);
   });
 
   app.addHook('onClose', async () => {

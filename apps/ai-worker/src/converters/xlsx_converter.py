@@ -22,8 +22,11 @@ class XlsxConverter(FormatConverter):
     """
 
     category = "tabular"
-    MAX_TABLE_ROWS = 35
-    MAX_TABLE_COLS = 20
+
+    def __init__(self, max_table_rows: int = 35, max_table_cols: int = 20):
+        """Initialize converter with configurable table size thresholds."""
+        self.max_table_rows = max_table_rows
+        self.max_table_cols = max_table_cols
 
     async def to_markdown(self, file_path: str) -> ProcessorOutput:
         """Convert XLSX to Markdown."""
@@ -71,8 +74,8 @@ class XlsxConverter(FormatConverter):
 
                 # Decision Logic: Table vs Sentence
                 if (
-                    len(df) <= self.MAX_TABLE_ROWS
-                    and len(df.columns) <= self.MAX_TABLE_COLS
+                    len(df) <= self.max_table_rows
+                    and len(df.columns) <= self.max_table_cols
                 ):
                     markdown_parts.append(self._to_markdown_table(df))
                 else:

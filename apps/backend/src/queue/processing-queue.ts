@@ -8,6 +8,7 @@ export interface ProcessingJob {
   config: {
     ocrMode: 'auto' | 'force' | 'never';
     ocrLanguages: string[];
+    profileConfig?: Record<string, unknown>;
   };
 }
 

@@ -97,11 +97,12 @@ class TestProcessEndpoint:
         ]
 
         with patch("src.main.get_converter", return_value=mock_converter):
-            with patch("src.main.processing_pipeline") as mock_pipeline:
-                mock_pipeline.run.return_value = (
-                    mock_chunks,
-                    100,
-                )  # (chunks, embedding_time_ms)
+            mock_pipeline = MagicMock()
+            mock_pipeline.run.return_value = (
+                mock_chunks,
+                100,
+            )  # (chunks, embedding_time_ms)
+            with patch("src.main.create_pipeline", return_value=mock_pipeline):
                 with patch(
                     "src.main.send_callback", new_callable=AsyncMock, return_value=True
                 ):
@@ -134,11 +135,12 @@ class TestProcessEndpoint:
         )
 
         with patch("src.main.get_converter", return_value=mock_converter):
-            with patch("src.main.processing_pipeline") as mock_pipeline:
-                mock_pipeline.run.return_value = (
-                    [{"content": "c", "metadata": {}}],
-                    50,
-                )  # (chunks, embedding_time_ms)
+            mock_pipeline = MagicMock()
+            mock_pipeline.run.return_value = (
+                [{"content": "c", "metadata": {}}],
+                50,
+            )  # (chunks, embedding_time_ms)
+            with patch("src.main.create_pipeline", return_value=mock_pipeline):
                 with patch(
                     "src.main.send_callback", new_callable=AsyncMock, return_value=False
                 ):

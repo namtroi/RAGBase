@@ -5,10 +5,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 describe('POST /api/documents', () => {
   let app: any;
-  const API_KEY = 'test-key';
+
 
   beforeAll(async () => {
-    process.env.API_KEY = API_KEY;
+
     app = await createTestApp();
   });
 
@@ -30,7 +30,7 @@ describe('POST /api/documents', () => {
         method: 'POST',
         url: '/api/documents',
         headers: {
-          'X-API-Key': API_KEY,
+
           ...headers,
         },
         payload,
@@ -54,7 +54,7 @@ describe('POST /api/documents', () => {
         method: 'POST',
         url: '/api/documents',
         headers: {
-          'X-API-Key': API_KEY,
+
           ...headers,
         },
         payload,
@@ -75,7 +75,7 @@ describe('POST /api/documents', () => {
         method: 'POST',
         url: '/api/documents',
         headers: {
-          'X-API-Key': API_KEY,
+
           ...headers,
         },
         payload,
@@ -94,7 +94,7 @@ describe('POST /api/documents', () => {
         method: 'POST',
         url: '/api/documents',
         headers: {
-          'X-API-Key': API_KEY,
+
           ...headers,
         },
         payload,
@@ -112,7 +112,7 @@ describe('POST /api/documents', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/documents',
-        headers: { 'X-API-Key': API_KEY, ...headers },
+        headers: { ...headers },
         payload,
       });
 
@@ -135,7 +135,7 @@ describe('POST /api/documents', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/documents',
-        headers: { 'X-API-Key': API_KEY, ...headers },
+        headers: { ...headers },
         payload,
       });
 
@@ -151,7 +151,7 @@ describe('POST /api/documents', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/documents',
-        headers: { 'X-API-Key': API_KEY, ...headers },
+        headers: { ...headers },
         payload,
       });
 
@@ -168,7 +168,7 @@ describe('POST /api/documents', () => {
       await app.inject({
         method: 'POST',
         url: '/api/documents',
-        headers: { 'X-API-Key': API_KEY, ...req1.headers },
+        headers: { ...req1.headers },
         payload: req1.payload,
       });
 
@@ -178,7 +178,7 @@ describe('POST /api/documents', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/documents',
-        headers: { 'X-API-Key': API_KEY, ...req2.headers },
+        headers: { ...req2.headers },
         payload: req2.payload,
       });
 
@@ -187,8 +187,8 @@ describe('POST /api/documents', () => {
     });
   });
 
-  describe('authentication', () => {
-    it('should reject request without API key', async () => {
+  describe('no authentication required (demo mode)', () => {
+    it('should allow request without authentication', async () => {
       const { payload, headers } = createMultipartMock('test.pdf', Buffer.from('test'), 'application/pdf');
 
       const response = await app.inject({
@@ -198,7 +198,9 @@ describe('POST /api/documents', () => {
         payload,
       });
 
-      expect(response.statusCode).toBe(401);
+      // Auth disabled in demo mode - request goes through
+      // Will fail on validation (fake PDF content) not auth
+      expect(response.statusCode).not.toBe(401);
     });
   });
 });
