@@ -1,5 +1,5 @@
 import { API_KEY, getTestApp, setupE2E, teardownE2E } from '@tests/e2e/setup/e2e-setup.js';
-import { cleanDatabase } from '@tests/helpers/database.js';
+import { cleanDatabase, ensureDefaultProfile } from '@tests/helpers/database.js';
 import { FIXTURES, readFixture } from '@tests/helpers/fixtures.js';
 import { successCallback } from '@tests/mocks/python-worker-mock.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -15,6 +15,7 @@ describe('E2E: PDF Upload Flow', () => {
 
   beforeEach(async () => {
     await cleanDatabase();
+    await ensureDefaultProfile();
   });
 
   it('should process PDF: Upload → Queue → Callback → Chunks → Query', async () => {
