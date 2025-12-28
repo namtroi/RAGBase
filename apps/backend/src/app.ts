@@ -25,6 +25,7 @@ import { disconnectPrisma } from './services/database.js';
 // Phase 5: Analytics Dashboard
 import { overviewRoute, processingRoute, qualityRoute, documentsRoute } from './routes/analytics/index.js';
 import { chunksRoute } from './routes/chunks/index.js';
+import { profileRoutes } from './routes/profiles/index.js';
 // Hybrid Search Infrastructure
 import { initializeHybridSearch } from './services/hybrid-search-init.js';
 
@@ -104,6 +105,9 @@ export async function createApp(): Promise<FastifyInstance> {
     await qualityRoute(protectedScope);
     await documentsRoute(protectedScope);
     await chunksRoute(protectedScope);
+
+    // Phase 5: Processing Profiles
+    await profileRoutes(protectedScope);
   });
 
   app.addHook('onClose', async () => {

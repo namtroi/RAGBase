@@ -18,10 +18,53 @@ export async function cleanDatabase(): Promise<void> {
   // Order matters due to FK constraints
   // Note: chunk model uses pgvector (Unsupported), so we must use raw SQL for deletions
   await prisma.$executeRaw`DELETE FROM chunks`;
+  await prisma.processingMetrics.deleteMany();
   await prisma.document.deleteMany();
+  await prisma.driveConfig.deleteMany();
+  // Delete non-default profiles only (keep default for tests)
+  await prisma.processingProfile.deleteMany({
+    where: { isDefault: false }
+  });
 }
 
 // Seed helpers for integration tests
+export async function seedProcessingProfile(data: Partial<{
+  name: string;
+  description: string;
+  isActive: boolean;
+  isDefault: boolean;
+  isArchived: boolean;
+  conversionTableRows: number;
+  conversionTableCols: number;
+  pdfOcrMode: string;
+  pdfOcrLanguages: string;
+  pdfNumThreads: number;
+  pdfTableStructure: boolean;
+  documentChunkSize: number;
+  documentChunkOverlap: number;
+  documentHeaderLevels: number;
+  presentationMinChunk: number;
+  tabularRowsPerChunk: number;
+  qualityMinChars: number;
+  qualityMaxChars: number;
+  qualityPenaltyPerFlag: number;
+  autoFixEnabled: boolean;
+  autoFixMaxPasses: number;
+}> = {}) {
+  const prisma = getPrisma();
+  const defaultName = `Test Profile ${Date.now()}`;
+  return prisma.processingProfile.create({
+    data: {
+      name: data.name ?? defaultName,
+      description: data.description,
+      isActive: data.isActive ?? false,
+      isDefault: data.isDefault ?? false,
+      isArchived: data.isArchived ?? false,
+      ...data,
+    },
+  });
+}
+
 export async function seedDocument(data: Partial<any>) {
   const prisma = getPrisma();
   return prisma.document.create({
@@ -75,3 +118,25 @@ export async function seedChunk(documentId: string, data: Partial<any> = {}) {
     heading,
   };
 }
+
+/**
+ * Ensure a default profile exists for tests that need it.
+ * Returns the existing or newly created default profile.
+ * Always ensures the default profile is active.
+ */
+export async function ensureDefaultProfile() {
+  const prisma = getPrisma();
+  return prisma.processingProfile.upsert({
+    where: { name: 'Default' },
+    create: {
+      name: 'Default',
+      description: 'System default profile',
+      isActive: true,
+      isDefault: true,
+    },
+    update: {
+      isActive: true,  // Always ensure default is active for test isolation
+    },
+  });
+}
+
