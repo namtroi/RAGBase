@@ -25,15 +25,6 @@ class PdfConverter(FormatConverter):
 
     def __init__(self):
         self._converters: Dict[str, Any] = {}  # Cache by OCR mode
-        self._semaphore: asyncio.Semaphore | None = None
-
-    def _get_semaphore(self) -> asyncio.Semaphore:
-        """Get or create semaphore for limiting concurrent processing."""
-        if self._semaphore is None:
-            max_workers = max(1, settings.max_workers)
-            self._semaphore = asyncio.Semaphore(max_workers)
-            logger.info("semaphore_created", max_workers=max_workers)
-        return self._semaphore
 
     def _get_docling_converter(self, ocr_mode: str, num_threads: int = 4):
         """Get or create cached Docling converter for the OCR mode and thread count."""
@@ -108,8 +99,7 @@ class PdfConverter(FormatConverter):
         self, file_path: str, ocr_mode: str = "auto", num_threads: int = 4
     ) -> ProcessorOutput:
         """Convert PDF/DOCX to Markdown."""
-        async with self._get_semaphore():
-            return await self._convert_internal(file_path, ocr_mode, num_threads)
+        return await self._convert_internal(file_path, ocr_mode, num_threads)
 
     async def _convert_internal(
         self, file_path: str, ocr_mode: str = "auto", num_threads: int = 4

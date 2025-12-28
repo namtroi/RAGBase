@@ -143,9 +143,10 @@ model ProcessingProfile {
   conversionTableRows    Int     @default(35)   @map("conversion_table_rows")
   conversionTableCols    Int     @default(20)   @map("conversion_table_cols")
   pdfOcrMode             String  @default("auto") @map("pdf_ocr_mode")       // auto|force|never
-  pdfOcrLanguages        String  @default("en")   @map("pdf_ocr_languages")  // NEW: comma-separated
+  pdfOcrLanguages        String  @default("en")   @map("pdf_ocr_languages")  // comma-separated
   pdfNumThreads          Int     @default(4)    @map("pdf_num_threads")
   pdfTableStructure      Boolean @default(false) @map("pdf_table_structure")
+  maxFileSizeMb          Int     @default(50)   @map("max_file_size_mb")     // Upload limit
   
   // === Stage 2: Chunking ===
   documentChunkSize       Int @default(1000) @map("document_chunk_size")
@@ -164,9 +165,10 @@ model ProcessingProfile {
   // === Stage 4: Embedding (display-only, not editable) ===
   embeddingModel          String  @default("BAAI/bge-small-en-v1.5") @map("embedding_model")
   embeddingDimension      Int     @default(384) @map("embedding_dimension")
-  embeddingMaxTokens      Int     @default(512) @map("embedding_max_tokens")  // NEW
+  embeddingMaxTokens      Int     @default(512) @map("embedding_max_tokens")
   
   documents     Document[]
+  driveConfigs  DriveConfig[]
   
   @@map("processing_profiles")
 }
@@ -565,3 +567,46 @@ pnpm prisma db seed
 pnpm test -- --grep "profile"
 pytest tests/ -k "profile"
 ```
+
+---
+
+## Recent Changes Summary
+
+### Settings Moved to Profile
+
+| Setting | Was | Now |
+|---------|-----|-----|
+| `maxFileSizeMb` | `MAX_FILE_SIZE_MB` env | Profile field |
+| `pdfOcrMode` | `OCR_MODE` + `OCR_ENABLED` env | Profile field only |
+
+### Removed Settings
+
+| Setting | Reason |
+|---------|--------|
+| `OCR_ENABLED` | Redundant. `pdfOcrMode` controls OCR fully. |
+| `MAX_WORKERS` (AI worker) | Removed. BullMQ's `PDF_CONCURRENCY` controls all concurrency. |
+| `processingConcurrency` | Removed from profile. Use `PDF_CONCURRENCY` env var. |
+
+### Infrastructure Settings (Env Vars Only)
+
+| Env Var | Default | Purpose |
+|---------|---------|---------||
+| `PDF_CONCURRENCY` | 1 | Controls BullMQ + AI worker concurrency. Single setting. |
+
+### OCR Control Simplified
+
+**Before:**
+```
+if ocr_mode == "force" or (ocr_mode == "auto" and settings.ocr_enabled):
+    do_ocr = True
+```
+
+**After:**
+```
+if ocr_mode == "force" or ocr_mode == "auto":
+    do_ocr = True
+elif ocr_mode == "never":
+    do_ocr = False
+```
+
+`pdfOcrMode` alone controls OCR. No env var dependency.

@@ -1,17 +1,17 @@
 import { ProcessingProfile } from '@/api/endpoints';
-import { useActivateProfile, useArchiveProfile, useDuplicateProfile } from '@/hooks/use-profiles';
+import { useActivateProfile, useArchiveProfile } from '@/hooks/use-profiles';
 import { Copy, Archive, Check, Lock, Trash2, HelpCircle } from 'lucide-react';
 import { useState } from 'react';
 
 interface ProfileCardProps {
   profile: ProcessingProfile;
   onDelete?: (profile: ProcessingProfile) => void;
+  onDuplicate?: (profile: ProcessingProfile) => void;
 }
 
-export function ProfileCard({ profile, onDelete }: ProfileCardProps) {
+export function ProfileCard({ profile, onDelete, onDuplicate }: ProfileCardProps) {
   const activateMutation = useActivateProfile();
   const archiveMutation = useArchiveProfile();
-  const duplicateMutation = useDuplicateProfile();
 
   const handleActivate = () => {
     activateMutation.mutate(profile.id);
@@ -22,7 +22,7 @@ export function ProfileCard({ profile, onDelete }: ProfileCardProps) {
   };
 
   const handleDuplicate = () => {
-    duplicateMutation.mutate({ id: profile.id });
+    onDuplicate?.(profile);
   };
 
   return (
@@ -56,7 +56,6 @@ export function ProfileCard({ profile, onDelete }: ProfileCardProps) {
           )}
           <button
             onClick={handleDuplicate}
-            disabled={duplicateMutation.isPending}
             className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
             title="Duplicate"
           >
@@ -248,16 +247,16 @@ function SettingsSection({
 }) {
   return (
     <div className="border border-gray-100 rounded-lg">
-      <div className={`px-3 py-1 ${locked ? 'bg-gray-100' : 'bg-gray-50'}`}>
-        <div className={`text-xs font-medium flex items-center gap-1 ${locked ? 'text-gray-500' : 'text-gray-700'}`}>
+      <div className={`px-3 py-1.5 ${locked ? 'bg-gray-100' : 'bg-gray-50'}`}>
+        <div className={`text-sm font-medium flex items-center gap-1 ${locked ? 'text-gray-500' : 'text-gray-700'}`}>
           {locked && <Lock className="w-3 h-3" />}
           {title}
         </div>
         {description && (
-          <div className="text-[10px] text-gray-400">{description}</div>
+          <div className="text-xs text-gray-400">{description}</div>
         )}
       </div>
-      <div className="px-3 py-1.5 grid grid-cols-3 gap-x-4 gap-y-0.5 text-sm">
+      <div className="px-3 py-1.5 grid grid-cols-3 gap-x-4 gap-y-0.5">
         {children}
       </div>
     </div>
@@ -299,8 +298,8 @@ function SettingItem({
   };
 
   return (
-    <div className={`${locked ? 'text-gray-400' : ''} flex items-start gap-1`}>
-      <span className="text-gray-500 text-xs shrink-0">{label}:</span>{' '}
+    <div className={`${locked ? 'text-gray-400' : ''} flex items-start gap-1 text-sm`}>
+      <span className="text-gray-500 shrink-0">{label}:</span>{' '}
       <span className="font-medium break-all">{String(value)}</span>
       {tooltip && (
         <button
