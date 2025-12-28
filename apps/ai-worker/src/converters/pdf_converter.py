@@ -1,5 +1,5 @@
 # apps/ai-worker/src/converters/pdf_converter.py
-"""PDF/DOCX converter using Docling."""
+"""PDF converter using Docling."""
 
 import asyncio
 import gc
@@ -15,10 +15,11 @@ from .base import FormatConverter
 logger = get_logger(__name__)
 
 
-class PdfConverter(FormatConverter):
+class DoclingPdfConverter(FormatConverter):
     """
-    Converts PDF and DOCX files to Markdown using Docling.
+    Converts PDF files to Markdown using Docling.
     Supports OCR for scanned documents.
+    High quality but slower (~2s/page on CPU).
     """
 
     category = "document"

@@ -34,12 +34,11 @@ export async function seedProcessingProfile(data: Partial<{
   isActive: boolean;
   isDefault: boolean;
   isArchived: boolean;
-  conversionTableRows: number;
-  conversionTableCols: number;
+  pdfConverter: string;
   pdfOcrMode: string;
   pdfOcrLanguages: string;
-  pdfNumThreads: number;
-  pdfTableStructure: boolean;
+  conversionTableRows: number;
+  conversionTableCols: number;
   documentChunkSize: number;
   documentChunkOverlap: number;
   documentHeaderLevels: number;

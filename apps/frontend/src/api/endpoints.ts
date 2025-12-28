@@ -355,12 +355,11 @@ export interface ProcessingProfile {
   isArchived: boolean;
   createdAt: string;
   // Conversion settings
-  conversionTableRows: number;
-  conversionTableCols: number;
+  pdfConverter: string; // "pymupdf" | "docling"
   pdfOcrMode: string;
   pdfOcrLanguages: string;
-  pdfNumThreads: number;
-  pdfTableStructure: boolean;
+  conversionTableRows: number; // For XLSX/CSV
+  conversionTableCols: number; // For XLSX/CSV
   maxFileSizeMb: number;
   // Chunking settings
   documentChunkSize: number;
@@ -385,12 +384,11 @@ export interface ProcessingProfile {
 export interface ProfileCreateData {
   name: string;
   description?: string;
-  conversionTableRows?: number;
-  conversionTableCols?: number;
+  pdfConverter?: string;
   pdfOcrMode?: string;
   pdfOcrLanguages?: string;
-  pdfNumThreads?: number;
-  pdfTableStructure?: boolean;
+  conversionTableRows?: number;
+  conversionTableCols?: number;
   documentChunkSize?: number;
   documentChunkOverlap?: number;
   documentHeaderLevels?: number;

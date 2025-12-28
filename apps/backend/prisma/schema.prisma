@@ -206,12 +206,11 @@ model ProcessingProfile {
   createdAt    DateTime @default(now()) @map("created_at")
   
   // === Stage 1: Conversion ===
-  conversionTableRows    Int     @default(35)   @map("conversion_table_rows")
-  conversionTableCols    Int     @default(20)   @map("conversion_table_cols")
-  pdfOcrMode             String  @default("auto") @map("pdf_ocr_mode")
+  pdfConverter           String  @default("pymupdf") @map("pdf_converter") // "pymupdf" | "docling"
+  pdfOcrMode             String  @default("auto") @map("pdf_ocr_mode") // Only for docling
   pdfOcrLanguages        String  @default("en")   @map("pdf_ocr_languages")
-  pdfNumThreads          Int     @default(4)    @map("pdf_num_threads")
-  pdfTableStructure      Boolean @default(false) @map("pdf_table_structure")
+  conversionTableRows    Int     @default(35)   @map("conversion_table_rows") // For XLSX/CSV
+  conversionTableCols    Int     @default(20)   @map("conversion_table_cols") // For XLSX/CSV
   maxFileSizeMb          Int     @default(50)   @map("max_file_size_mb")
   
   // === Stage 2: Chunking ===

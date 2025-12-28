@@ -154,12 +154,11 @@ export async function uploadRoute(fastify: FastifyInstance): Promise<void> {
 
       // Build profileConfig for AI worker
       const profileConfig = {
-        conversionTableRows: activeProfile.conversionTableRows,
-        conversionTableCols: activeProfile.conversionTableCols,
+        pdfConverter: activeProfile.pdfConverter,
         pdfOcrMode: activeProfile.pdfOcrMode,
         pdfOcrLanguages: activeProfile.pdfOcrLanguages,
-        pdfNumThreads: activeProfile.pdfNumThreads,
-        pdfTableStructure: activeProfile.pdfTableStructure,
+        conversionTableRows: activeProfile.conversionTableRows,
+        conversionTableCols: activeProfile.conversionTableCols,
         documentChunkSize: activeProfile.documentChunkSize,
         documentChunkOverlap: activeProfile.documentChunkOverlap,
         documentHeaderLevels: activeProfile.documentHeaderLevels,

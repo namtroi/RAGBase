@@ -3,21 +3,28 @@
 
 from .base import FormatConverter
 from .csv_converter import CsvConverter
+from .docx_converter import DocxConverter
 from .epub_converter import EpubConverter
 from .html_converter import HtmlConverter
-from .pdf_converter import PdfConverter
+from .json_converter import JsonConverter
+from .md_converter import MarkdownConverter
+from .pdf_converter import DoclingPdfConverter
 from .pptx_converter import PptxConverter
-from .text_converter import JsonConverter, TextConverter
+from .pymupdf_converter import PyMuPDFConverter
+from .txt_converter import TxtConverter
 from .xlsx_converter import XlsxConverter
 
 __all__ = [
     "FormatConverter",
     "CsvConverter",
+    "DoclingPdfConverter",
+    "DocxConverter",
     "EpubConverter",
     "HtmlConverter",
-    "PdfConverter",
-    "PptxConverter",
-    "TextConverter",
     "JsonConverter",
+    "MarkdownConverter",
+    "PptxConverter",
+    "PyMuPDFConverter",
+    "TxtConverter",
     "XlsxConverter",
 ]

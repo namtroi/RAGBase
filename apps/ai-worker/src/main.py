@@ -28,7 +28,7 @@ from .models import (
     ProfileConfig,
 )
 from .pipeline import create_pipeline
-from .router import get_category, get_converter, is_supported_format
+from .router import get_category, get_converter, get_pdf_converter, is_supported_format
 
 # Configure logging first
 configure_logging()
@@ -128,18 +128,24 @@ async def process_document(request: ProcessRequest):
         else:
             profile_config = ProfileConfig()  # Use defaults
 
-        # Get OCR mode for PDF/DOCX
+        # Get OCR mode for Docling (only used when pdfConverter = "docling")
         ocr_mode = profile_config.pdfOcrMode
         if request.config:
             ocr_mode = request.config.ocrMode  # Legacy override
 
         # 1. Convert to Markdown (with timing)
         metrics_collector.start_stage()
-        if file_format in ("pdf", "docx"):
-            num_threads = profile_config.pdfNumThreads
-            output = await converter.to_markdown(
-                request.filePath, ocr_mode, num_threads
-            )
+        if file_format == "pdf":
+            # Dynamic PDF converter selection based on profile
+            converter = get_pdf_converter(profile_config.pdfConverter)
+            if profile_config.pdfConverter == "docling":
+                output = await converter.to_markdown(request.filePath, ocr_mode)
+            else:
+                output = await converter.to_markdown(request.filePath)
+        elif file_format == "docx":
+            # DOCX always uses Docling-based converter
+            converter = get_converter(file_format)
+            output = await converter.to_markdown(request.filePath)
         elif file_format in ("txt", "md", "json"):
             output = await converter.to_markdown(request.filePath, file_format)
         else:

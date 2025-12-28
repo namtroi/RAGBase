@@ -39,12 +39,11 @@ describe('ProcessingProfile Model', () => {
             expect(profile.isArchived).toBe(false);
 
             // Check default conversion settings
-            expect(profile.conversionTableRows).toBe(35);
-            expect(profile.conversionTableCols).toBe(20);
+            expect(profile.pdfConverter).toBe('pymupdf');
             expect(profile.pdfOcrMode).toBe('auto');
             expect(profile.pdfOcrLanguages).toBe('en');
-            expect(profile.pdfNumThreads).toBe(4);
-            expect(profile.pdfTableStructure).toBe(false);
+            expect(profile.conversionTableRows).toBe(35);
+            expect(profile.conversionTableCols).toBe(20);
 
             // Check default chunking settings
             expect(profile.documentChunkSize).toBe(1000);

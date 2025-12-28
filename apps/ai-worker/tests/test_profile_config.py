@@ -15,12 +15,9 @@ class TestProfileConfigModel:
         config = ProfileConfig()
 
         # Conversion defaults
-        assert config.conversionTableRows == 35
-        assert config.conversionTableCols == 20
+        assert config.pdfConverter == "pymupdf"
         assert config.pdfOcrMode == "auto"
         assert config.pdfOcrLanguages == "en"
-        assert config.pdfNumThreads == 4
-        assert config.pdfTableStructure is False
 
         # Chunking defaults
         assert config.documentChunkSize == 1000

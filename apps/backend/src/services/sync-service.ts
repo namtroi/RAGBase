@@ -66,12 +66,11 @@ export class SyncService {
             // Build profile config from the drive config's assigned profile
             const processingProfileId = config.processingProfile?.id;
             const profileConfig = config.processingProfile ? {
-                conversionTableRows: config.processingProfile.conversionTableRows,
-                conversionTableCols: config.processingProfile.conversionTableCols,
+                pdfConverter: config.processingProfile.pdfConverter,
                 pdfOcrMode: config.processingProfile.pdfOcrMode,
                 pdfOcrLanguages: config.processingProfile.pdfOcrLanguages,
-                pdfNumThreads: config.processingProfile.pdfNumThreads,
-                pdfTableStructure: config.processingProfile.pdfTableStructure,
+                conversionTableRows: config.processingProfile.conversionTableRows,
+                conversionTableCols: config.processingProfile.conversionTableCols,
                 documentChunkSize: config.processingProfile.documentChunkSize,
                 documentChunkOverlap: config.processingProfile.documentChunkOverlap,
                 documentHeaderLevels: config.processingProfile.documentHeaderLevels,
@@ -261,7 +260,7 @@ export class SyncService {
      * Add a new file from Drive
      */
     private async addFile(
-        configId: string, 
+        configId: string,
         file: { id: string; name: string; mimeType: string; size: number; md5Checksum?: string; modifiedTime?: string; webViewLink?: string },
         processingProfileId?: string,
         profileConfig?: Record<string, unknown>
@@ -364,8 +363,8 @@ export class SyncService {
             documentId: document.id,
             filePath,
             format,
-            config: { 
-                ocrMode: 'auto', 
+            config: {
+                ocrMode: 'auto',
                 ocrLanguages: ['en'],
                 profileConfig,
             },
@@ -376,8 +375,8 @@ export class SyncService {
      * Update an existing file from Drive
      */
     private async updateFile(
-        documentId: string, 
-        file: { id: string; name: string; mimeType: string; size: number; md5Checksum?: string; modifiedTime?: string; webViewLink?: string }, 
+        documentId: string,
+        file: { id: string; name: string; mimeType: string; size: number; md5Checksum?: string; modifiedTime?: string; webViewLink?: string },
         configId?: string,
         processingProfileId?: string,
         profileConfig?: Record<string, unknown>
@@ -426,8 +425,8 @@ export class SyncService {
             documentId,
             filePath,
             format,
-            config: { 
-                ocrMode: 'auto', 
+            config: {
+                ocrMode: 'auto',
                 ocrLanguages: ['en'],
                 profileConfig,
             },

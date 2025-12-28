@@ -96,7 +96,8 @@ class TestProcessEndpoint:
             {"content": "chunk", "index": 0, "embedding": [0.1] * 384, "metadata": {}}
         ]
 
-        with patch("src.main.get_converter", return_value=mock_converter):
+        # PDF uses get_pdf_converter, not get_converter
+        with patch("src.main.get_pdf_converter", return_value=mock_converter):
             mock_pipeline = MagicMock()
             mock_pipeline.run.return_value = (
                 mock_chunks,
@@ -134,7 +135,8 @@ class TestProcessEndpoint:
             return_value=ProcessorOutput(markdown="# Test", metadata={}, page_count=1)
         )
 
-        with patch("src.main.get_converter", return_value=mock_converter):
+        # PDF uses get_pdf_converter, not get_converter
+        with patch("src.main.get_pdf_converter", return_value=mock_converter):
             mock_pipeline = MagicMock()
             mock_pipeline.run.return_value = (
                 [{"content": "c", "metadata": {}}],

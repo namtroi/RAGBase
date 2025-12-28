@@ -5,22 +5,26 @@ from typing import Dict, Type
 
 from .converters import (
     CsvConverter,
+    DoclingPdfConverter,
+    DocxConverter,
     EpubConverter,
     FormatConverter,
     HtmlConverter,
     JsonConverter,
-    PdfConverter,
+    MarkdownConverter,
     PptxConverter,
-    TextConverter,
+    PyMuPDFConverter,
+    TxtConverter,
     XlsxConverter,
 )
 
 # Format → Converter class mapping
+# Note: PDF uses get_pdf_converter() for dynamic selection
 FORMAT_CONVERTERS: Dict[str, Type[FormatConverter]] = {
-    "pdf": PdfConverter,
-    "docx": PdfConverter,  # Docling handles both
-    "txt": TextConverter,
-    "md": TextConverter,
+    "pdf": PyMuPDFConverter,  # Default fast converter
+    "docx": DocxConverter,  # Dedicated DOCX converter (Docling)
+    "txt": TxtConverter,
+    "md": MarkdownConverter,
     "json": JsonConverter,
     "csv": CsvConverter,
     "html": HtmlConverter,
@@ -64,6 +68,21 @@ def get_converter(file_format: str) -> FormatConverter:
         raise ValueError(f"Unsupported format: {file_format}")
 
     return converter_cls()
+
+
+def get_pdf_converter(converter_type: str = "pymupdf") -> FormatConverter:
+    """
+    Get PDF converter based on profile setting.
+
+    Args:
+        converter_type: "pymupdf" (fast) or "docling" (high quality with OCR)
+
+    Returns:
+        FormatConverter instance for PDF
+    """
+    if converter_type == "docling":
+        return DoclingPdfConverter()
+    return PyMuPDFConverter()
 
 
 def get_category(file_format: str) -> str:
