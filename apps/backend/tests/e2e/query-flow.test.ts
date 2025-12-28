@@ -1,5 +1,5 @@
 import { API_KEY, getTestApp, setupE2E, teardownE2E } from '@tests/e2e/setup/e2e-setup.js';
-import { cleanDatabase, getPrisma, seedDocument } from '@tests/helpers/database.js';
+import { cleanDatabase, ensureDefaultProfile, getPrisma, seedDocument } from '@tests/helpers/database.js';
 import { FIXTURES, readFixture } from '@tests/helpers/fixtures.js';
 import { mockEmbedding, mockEmbeddingClient } from '@tests/mocks/embedding-mock.js';
 import { successCallback } from '@tests/mocks/python-worker-mock.js';
@@ -19,6 +19,7 @@ describe('E2E: Query Flow', () => {
 
   beforeEach(async () => {
     await cleanDatabase();
+    await ensureDefaultProfile();
   });
 
   describe('Vector Search', () => {

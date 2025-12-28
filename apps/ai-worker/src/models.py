@@ -44,11 +44,11 @@ class ProcessorOutput:
 
 class ProfileConfig(BaseModel):
     """Processing profile configuration from database.
-    
+
     Contains all configurable parameters for the processing pipeline.
     All fields have defaults matching the database schema defaults.
     """
-    
+
     # Stage 1: Conversion
     conversionTableRows: int = 35
     conversionTableCols: int = 20
@@ -56,25 +56,27 @@ class ProfileConfig(BaseModel):
     pdfOcrLanguages: str = "en"  # Comma-separated: "en,vi"
     pdfNumThreads: int = 4
     pdfTableStructure: bool = False
-    
+
     # Stage 2: Chunking
     documentChunkSize: int = 1000
     documentChunkOverlap: int = 100
     documentHeaderLevels: int = 3
     presentationMinChunk: int = 200
     tabularRowsPerChunk: int = 20
-    
+
     # Stage 3: Quality
     qualityMinChars: int = 50
     qualityMaxChars: int = 2000
     qualityPenaltyPerFlag: float = 0.15
     autoFixEnabled: bool = True
     autoFixMaxPasses: int = 2
-    
+
     @property
     def ocr_languages_list(self) -> List[str]:
         """Parse comma-separated languages to list for OCR libraries."""
-        return [lang.strip() for lang in self.pdfOcrLanguages.split(",") if lang.strip()]
+        return [
+            lang.strip() for lang in self.pdfOcrLanguages.split(",") if lang.strip()
+        ]
 
 
 class ProcessConfig(BaseModel):
