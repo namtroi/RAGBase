@@ -5,6 +5,11 @@ Provides health checks, /embed and /process endpoints.
 """
 
 import os
+
+# Disable Hugging Face progress bars to prevent tqdm thread safety bug
+# when multiple workers download models concurrently
+os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+
 import time
 from contextlib import asynccontextmanager
 

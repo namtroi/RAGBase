@@ -3,15 +3,32 @@ import { useProfiles } from '@/hooks/use-profiles';
 import { Plus, Sliders } from 'lucide-react';
 import { useState } from 'react';
 import { ProfileCard } from './ProfileCard';
-import { ProfileCreateDialog } from './ProfileCreateDialog';
+import { ProfileFormDialog } from './ProfileFormDialog';
 import { ProfileDeleteDialog } from './ProfileDeleteDialog';
+
+interface DialogState {
+  open: boolean;
+  sourceProfile?: ProcessingProfile;
+}
 
 export function ProfilePage() {
   const [includeArchived, setIncludeArchived] = useState(false);
   const { data: profiles, isLoading, error } = useProfiles(includeArchived);
-  
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const [dialogState, setDialogState] = useState<DialogState>({ open: false });
   const [deleteProfile, setDeleteProfile] = useState<ProcessingProfile | null>(null);
+
+  const handleCreate = () => {
+    setDialogState({ open: true });
+  };
+
+  const handleDuplicate = (profile: ProcessingProfile) => {
+    setDialogState({ open: true, sourceProfile: profile });
+  };
+
+  const handleCloseDialog = () => {
+    setDialogState({ open: false });
+  };
 
   if (isLoading) {
     return (
@@ -43,7 +60,7 @@ export function ProfilePage() {
           <p className="text-sm text-gray-500">Configure how documents are converted, chunked, and embedded.</p>
         </div>
         <button
-          onClick={() => setIsCreateOpen(true)}
+          onClick={handleCreate}
           className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-medium hover:bg-primary-700 transition-colors"
         >
           <Plus className="w-4 h-4" /> Create Profile
@@ -70,6 +87,7 @@ export function ProfilePage() {
             key={profile.id}
             profile={profile}
             onDelete={(p) => setDeleteProfile(p)}
+            onDuplicate={handleDuplicate}
           />
         ))}
       </div>
@@ -83,11 +101,12 @@ export function ProfilePage() {
       )}
 
       {/* Dialogs */}
-      <ProfileCreateDialog 
-        open={isCreateOpen} 
-        onClose={() => setIsCreateOpen(false)} 
+      <ProfileFormDialog
+        open={dialogState.open}
+        onClose={handleCloseDialog}
+        sourceProfile={dialogState.sourceProfile}
       />
-      
+
       {deleteProfile && (
         <ProfileDeleteDialog
           profile={deleteProfile}

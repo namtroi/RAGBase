@@ -219,22 +219,13 @@ Settings are divided into 3 categories:
 |--------|---------|---------|
 | Env | `PDF_CONCURRENCY` | 1 |
 
-**What:** Parallel document processing jobs.
-**Why:** Controls BullMQ worker concurrency.
+**What:** Parallel document processing jobs (controls both BullMQ and AI worker).
+**Why:** Single setting for all concurrency. Simplifies configuration.
 **How:** Set in `.env`. Match CPU cores. Requires restart.
 
 ```env
 PDF_CONCURRENCY=3
 ```
-
-### AI Worker Settings
-
-| Source | Setting | Default | Location |
-|--------|---------|---------|----------|
-| Env | `MAX_WORKERS` | 4 | config.py |
-
-**What:** AI worker internal processing semaphore.
-**Why:** Limits concurrent conversions within worker.
 
 ---
 

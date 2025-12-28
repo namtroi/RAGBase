@@ -25,8 +25,10 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || `HTTP ${response.status}`);
+    const errorData = await response.json().catch(() => ({}));
+    const error = new Error(errorData.message || `HTTP ${response.status}`) as Error & { code?: string };
+    error.code = errorData.error;  // Preserve error code (e.g., 'CONFLICT')
+    throw error;
   }
 
   if (responseType === 'blob') {

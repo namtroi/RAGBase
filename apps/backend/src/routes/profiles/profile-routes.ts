@@ -374,8 +374,13 @@ export async function profileRoutes(fastify: FastifyInstance): Promise<void> {
    */
   fastify.delete('/api/profiles/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
+
+    // Support confirmed from query param (frontend) OR body (legacy/tests)
+    const query = request.query as { confirmed?: string };
     const bodyResult = DeleteSchema.safeParse(request.body);
-    const confirmed = bodyResult.success ? bodyResult.data.confirmed : false;
+    const confirmedFromQuery = query.confirmed === 'true';
+    const confirmedFromBody = bodyResult.success ? bodyResult.data.confirmed : false;
+    const confirmed = confirmedFromQuery || confirmedFromBody;
 
     const profile = await prisma.processingProfile.findUnique({
       where: { id },
