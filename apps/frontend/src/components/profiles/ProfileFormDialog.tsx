@@ -1,7 +1,8 @@
 import { ProcessingProfile, ProfileCreateData } from '@/api/endpoints';
 import { useCreateProfile } from '@/hooks/use-profiles';
-import { X } from 'lucide-react';
+import { X, HelpCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { CONVERSION_FIELDS, CHUNKING_FIELDS, QUALITY_FIELDS } from './profile-field-config';
 
 interface ProfileFormDialogProps {
     open: boolean;
@@ -53,6 +54,7 @@ export function ProfileFormDialog({ open, onClose, sourceProfile }: ProfileFormD
     const isDuplicate = !!sourceProfile;
 
     const [formData, setFormData] = useState<ProfileCreateData>(DEFAULT_FORM_DATA);
+    const [nameError, setNameError] = useState<string | null>(null);
 
     // Reset form when dialog opens/closes or source changes
     useEffect(() => {
@@ -89,12 +91,19 @@ export function ProfileFormDialog({ open, onClose, sourceProfile }: ProfileFormD
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.name.trim()) return;
+        setNameError(null);
 
         try {
             await createMutation.mutateAsync(formData);
             onClose();
-        } catch (error) {
-            console.error('Failed to create profile:', error);
+        } catch (error: unknown) {
+            // Check for duplicate name error
+            const err = error as Error & { code?: string };
+            if (err?.code === 'CONFLICT') {
+                setNameError('Profile with this name already exists');
+            } else {
+                console.error('Failed to create profile:', error);
+            }
         }
     };
 
@@ -129,11 +138,17 @@ export function ProfileFormDialog({ open, onClose, sourceProfile }: ProfileFormD
                             <input
                                 type="text"
                                 value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                                onChange={(e) => {
+                                    setFormData({ ...formData, name: e.target.value });
+                                    setNameError(null);  // Clear error when typing
+                                }}
+                                className={`w-full px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500 ${nameError ? 'border-red-500' : 'border-gray-300'}`}
                                 placeholder="My Custom Profile"
                                 required
                             />
+                            {nameError && (
+                                <p className="text-red-600 text-xs mt-1">{nameError}</p>
+                            )}
                         </div>
                         <div>
                             <label className="block text-xs font-medium text-gray-700 mb-0.5">Description</label>
@@ -149,30 +164,30 @@ export function ProfileFormDialog({ open, onClose, sourceProfile }: ProfileFormD
 
                     {/* Conversion Section */}
                     <SettingsSection title="Conversion">
-                        <NumberInput label="Table Rows" value={formData.conversionTableRows!} onChange={(v) => setFormData({ ...formData, conversionTableRows: v })} />
-                        <NumberInput label="Table Cols" value={formData.conversionTableCols!} onChange={(v) => setFormData({ ...formData, conversionTableCols: v })} />
-                        <SelectInput label="OCR Mode" value={formData.pdfOcrMode!} onChange={(v) => setFormData({ ...formData, pdfOcrMode: v })} options={['auto', 'force', 'never']} />
-                        <TextInput label="OCR Languages" value={formData.pdfOcrLanguages!} onChange={(v) => setFormData({ ...formData, pdfOcrLanguages: v })} />
-                        <NumberInput label="Threads" value={formData.pdfNumThreads!} onChange={(v) => setFormData({ ...formData, pdfNumThreads: v })} />
-                        <CheckboxInput label="Table Structure" checked={formData.pdfTableStructure!} onChange={(v) => setFormData({ ...formData, pdfTableStructure: v })} />
+                        <NumberInput label={CONVERSION_FIELDS.conversionTableRows.label} tooltip={CONVERSION_FIELDS.conversionTableRows.tooltip} tooltipPosition="right" value={formData.conversionTableRows!} onChange={(v) => setFormData({ ...formData, conversionTableRows: v })} />
+                        <NumberInput label={CONVERSION_FIELDS.conversionTableCols.label} tooltip={CONVERSION_FIELDS.conversionTableCols.tooltip} value={formData.conversionTableCols!} onChange={(v) => setFormData({ ...formData, conversionTableCols: v })} />
+                        <SelectInput label={CONVERSION_FIELDS.pdfOcrMode.label} tooltip={CONVERSION_FIELDS.pdfOcrMode.tooltip} value={formData.pdfOcrMode!} onChange={(v) => setFormData({ ...formData, pdfOcrMode: v })} options={['auto', 'force', 'never']} />
+                        <TextInput label={CONVERSION_FIELDS.pdfOcrLanguages.label} tooltip={CONVERSION_FIELDS.pdfOcrLanguages.tooltip} tooltipPosition="right" value={formData.pdfOcrLanguages!} onChange={(v) => setFormData({ ...formData, pdfOcrLanguages: v })} />
+                        <NumberInput label={CONVERSION_FIELDS.pdfNumThreads.label} tooltip={CONVERSION_FIELDS.pdfNumThreads.tooltip} value={formData.pdfNumThreads!} onChange={(v) => setFormData({ ...formData, pdfNumThreads: v })} />
+                        <CheckboxInput label={CONVERSION_FIELDS.pdfTableStructure.label} tooltip={CONVERSION_FIELDS.pdfTableStructure.tooltip} checked={formData.pdfTableStructure!} onChange={(v) => setFormData({ ...formData, pdfTableStructure: v })} />
                     </SettingsSection>
 
                     {/* Chunking Section */}
                     <SettingsSection title="Chunking">
-                        <NumberInput label="Chunk Size" value={formData.documentChunkSize!} onChange={(v) => setFormData({ ...formData, documentChunkSize: v })} />
-                        <NumberInput label="Overlap" value={formData.documentChunkOverlap!} onChange={(v) => setFormData({ ...formData, documentChunkOverlap: v })} />
-                        <NumberInput label="Header Levels" value={formData.documentHeaderLevels!} onChange={(v) => setFormData({ ...formData, documentHeaderLevels: v })} min={1} max={6} />
-                        <NumberInput label="Presentation Min" value={formData.presentationMinChunk!} onChange={(v) => setFormData({ ...formData, presentationMinChunk: v })} />
-                        <NumberInput label="Tabular Rows" value={formData.tabularRowsPerChunk!} onChange={(v) => setFormData({ ...formData, tabularRowsPerChunk: v })} />
+                        <NumberInput label={CHUNKING_FIELDS.documentChunkSize.label} tooltip={CHUNKING_FIELDS.documentChunkSize.tooltip} tooltipPosition="right" value={formData.documentChunkSize!} onChange={(v) => setFormData({ ...formData, documentChunkSize: v })} />
+                        <NumberInput label={CHUNKING_FIELDS.documentChunkOverlap.label} tooltip={CHUNKING_FIELDS.documentChunkOverlap.tooltip} value={formData.documentChunkOverlap!} onChange={(v) => setFormData({ ...formData, documentChunkOverlap: v })} />
+                        <NumberInput label={CHUNKING_FIELDS.documentHeaderLevels.label} tooltip={CHUNKING_FIELDS.documentHeaderLevels.tooltip} value={formData.documentHeaderLevels!} onChange={(v) => setFormData({ ...formData, documentHeaderLevels: v })} min={1} max={6} />
+                        <NumberInput label={CHUNKING_FIELDS.presentationMinChunk.label} tooltip={CHUNKING_FIELDS.presentationMinChunk.tooltip} tooltipPosition="right" value={formData.presentationMinChunk!} onChange={(v) => setFormData({ ...formData, presentationMinChunk: v })} />
+                        <NumberInput label={CHUNKING_FIELDS.tabularRowsPerChunk.label} tooltip={CHUNKING_FIELDS.tabularRowsPerChunk.tooltip} value={formData.tabularRowsPerChunk!} onChange={(v) => setFormData({ ...formData, tabularRowsPerChunk: v })} />
                     </SettingsSection>
 
                     {/* Quality Section */}
                     <SettingsSection title="Quality">
-                        <NumberInput label="Min Chars" value={formData.qualityMinChars!} onChange={(v) => setFormData({ ...formData, qualityMinChars: v })} />
-                        <NumberInput label="Max Chars" value={formData.qualityMaxChars!} onChange={(v) => setFormData({ ...formData, qualityMaxChars: v })} />
-                        <NumberInput label="Penalty per Flag" value={formData.qualityPenaltyPerFlag!} onChange={(v) => setFormData({ ...formData, qualityPenaltyPerFlag: v })} step={0.05} />
-                        <CheckboxInput label="Auto-Fix Enabled" checked={formData.autoFixEnabled!} onChange={(v) => setFormData({ ...formData, autoFixEnabled: v })} />
-                        <NumberInput label="Max Passes" value={formData.autoFixMaxPasses!} onChange={(v) => setFormData({ ...formData, autoFixMaxPasses: v })} min={1} max={5} />
+                        <NumberInput label={QUALITY_FIELDS.qualityMinChars.label} tooltip={QUALITY_FIELDS.qualityMinChars.tooltip} tooltipPosition="right" value={formData.qualityMinChars!} onChange={(v) => setFormData({ ...formData, qualityMinChars: v })} />
+                        <NumberInput label={QUALITY_FIELDS.qualityMaxChars.label} tooltip={QUALITY_FIELDS.qualityMaxChars.tooltip} value={formData.qualityMaxChars!} onChange={(v) => setFormData({ ...formData, qualityMaxChars: v })} />
+                        <NumberInput label={QUALITY_FIELDS.qualityPenaltyPerFlag.label} tooltip={QUALITY_FIELDS.qualityPenaltyPerFlag.tooltip} value={formData.qualityPenaltyPerFlag!} onChange={(v) => setFormData({ ...formData, qualityPenaltyPerFlag: v })} step={0.05} />
+                        <CheckboxInput label={QUALITY_FIELDS.autoFixEnabled.label} tooltip={QUALITY_FIELDS.autoFixEnabled.tooltip} tooltipPosition="right" checked={formData.autoFixEnabled!} onChange={(v) => setFormData({ ...formData, autoFixEnabled: v })} />
+                        <NumberInput label={QUALITY_FIELDS.autoFixMaxPasses.label} tooltip={QUALITY_FIELDS.autoFixMaxPasses.tooltip} value={formData.autoFixMaxPasses!} onChange={(v) => setFormData({ ...formData, autoFixMaxPasses: v })} min={1} max={5} />
                     </SettingsSection>
 
                     {/* Actions */}
@@ -211,24 +226,61 @@ function SettingsSection({ title, children }: { title: string; children: React.R
     );
 }
 
+// Shared Tooltip component with formatted What/Why/How
+// position: 'left' = tooltip on left, 'right' = tooltip on right
+function Tooltip({ text, position = 'left' }: { text: string; position?: 'left' | 'right' }) {
+    // Parse "What: ... Why: ... How: ..." format
+    const parts = text.split(/(?=What:|Why:|How:)/g).filter(Boolean);
+
+    // Position classes: if position='right', tooltip appears to the right of icon
+    const positionClasses = position === 'right'
+        ? 'left-0'  // Tooltip anchored to left edge, expands right
+        : 'right-0'; // Tooltip anchored to right edge, expands left
+
+    return (
+        <span className="group relative inline-flex">
+            <HelpCircle className="w-3 h-3 text-gray-400 cursor-help" />
+            <span className={`pointer-events-none absolute ${positionClasses} bottom-full mb-2 hidden group-hover:block w-64 p-2 text-xs text-white bg-gray-800 rounded shadow-lg z-50 whitespace-normal`}>
+                {parts.map((part, i) => {
+                    const [key, ...rest] = part.split(':');
+                    const value = rest.join(':').trim();
+                    return (
+                        <div key={i} className={i > 0 ? 'mt-1.5 pt-1.5 border-t border-gray-600' : ''}>
+                            <span className="font-semibold text-blue-300">{key}:</span>{' '}
+                            <span>{value}</span>
+                        </div>
+                    );
+                })}
+            </span>
+        </span>
+    );
+}
+
 function NumberInput({
     label,
     value,
     onChange,
     min,
     max,
-    step = 1
+    step = 1,
+    tooltip,
+    tooltipPosition = 'left'
 }: {
     label: string;
     value: number;
     onChange: (v: number) => void;
     min?: number;
     max?: number;
-    step?: number
+    step?: number;
+    tooltip?: string;
+    tooltipPosition?: 'left' | 'right';
 }) {
     return (
         <div>
-            <label className="block text-xs text-gray-500 mb-1">{label}</label>
+            <label className="flex items-center gap-1 text-xs text-gray-500 mb-1">
+                {label}
+                {tooltip && <Tooltip text={tooltip} position={tooltipPosition} />}
+            </label>
             <input
                 type="number"
                 value={value}
@@ -245,15 +297,22 @@ function NumberInput({
 function TextInput({
     label,
     value,
-    onChange
+    onChange,
+    tooltip,
+    tooltipPosition = 'left'
 }: {
     label: string;
     value: string;
-    onChange: (v: string) => void
+    onChange: (v: string) => void;
+    tooltip?: string;
+    tooltipPosition?: 'left' | 'right';
 }) {
     return (
         <div>
-            <label className="block text-xs text-gray-500 mb-1">{label}</label>
+            <label className="flex items-center gap-1 text-xs text-gray-500 mb-1">
+                {label}
+                {tooltip && <Tooltip text={tooltip} position={tooltipPosition} />}
+            </label>
             <input
                 type="text"
                 value={value}
@@ -268,16 +327,23 @@ function SelectInput({
     label,
     value,
     onChange,
-    options
+    options,
+    tooltip,
+    tooltipPosition = 'left'
 }: {
     label: string;
     value: string;
     onChange: (v: string) => void;
-    options: string[]
+    options: string[];
+    tooltip?: string;
+    tooltipPosition?: 'left' | 'right';
 }) {
     return (
         <div>
-            <label className="block text-xs text-gray-500 mb-1">{label}</label>
+            <label className="flex items-center gap-1 text-xs text-gray-500 mb-1">
+                {label}
+                {tooltip && <Tooltip text={tooltip} position={tooltipPosition} />}
+            </label>
             <select
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
@@ -294,11 +360,15 @@ function SelectInput({
 function CheckboxInput({
     label,
     checked,
-    onChange
+    onChange,
+    tooltip,
+    tooltipPosition = 'left'
 }: {
     label: string;
     checked: boolean;
-    onChange: (v: boolean) => void
+    onChange: (v: boolean) => void;
+    tooltip?: string;
+    tooltipPosition?: 'left' | 'right';
 }) {
     return (
         <div className="flex items-center gap-2">
@@ -308,7 +378,10 @@ function CheckboxInput({
                 onChange={(e) => onChange(e.target.checked)}
                 className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
             />
-            <label className="text-xs text-gray-600">{label}</label>
+            <label className="flex items-center gap-1 text-xs text-gray-600">
+                {label}
+                {tooltip && <Tooltip text={tooltip} position={tooltipPosition} />}
+            </label>
         </div>
     );
 }

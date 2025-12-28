@@ -2,6 +2,7 @@ import { ProcessingProfile } from '@/api/endpoints';
 import { useActivateProfile, useArchiveProfile } from '@/hooks/use-profiles';
 import { Copy, Archive, Check, Lock, Trash2, HelpCircle } from 'lucide-react';
 import { useState } from 'react';
+import { CONVERSION_FIELDS, CHUNKING_FIELDS, QUALITY_FIELDS, EMBEDDING_FIELDS } from './profile-field-config';
 
 interface ProfileCardProps {
   profile: ProcessingProfile;
@@ -98,39 +99,39 @@ export function ProfileCard({ profile, onDelete, onDuplicate }: ProfileCardProps
           description="Convert documents to Markdown format"
         >
           <SettingItem
-            label="Max Rows/Table"
+            label={CONVERSION_FIELDS.conversionTableRows.label}
             value={profile.conversionTableRows}
-            tooltip="What: Max rows to preserve from spreadsheets. Why: Large tables overflow LLM context. How: Reduce for very long tables."
+            tooltip={CONVERSION_FIELDS.conversionTableRows.tooltip}
           />
           <SettingItem
-            label="Max Cols/Table"
+            label={CONVERSION_FIELDS.conversionTableCols.label}
             value={profile.conversionTableCols}
-            tooltip="What: Max columns to preserve. Why: Wide tables break formatting. How: Reduce for tables with many columns."
+            tooltip={CONVERSION_FIELDS.conversionTableCols.tooltip}
           />
           <SettingItem
-            label="PDF OCR Mode"
+            label={CONVERSION_FIELDS.pdfOcrMode.label}
             value={profile.pdfOcrMode}
-            tooltip="What: Text extraction method. Why: Scanned PDFs need OCR. How: auto (detect), force (always OCR), never (text only)."
+            tooltip={CONVERSION_FIELDS.pdfOcrMode.tooltip}
           />
           <SettingItem
-            label="OCR Languages"
+            label={CONVERSION_FIELDS.pdfOcrLanguages.label}
             value={profile.pdfOcrLanguages}
-            tooltip="What: Language codes for OCR. Why: Accuracy depends on language model. How: Use ISO codes like 'en', 'vi', 'ja'."
+            tooltip={CONVERSION_FIELDS.pdfOcrLanguages.tooltip}
           />
           <SettingItem
-            label="PDF Threads"
+            label={CONVERSION_FIELDS.pdfNumThreads.label}
             value={profile.pdfNumThreads}
-            tooltip="What: Parallel processing threads. Why: More threads = faster but uses more CPU. How: Match your CPU cores."
+            tooltip={CONVERSION_FIELDS.pdfNumThreads.tooltip}
           />
           <SettingItem
-            label="Detect Tables"
+            label={CONVERSION_FIELDS.pdfTableStructure.label}
             value={profile.pdfTableStructure ? 'On' : 'Off'}
-            tooltip="What: Identify table structures in PDFs. Why: Better Markdown formatting. How: Enable for docs with tables."
+            tooltip={CONVERSION_FIELDS.pdfTableStructure.tooltip}
           />
           <SettingItem
-            label="Max File Size"
+            label={CONVERSION_FIELDS.maxFileSizeMb.label}
             value={`${profile.maxFileSizeMb} MB`}
-            tooltip="What: Maximum upload size. Why: Prevents memory issues. How: Increase for large files."
+            tooltip={CONVERSION_FIELDS.maxFileSizeMb.tooltip}
           />
         </SettingsSection>
 
@@ -140,29 +141,29 @@ export function ProfileCard({ profile, onDelete, onDuplicate }: ProfileCardProps
           description="Split content into searchable chunks"
         >
           <SettingItem
-            label="Chunk Size (chars)"
+            label={CHUNKING_FIELDS.documentChunkSize.label}
             value={profile.documentChunkSize}
-            tooltip="What: Target characters per chunk. Why: Affects search precision. How: Smaller = precise, larger = more context. 500-2000 typical."
+            tooltip={CHUNKING_FIELDS.documentChunkSize.tooltip}
           />
           <SettingItem
-            label="Overlap (chars)"
+            label={CHUNKING_FIELDS.documentChunkOverlap.label}
             value={profile.documentChunkOverlap}
-            tooltip="What: Shared characters between chunks. Why: Prevents cutting sentences. How: 10-20% of chunk size recommended."
+            tooltip={CHUNKING_FIELDS.documentChunkOverlap.tooltip}
           />
           <SettingItem
-            label="Split at Headers"
+            label={CHUNKING_FIELDS.documentHeaderLevels.label}
             value={`H1-H${profile.documentHeaderLevels}`}
-            tooltip="What: Which header levels create chunk boundaries. Why: Preserves document structure. How: H1-H3 for most docs."
+            tooltip={CHUNKING_FIELDS.documentHeaderLevels.tooltip}
           />
           <SettingItem
-            label="Min Slide Size"
+            label={CHUNKING_FIELDS.presentationMinChunk.label}
             value={profile.presentationMinChunk}
-            tooltip="What: Minimum content for PPTX slides. Why: Avoid tiny chunks from sparse slides. How: 100-300 chars typical."
+            tooltip={CHUNKING_FIELDS.presentationMinChunk.tooltip}
           />
           <SettingItem
-            label="Rows per Chunk"
+            label={CHUNKING_FIELDS.tabularRowsPerChunk.label}
             value={profile.tabularRowsPerChunk}
-            tooltip="What: Spreadsheet rows per chunk. Why: Group related data together. How: 10-30 rows typical."
+            tooltip={CHUNKING_FIELDS.tabularRowsPerChunk.tooltip}
           />
         </SettingsSection>
 
@@ -172,29 +173,29 @@ export function ProfileCard({ profile, onDelete, onDuplicate }: ProfileCardProps
           description="Score and improve chunk quality"
         >
           <SettingItem
-            label="Min Chunk Chars"
+            label={QUALITY_FIELDS.qualityMinChars.label}
             value={profile.qualityMinChars}
-            tooltip="What: Minimum allowed chunk size. Why: Filter out noise/fragments. How: 30-100 chars, lower for dense content."
+            tooltip={QUALITY_FIELDS.qualityMinChars.tooltip}
           />
           <SettingItem
-            label="Max Chunk Chars"
+            label={QUALITY_FIELDS.qualityMaxChars.label}
             value={profile.qualityMaxChars}
-            tooltip="What: Maximum allowed chunk size. Why: Prevent context overflow. How: 1500-3000 chars based on LLM."
+            tooltip={QUALITY_FIELDS.qualityMaxChars.tooltip}
           />
           <SettingItem
-            label="Penalty/Flag"
+            label={QUALITY_FIELDS.qualityPenaltyPerFlag.label}
             value={profile.qualityPenaltyPerFlag}
-            tooltip="What: Score deduction per quality issue. Why: Controls quality strictness. How: 0.1-0.2 typical, higher = stricter."
+            tooltip={QUALITY_FIELDS.qualityPenaltyPerFlag.tooltip}
           />
           <SettingItem
-            label="Auto-Fix"
+            label={QUALITY_FIELDS.autoFixEnabled.label}
             value={profile.autoFixEnabled ? 'Enabled' : 'Disabled'}
-            tooltip="What: Automatically improve low-quality chunks. Why: Better retrieval results. How: Enable for most cases."
+            tooltip={QUALITY_FIELDS.autoFixEnabled.tooltip}
           />
           <SettingItem
-            label="Fix Passes"
+            label={QUALITY_FIELDS.autoFixMaxPasses.label}
             value={profile.autoFixMaxPasses}
-            tooltip="What: Max auto-fix retry attempts. Why: Diminishing returns after 2-3. How: 1-3 passes recommended."
+            tooltip={QUALITY_FIELDS.autoFixMaxPasses.tooltip}
           />
         </SettingsSection>
 
@@ -205,22 +206,22 @@ export function ProfileCard({ profile, onDelete, onDuplicate }: ProfileCardProps
           locked
         >
           <SettingItem
-            label="Model"
+            label={EMBEDDING_FIELDS.embeddingModel.label}
             value={profile.embeddingModel}
             locked
-            tooltip="What: Vector embedding model. Why: Determines search quality. How: Fixed in code, contact admin to change."
+            tooltip={EMBEDDING_FIELDS.embeddingModel.tooltip}
           />
           <SettingItem
-            label="Dimensions"
+            label={EMBEDDING_FIELDS.embeddingDimension.label}
             value={profile.embeddingDimension}
             locked
-            tooltip="What: Vector size (dimensions). Why: Higher = more precise but slower. How: Model-dependent, typically 384-1536."
+            tooltip={EMBEDDING_FIELDS.embeddingDimension.tooltip}
           />
           <SettingItem
-            label="Max Tokens"
+            label={EMBEDDING_FIELDS.embeddingMaxTokens.label}
             value={profile.embeddingMaxTokens}
             locked
-            tooltip="What: Max tokens per embedding. Why: Chunks longer than this are truncated. How: Model limit, typically 512."
+            tooltip={EMBEDDING_FIELDS.embeddingMaxTokens.tooltip}
           />
         </SettingsSection>
       </div>
