@@ -3,7 +3,7 @@
 **Slogan:** _The "Set & Forget" Data Pipeline for Enterprise RAG._  
 **(Open Source | Self-Hosted | Structure-Aware | Production-Ready)**
 
-**Status:** Phase 3 Complete (2025-12-24)
+**Status:** Phase 4 Complete (2025-12-27)
 
 ---
 
@@ -28,12 +28,17 @@
 
 ## 2. Supported File Formats
 
-| Format | Processor | Status |
-|--------|-----------|--------|
-| `.pdf` (digital) | Python/Docling | ✅ Phase 1 |
-| `.pdf` (scanned) | Docling + OCR | ✅ Phase 1 |
-| `.json`, `.txt`, `.md` | Python/TextProcessor | ✅ Phase 2 |
-| `.docx` | Docling | 🔜 Phase 4 |
+| Format | Processor | Category |
+|--------|-----------|----------|
+| `.pdf` (digital/scanned) | Docling + OCR | Document |
+| `.docx` | Docling | Document |
+| `.txt`, `.md` | TextConverter | Document |
+| `.html` | BeautifulSoup + Markdownify | Document |
+| `.epub` | EbookLib | Document |
+| `.pptx` | Docling | Presentation |
+| `.xlsx` | OpenPyXL | Tabular |
+| `.csv` | Pandas | Tabular |
+| `.json` | TextConverter | Tabular |
 
 **Processing:** All formats go through BullMQ queue → Python AI Worker (unified pipeline).
 
@@ -54,10 +59,10 @@
 ### AI Worker (Python/FastAPI)
 - **Runtime:** Python 3.11+
 - **Framework:** FastAPI 0.126
-- **PDF Processing:** Docling 2.15 (IBM)
-- **Text Processing:** TextProcessor (MD/TXT/JSON)
+- **Converters:** Docling (PDF/DOCX/PPTX), BeautifulSoup (HTML), EbookLib (EPUB), OpenPyXL (XLSX), Pandas (CSV)
 - **Embedding:** sentence-transformers (bge-small-en-v1.5, 384d)
-- **Chunking:** LangChain 0.3 (markdown-aware)
+- **Chunking:** LangChain 0.3 (category-aware: document/presentation/tabular)
+- **Quality:** Analyzer + Auto-fix (TOO_SHORT, TOO_LONG, NO_CONTEXT, FRAGMENT)
 - **HTTP Client:** httpx 0.28
 
 ### Frontend (React/TypeScript)
@@ -84,10 +89,10 @@
    - Google Drive sync
    
 2. **`ai-worker`** - Python/FastAPI processor
-   - PDF processing (Docling + OCR)
-   - Text processing (MD/TXT/JSON)
-   - Embedding + Chunking (Python-first)
-   - HTTP callback to backend
+   - Format converters (PDF, DOCX, PPTX, HTML, EPUB, XLSX, CSV, TXT, MD, JSON)
+   - Category-based chunking (document, presentation, tabular)
+   - Quality analysis + auto-fix
+   - Embedding + HTTP callback to backend
    
 3. **`postgres` + `redis`** - Data layer
    - PostgreSQL: documents + chunks + vectors + DriveConfig
@@ -104,18 +109,24 @@
 
 ## 5. Processing Pipeline
 
-### Unified Pipeline (Phase 2)
+### Unified Pipeline (Phase 4)
 
 ```
 Upload (any format) → Queue → Job Processor
     → HTTP Dispatch to AI Worker
-        → Route by format:
-            - PDF → Docling (with OCR)
-            - MD/TXT/JSON → TextProcessor
-        → Chunk (LangChain)
+        → Router → FormatConverter.to_markdown()
+            - PDF/DOCX/PPTX → Docling
+            - HTML → BeautifulSoup
+            - EPUB → EbookLib
+            - XLSX → OpenPyXL
+            - CSV → Pandas
+            - TXT/MD/JSON → TextConverter
+        → Sanitize (null bytes, BOM, mojibake)
+        → Chunk (category-based: document/presentation/tabular)
+        → Quality Analysis + Auto-fix
         → Embed (bge-small-en-v1.5)
         → HTTP Callback to Backend
-    → Store processedContent + chunks + vectors
+    → Store processedContent + chunks + vectors + quality metadata
     → SSE event to Frontend
 ```
 
@@ -144,13 +155,22 @@ Upload (any format) → Queue → Job Processor
 - ✅ **Google Drive Sync** - Multi-folder auto-sync with Changes API
 - ✅ **Upgraded Embedding** - bge-small-en-v1.5 (~10% better retrieval)
 
-### Phase 3 (Current)
+### Phase 3
 - ✅ **Document Availability Toggle** - Active/inactive for AI search
 - ✅ **Hard Delete** - Complete removal of documents & chunks
 - ✅ **Bulk Operations** - Toggle/delete multiple documents
 - ✅ **Retry Failed** - Re-queue failed documents
 - ✅ **Enhanced Filtering** - Search, sort, filter by state
 - ✅ **Drive Re-link** - Auto-reconnect when re-adding folder
+
+### Phase 4 (Current)
+- ✅ **10 Format Converters** - PDF, DOCX, PPTX, HTML, EPUB, XLSX, CSV, TXT, MD, JSON
+- ✅ **Pre-processing Layer** - Input sanitizer (null bytes, BOM, mojibake) + Markdown normalizer
+- ✅ **Category-Based Chunking** - Document (header-aware), Presentation (slide-based), Tabular (row-based)
+- ✅ **Quality Analysis** - Flags (TOO_SHORT, TOO_LONG, NO_CONTEXT, FRAGMENT) + Scores (0-1)
+- ✅ **Auto-Fix Rules** - Merge short, split long, inject context
+- ✅ **Token Count** - Accurate token counts via model tokenizer
+- ✅ **Strategy Pattern** - Unified pipeline with router → converter → pipeline flow
 
 ### Production Features
 - ✅ Structured logging (Pino/structlog)
@@ -212,13 +232,22 @@ Upload (any format) → Queue → Job Processor
 
 ---
 
-## 10. Documentation
+## 10. Planned Extensions
+
+- **Analytics Dashboard** - Pipeline metrics, quality scores, Chunks Explorer ([extension-analytics-dashboard.md](./extension-analytics-dashboard.md))
+- **Hybrid Search** - Vector + BM25 full-text with RRF reranking ([extension-hybrid-search.md](./extension-hybrid-search.md))
+- **Processing Profiles** - Configurable conversion/chunking/quality parameters
+
+---
+
+## 11. Documentation
 
 - **[architecture.md](./architecture.md)** - System design & data flow
 - **[api.md](./api.md)** - API specifications
-- **[detailed-plan-phase3.md](./detailed-plan-phase3.md)** - Phase 3 implementation details
+- **[detailed-plan-phase4-part1.md](./detailed-plan-phase4-part1.md)** - Format converters + pre-processing
+- **[detailed-plan-phase4-part2.md](./detailed-plan-phase4-part2.md)** - Chunking + quality + schema
 - **[roadmap.md](./roadmap.md)** - Product roadmap & future features
 
 ---
 
-**Phase 3 Status:** ✅ **COMPLETE** (2025-12-24)
+**Phase 4 Status:** ✅ **COMPLETE** (2025-12-27)

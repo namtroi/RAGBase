@@ -1,6 +1,6 @@
 # RAGBase API Contracts
 
-**Phase 3 Complete** | **TDD Reference & Integration Spec**
+**Phase 4 Complete** | **TDD Reference & Integration Spec**
 
 ---
 
@@ -15,7 +15,8 @@ type DocumentStatus =
   | 'COMPLETED'   // Success
   | 'FAILED';     // Gave up after retries
 
-type FileFormat = 'pdf' | 'json' | 'txt' | 'md';
+type FileFormat = 'pdf' | 'docx' | 'pptx' | 'html' | 'epub' | 'xlsx' | 'csv' | 'json' | 'txt' | 'md';
+type FormatCategory = 'document' | 'presentation' | 'tabular';
 type SourceType = 'MANUAL' | 'DRIVE';
 
 interface Document {
@@ -43,6 +44,9 @@ interface Document {
   isActive: boolean;             // User visibility toggle (default: true)
   connectionState: 'STANDALONE' | 'LINKED';  // Drive connection status
   
+  // Phase 4: Format Metadata
+  formatCategory?: FormatCategory;  // document, presentation, tabular
+  
   createdAt: Date;
   updatedAt: Date;
 }
@@ -61,6 +65,17 @@ interface Chunk {
   charEnd: number;
   page?: number;           // PDF page (optional)
   heading?: string;        // extracted heading (optional)
+  
+  // Phase 4: Quality & Location
+  location?: Json;         // {"page": 1} or {"slide": 3} or {"sheet": "Sales"}
+  breadcrumbs: string[];   // ["Chapter 1", "Section 2", "Intro"]
+  qualityScore?: number;   // 0-1, higher is better
+  qualityFlags: string[];  // ["TOO_SHORT", "NO_CONTEXT", ...]
+  chunkType?: string;      // "document" | "presentation" | "tabular"
+  tokenCount?: number;     // Embedding token count
+  completeness?: string;   // "complete" | "partial"
+  hasTitle?: boolean;      // Has heading/title
+  
   createdAt: Date;
 }
 ```
@@ -90,7 +105,24 @@ interface DriveConfig {
 
 ### Backend → BullMQ → Node.js Worker → Python AI Worker (HTTP)
 
-> All files (PDF, JSON, TXT, MD) go through queue. AI Worker handles processing + embedding.
+> All files (10 formats) go through queue. AI Worker handles conversion + chunking + quality + embedding.
+
+```typescript
+// Job in BullMQ queue (picked by Node.js Worker)
+interface ProcessingJob {
+  documentId: string;
+  filePath: string;
+  format: FileFormat;      // Routes to appropriate converter
+  config: ProcessingConfig;
+}
+
+interface ProcessingConfig {
+  ocrMode: 'auto' | 'force' | 'never';  // PDF/DOCX only
+  ocrLanguages: string[];  // Default: ['en']
+  chunkSize: number;       // Default: 1000
+  chunkOverlap: number;    // Default: 200
+}
+```
 
 ```typescript
 // Job in BullMQ queue (picked by Node.js Worker)
@@ -122,10 +154,14 @@ interface ProcessingCallback {
 
 interface ProcessingResult {
   processedContent: string;    // Markdown output
-  chunks: ChunkData[];         // Pre-chunked + embedded
-  pageCount: number;
+  chunks: ChunkData[];         // Pre-chunked + embedded + quality scored
+  pageCount?: number;
+  slideCount?: number;         // PPTX
+  sheetCount?: number;         // XLSX
+  chapterCount?: number;       // EPUB
   ocrApplied: boolean;
   processingTimeMs: number;
+  formatCategory: FormatCategory;  // document, presentation, tabular
 }
 
 interface ChunkData {
@@ -136,7 +172,18 @@ interface ChunkData {
     charStart: number;
     charEnd: number;
     heading?: string;
-    page?: number;             // PDF only
+    page?: number;             // PDF/DOCX
+    slide?: number;            // PPTX
+    sheet?: string;            // XLSX
+    // Phase 4: Quality metadata
+    location?: Json;
+    breadcrumbs?: string[];
+    qualityScore?: number;
+    qualityFlags?: string[];
+    chunkType?: string;
+    tokenCount?: number;
+    completeness?: string;
+    hasTitle?: boolean;
   };
 }
 
@@ -150,6 +197,7 @@ type ErrorCode =
   | 'CORRUPT_FILE'
   | 'UNSUPPORTED_FORMAT'
   | 'OCR_FAILED'
+  | 'EMPTY_CONTENT'            // No extractable text
   | 'TIMEOUT'
   | 'INTERNAL_ERROR';
 ```
@@ -444,26 +492,44 @@ interface ChunkingConfig {
   format: 'markdown';      // markdown-aware splitting (LangChain)
 }
 
-// Chunking performed in Python AI Worker
-// TextProcessor for MD/TXT/JSON, PDFProcessor for PDF
+// Chunking by category in Python AI Worker:
+// - Document (PDF, DOCX, TXT, MD, HTML, EPUB): Header-based with breadcrumbs
+// - Presentation (PPTX): Slide-based with grouping
+// - Tabular (XLSX, CSV, JSON): Row-based or table format
 ```
 
 ---
 
-## 6. File Routing (Phase 2)
+## 6. File Routing (Phase 4)
 
 ```typescript
 // All files go through queue → AI Worker
-// AI Worker routes internally:
-// - PDF → Docling (with OCR support)
-// - MD → TextProcessor (as-is)
-// - TXT → TextProcessor (wrap with heading)
-// - JSON → TextProcessor (pretty print in code block)
+// Router selects converter by format:
+
+const CONVERTER_MAP = {
+  pdf: 'PdfConverter',      // Docling + OCR
+  docx: 'PdfConverter',     // Docling
+  pptx: 'PptxConverter',    // Docling + slide markers
+  html: 'HtmlConverter',    // BeautifulSoup + Markdownify
+  epub: 'EpubConverter',    // EbookLib
+  xlsx: 'XlsxConverter',    // OpenPyXL
+  csv: 'CsvConverter',      // Pandas
+  txt: 'TextConverter',     // Passthrough
+  md: 'TextConverter',      // Passthrough
+  json: 'TextConverter',    // Pretty print
+};
+
+const CATEGORY_MAP = {
+  pdf: 'document', docx: 'document', txt: 'document',
+  md: 'document', html: 'document', epub: 'document',
+  pptx: 'presentation',
+  xlsx: 'tabular', csv: 'tabular', json: 'tabular',
+};
 
 const REJECTION_RULES = {
   maxFileSizeMB: 50,       // Manual upload
   maxDriveFileSizeMB: 100, // Drive sync
-  allowedFormats: ['pdf', 'json', 'txt', 'md'],
+  allowedFormats: ['pdf', 'docx', 'pptx', 'html', 'epub', 'xlsx', 'csv', 'json', 'txt', 'md'],
   minTextLength: 50,
   maxNoiseRatio: 0.8,
 };
@@ -471,5 +537,23 @@ const REJECTION_RULES = {
 
 ---
 
-**Phase 3 Status:** ✅ COMPLETE (Dec 24, 2025)
+## 7. Quality Flags (Phase 4)
+
+```typescript
+type QualityFlag =
+  | 'TOO_SHORT'     // < 50 chars
+  | 'TOO_LONG'      // > 2000 chars
+  | 'NO_CONTEXT'    // No heading, no breadcrumbs
+  | 'FRAGMENT'      // Mid-sentence cut
+  | 'EMPTY';        // Whitespace only
+
+// Score calculation:
+// Base: 1.0
+// Penalty: -0.15 per flag
+// Range: 0.0 - 1.0
+```
+
+---
+
+**Phase 4 Status:** ✅ COMPLETE (Dec 27, 2025)
 
