@@ -1,4 +1,4 @@
-import { API_KEY, getTestApp, setupE2E, teardownE2E } from '@tests/e2e/setup/e2e-setup.js';
+import { getTestApp, setupE2E, teardownE2E } from '@tests/e2e/setup/e2e-setup.js';
 import { cleanDatabase, ensureDefaultProfile, getPrisma, seedDocument } from '@tests/helpers/database.js';
 import { FIXTURES, readFixture } from '@tests/helpers/fixtures.js';
 import { mockEmbedding, mockEmbeddingClient } from '@tests/mocks/embedding-mock.js';
@@ -33,7 +33,6 @@ describe('E2E: Query Flow', () => {
         method: 'POST',
         url: '/api/documents',
         headers: {
-          'X-API-Key': API_KEY,
           'Content-Type': 'multipart/form-data; boundary=---e2e',
         },
         payload: createMultipartPayload('ml-doc.pdf', pdfBuffer, 'application/pdf'),
@@ -79,7 +78,6 @@ desired behaviors and punishing undesired ones.`,
       const queryResponse = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
         payload: {
           query: 'what are the types of machine learning',
           topK: 5,
@@ -120,7 +118,6 @@ desired behaviors and punishing undesired ones.`,
       const queryResponse = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
         payload: { query: 'searchable content', topK: 5 },
       });
 
@@ -154,7 +151,6 @@ desired behaviors and punishing undesired ones.`,
       const queryResponse = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
         payload: { query: 'machine learning', topK: 4 },
       });
 
@@ -183,7 +179,6 @@ desired behaviors and punishing undesired ones.`,
       const queryResponse = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
         payload: { query: 'test content', topK: 1 },
       });
 
@@ -201,7 +196,6 @@ desired behaviors and punishing undesired ones.`,
       const queryResponse = await app.inject({
         method: 'POST',
         url: '/api/query',
-        headers: { 'X-API-Key': API_KEY },
         payload: { query: 'any query', topK: 5 },
       });
 

@@ -1,4 +1,4 @@
-import { API_KEY, getTestApp, setupE2E, teardownE2E } from '@tests/e2e/setup/e2e-setup.js';
+import { getTestApp, setupE2E, teardownE2E } from '@tests/e2e/setup/e2e-setup.js';
 import { cleanDatabase, ensureDefaultProfile } from '@tests/helpers/database.js';
 import { FIXTURES, readFixture } from '@tests/helpers/fixtures.js';
 import { successCallback } from '@tests/mocks/python-worker-mock.js';
@@ -27,7 +27,6 @@ describe('E2E: PDF Upload Flow', () => {
       method: 'POST',
       url: '/api/documents',
       headers: {
-        'X-API-Key': API_KEY,
         'Content-Type': 'multipart/form-data; boundary=---e2e',
       },
       payload: createMultipartPayload('test.pdf', pdfBuffer, 'application/pdf'),
@@ -41,7 +40,6 @@ describe('E2E: PDF Upload Flow', () => {
     let statusResponse = await app.inject({
       method: 'GET',
       url: `/api/documents/${documentId}`,
-      headers: { 'X-API-Key': API_KEY },
     });
 
     expect(statusResponse.json().status).toBe('PENDING');
@@ -79,7 +77,6 @@ This concludes the test document content.`,
     statusResponse = await app.inject({
       method: 'GET',
       url: `/api/documents/${documentId}`,
-      headers: { 'X-API-Key': API_KEY },
     });
 
     const statusBody = statusResponse.json();
@@ -90,7 +87,6 @@ This concludes the test document content.`,
     const queryResponse = await app.inject({
       method: 'POST',
       url: '/api/query',
-      headers: { 'X-API-Key': API_KEY },
       payload: {
         query: 'test document content',
         topK: 5,

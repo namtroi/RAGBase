@@ -4,10 +4,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 describe('GET /api/documents/:id', () => {
   let app: any;
-  const API_KEY = 'test-key';
+  
 
   beforeAll(async () => {
-    process.env.API_KEY = API_KEY;
+    
     app = await createTestApp();
   });
 
@@ -26,7 +26,7 @@ describe('GET /api/documents/:id', () => {
       const response = await app.inject({
         method: 'GET',
         url: `/api/documents/${doc.id}`,
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(200);
@@ -46,7 +46,7 @@ describe('GET /api/documents/:id', () => {
       const response = await app.inject({
         method: 'GET',
         url: `/api/documents/${doc.id}`,
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.json().status).toBe('PROCESSING');
@@ -64,7 +64,7 @@ describe('GET /api/documents/:id', () => {
       const response = await app.inject({
         method: 'GET',
         url: `/api/documents/${doc.id}`,
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const body = response.json();
@@ -82,7 +82,7 @@ describe('GET /api/documents/:id', () => {
       const response = await app.inject({
         method: 'GET',
         url: `/api/documents/${doc.id}`,
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const body = response.json();
@@ -97,7 +97,7 @@ describe('GET /api/documents/:id', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents/00000000-0000-0000-0000-000000000000',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(404);
@@ -108,7 +108,7 @@ describe('GET /api/documents/:id', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents/invalid-id',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(400);

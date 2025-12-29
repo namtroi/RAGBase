@@ -3,7 +3,7 @@ import { cleanDatabase, getPrisma, seedDocument } from '@tests/helpers/database.
 import { successCallback } from '@tests/mocks/python-worker-mock.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-const API_KEY = 'test-api-key';
+
 
 describe('Analytics E2E Flow', () => {
     let app: any;
@@ -103,7 +103,7 @@ describe('Analytics E2E Flow', () => {
             const response = await app.inject({
                 method: 'GET',
                 url: '/api/analytics/overview?period=all',
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(response.statusCode).toBe(200);
@@ -147,7 +147,7 @@ describe('Analytics E2E Flow', () => {
             const response = await app.inject({
                 method: 'GET',
                 url: '/api/chunks?limit=50',
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(response.statusCode).toBe(200);
@@ -191,7 +191,7 @@ describe('Analytics E2E Flow', () => {
             const excellentResponse = await app.inject({
                 method: 'GET',
                 url: '/api/chunks?quality=excellent',
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(excellentResponse.statusCode).toBe(200);
@@ -206,7 +206,7 @@ describe('Analytics E2E Flow', () => {
             const lowResponse = await app.inject({
                 method: 'GET',
                 url: '/api/chunks?quality=low',
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(lowResponse.statusCode).toBe(200);
@@ -248,7 +248,7 @@ describe('Analytics E2E Flow', () => {
             const response = await app.inject({
                 method: 'GET',
                 url: '/api/analytics/processing?period=all',
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(response.statusCode).toBe(200);
