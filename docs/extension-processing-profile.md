@@ -1,5 +1,7 @@
 # Processing Profile - Extension Document
 
+> **Status**: Complete
+
 ## Overview
 
 Processing Profile allows configurable parameters for document processing pipeline. Each document links to one profile at processing time.
@@ -78,11 +80,10 @@ All hardcoded settings across processing pipeline:
 | CsvConverter | MAX_TABLE_COLS | 20 | ✅ |
 | XlsxConverter | MAX_TABLE_ROWS | 35 | ✅ |
 | XlsxConverter | MAX_TABLE_COLS | 20 | ✅ |
-| PdfConverter | num_threads | 4 | ✅ |
-| PdfConverter | do_table_structure | False | ✅ |
+| Router | pdfConverter | "pymupdf" | ✅ (pymupdf/docling) |
 | PdfConverter | AcceleratorDevice | CPU | ❌ Fixed |
-| config.py | ocr_mode | "auto" | ✅ |
-| config.py | ocr_languages | "en" | ✅ **NEW** |
+| config.py | ocr_mode | "auto" | ✅ (docling only) |
+| config.py | ocr_languages | "en" | ✅ (docling only) |
 | HtmlConverter | REMOVE_TAGS | nav,footer... | ❌ Fixed (advanced) |
 | EpubConverter | SKIP_ITEMS | toc,nav,cover... | ❌ Fixed (advanced) |
 
@@ -90,8 +91,8 @@ All hardcoded settings across processing pipeline:
 
 | Module | Setting | Default | Configurable? |
 |--------|---------|---------|---------------|
-| DocumentChunker | chunk_size | 1000 | ✅ |
-| DocumentChunker | chunk_overlap | 100 | ✅ |
+| DocumentChunker | chunk_size | 1500 | ✅ |
+| DocumentChunker | chunk_overlap | 200 | ✅ |
 | DocumentChunker | headers_to_split | H1-H3 | ✅ |
 | PresentationChunker | min_chunk_size | 200 | ✅ |
 | TabularChunker | rows_per_chunk | 20 | ✅ |
@@ -100,12 +101,12 @@ All hardcoded settings across processing pipeline:
 
 | Module | Setting | Default | Configurable? |
 |--------|---------|---------|---------------|
-| QualityAnalyzer | MIN_CHARS | 50 | ✅ |
+| QualityAnalyzer | MIN_CHARS | 500 | ✅ |
 | QualityAnalyzer | MAX_CHARS | 2000 | ✅ |
 | QualityAnalyzer | PENALTY_PER_FLAG | 0.15 | ✅ |
 | AutoFixer | MAX_PASSES | 2 | ✅ |
 | AutoFixer | MAX_CHUNK_SIZE | 2000 | ✅ (same as MAX_CHARS) |
-| AutoFixer | MIN_CHUNK_SIZE | 50 | ✅ (same as MIN_CHARS) |
+| AutoFixer | MIN_CHUNK_SIZE | 500 | ✅ (same as MIN_CHARS) |
 | Normalizer | max_iterations | 10 | ❌ Fixed (internal) |
 
 ### Stage 4: Embedding
@@ -140,23 +141,22 @@ model ProcessingProfile {
   createdAt    DateTime @default(now()) @map("created_at")
   
   // === Stage 1: Conversion ===
+  pdfConverter           String  @default("pymupdf") @map("pdf_converter") // "pymupdf" | "docling"
+  pdfOcrMode             String  @default("auto") @map("pdf_ocr_mode")       // docling only
+  pdfOcrLanguages        String  @default("en")   @map("pdf_ocr_languages")  // comma-separated
   conversionTableRows    Int     @default(35)   @map("conversion_table_rows")
   conversionTableCols    Int     @default(20)   @map("conversion_table_cols")
-  pdfOcrMode             String  @default("auto") @map("pdf_ocr_mode")       // auto|force|never
-  pdfOcrLanguages        String  @default("en")   @map("pdf_ocr_languages")  // comma-separated
-  pdfNumThreads          Int     @default(4)    @map("pdf_num_threads")
-  pdfTableStructure      Boolean @default(false) @map("pdf_table_structure")
   maxFileSizeMb          Int     @default(50)   @map("max_file_size_mb")     // Upload limit
   
   // === Stage 2: Chunking ===
-  documentChunkSize       Int @default(1000) @map("document_chunk_size")
-  documentChunkOverlap    Int @default(100)  @map("document_chunk_overlap")
+  documentChunkSize       Int @default(1500) @map("document_chunk_size")
+  documentChunkOverlap    Int @default(200)  @map("document_chunk_overlap")
   documentHeaderLevels    Int @default(3)    @map("document_header_levels")   // 1=H1, 2=H1-H2, 3=H1-H3
   presentationMinChunk    Int @default(200)  @map("presentation_min_chunk")
   tabularRowsPerChunk     Int @default(20)   @map("tabular_rows_per_chunk")
   
   // === Stage 3: Quality ===
-  qualityMinChars         Int     @default(50)   @map("quality_min_chars")
+  qualityMinChars         Int     @default(500)  @map("quality_min_chars")
   qualityMaxChars         Int     @default(2000) @map("quality_max_chars")
   qualityPenaltyPerFlag   Float   @default(0.15) @map("quality_penalty_per_flag")
   autoFixEnabled          Boolean @default(true) @map("auto_fix_enabled")
@@ -362,31 +362,30 @@ class ProfileConfig(BaseModel):
     """Processing profile configuration from job payload."""
     
     # Stage 1: Conversion
-    conversion_table_rows: int = 35
-    conversion_table_cols: int = 20
-    pdf_ocr_mode: str = "auto"
-    pdf_ocr_languages: str = "en"  # Comma-separated: "en,vi"
-    pdf_num_threads: int = 4
-    pdf_table_structure: bool = False
+    pdfConverter: str = "pymupdf"  # "pymupdf" (fast) | "docling" (high quality)
+    pdfOcrMode: str = "auto"       # docling only
+    pdfOcrLanguages: str = "en"    # Comma-separated: "en,vi"
+    conversionTableRows: int = 35
+    conversionTableCols: int = 20
     
     # Stage 2: Chunking
-    document_chunk_size: int = 1000
-    document_chunk_overlap: int = 100
-    document_header_levels: int = 3
-    presentation_min_chunk: int = 200
-    tabular_rows_per_chunk: int = 20
+    documentChunkSize: int = 1500
+    documentChunkOverlap: int = 200
+    documentHeaderLevels: int = 3
+    presentationMinChunk: int = 200
+    tabularRowsPerChunk: int = 20
     
     # Stage 3: Quality
-    quality_min_chars: int = 50
-    quality_max_chars: int = 2000
-    quality_penalty_per_flag: float = 0.15
-    auto_fix_enabled: bool = True
-    auto_fix_max_passes: int = 2
+    qualityMinChars: int = 500
+    qualityMaxChars: int = 2000
+    qualityPenaltyPerFlag: float = 0.15
+    autoFixEnabled: bool = True
+    autoFixMaxPasses: int = 2
     
     @property
     def ocr_languages_list(self) -> list[str]:
         """Parse comma-separated languages to list for EasyOCR/Tesseract."""
-        return [lang.strip() for lang in self.pdf_ocr_languages.split(",") if lang.strip()]
+        return [lang.strip() for lang in self.pdfOcrLanguages.split(",") if lang.strip()]
 ```
 
 > **Note:** Use `config.ocr_languages_list` when passing to OCR libraries, not the raw string.
@@ -411,11 +410,11 @@ class ProfileConfig(BaseModel):
 
 def test_profile_defaults():
     config = ProfileConfig()
-    assert config.document_chunk_size == 1000
-    assert config.pdf_ocr_languages == "en"
+    assert config.documentChunkSize == 1500
+    assert config.pdfOcrLanguages == "en"
 
 def test_chunker_uses_config():
-    config = ProfileConfig(document_chunk_size=500)
+    config = ProfileConfig(documentChunkSize=500)
     chunker = DocumentChunker(config)
     # verify chunk_size is 500
 ```

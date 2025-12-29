@@ -27,22 +27,34 @@ Settings are divided into 3 categories:
 
 ---
 
-## Stage 2: PDF Conversion (Docling)
+## Stage 2: PDF Conversion
 
-### OCR Mode
+### PDF Converter Selection
+
+| Source | Setting | Default |
+|--------|---------|---------|
+| Profile | `pdfConverter` | `pymupdf` |
+
+**What:** Which PDF conversion engine to use.
+**Why:** Balance between speed and quality.
+**How:**
+- `pymupdf` - Fast extraction, best for digital PDFs (default)
+- `docling` - High quality with OCR support, best for scanned docs
+
+### OCR Mode (Docling only)
 
 | Source | Setting | Default |
 |--------|---------|---------|
 | Profile | `pdfOcrMode` | `auto` |
 
-**What:** Text extraction method for PDFs.
+**What:** Text extraction method for PDFs (only applies when `pdfConverter=docling`).
 **Why:** Scanned PDFs need OCR. Digital PDFs don't.
 **How:**
 - `auto` - Enable OCR (Docling auto-detects when needed)
 - `force` - Always OCR (best for scanned docs)
 - `never` - Never OCR (fastest, text-only PDFs)
 
-### OCR Languages
+### OCR Languages (Docling only)
 
 | Source | Setting | Default |
 |--------|---------|---------|
@@ -52,25 +64,15 @@ Settings are divided into 3 categories:
 **Why:** Accuracy depends on correct language model.
 **How:** Use ISO codes comma-separated: `en,vi,ja`
 
-### PDF Threads
+### Accelerator Device
 
-| Source | Setting | Default |
-|--------|---------|---------|
-| Profile | `pdfNumThreads` | 4 |
+| Source | Setting | Value | Location |
+|--------|---------|-------|----------|
+| Fixed | `AcceleratorDevice` | CPU | pdf_converter.py |
 
-**What:** CPU threads per PDF conversion.
-**Why:** More threads = faster single-PDF processing.
-**How:** Set to CPU core count. Too high = CPU contention.
-
-### Table Detection
-
-| Source | Setting | Default |
-|--------|---------|---------|
-| Profile | `pdfTableStructure` | false |
-
-**What:** Identify table structures in PDFs.
-**Why:** Better Markdown table formatting.
-**How:** Enable for docs with tables. Disable for faster processing.
+**What:** Processing device for Docling.
+**Why:** GPU mode causes meta tensor errors with current model.
+**How:** Cannot change. Always CPU.
 
 ### Table Dimensions
 
@@ -123,8 +125,8 @@ Settings are divided into 3 categories:
 
 | Source | Setting | Default |
 |--------|---------|---------|
-| Profile | `documentChunkSize` | 1000 |
-| Profile | `documentChunkOverlap` | 100 |
+| Profile | `documentChunkSize` | 1500 |
+| Profile | `documentChunkOverlap` | 200 |
 | Profile | `documentHeaderLevels` | 3 |
 
 **What:** Size, overlap, and header split depth for document formats.
@@ -160,7 +162,7 @@ Settings are divided into 3 categories:
 
 | Source | Setting | Default |
 |--------|---------|---------|
-| Profile | `qualityMinChars` | 50 |
+| Profile | `qualityMinChars` | 500 |
 | Profile | `qualityMaxChars` | 2000 |
 
 **What:** Min/max characters for quality scoring.

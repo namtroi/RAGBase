@@ -34,7 +34,6 @@
 | **Storage** | PostgreSQL 16 + pgvector |
 | **Queue** | BullMQ + Redis (backend only) |
 | **UI** | React 18 + Tailwind v4 + React Query polling |
-| **Auth** | API Key (X-API-Key header) |
 | **Logging** | Pino (Node.js), structlog (Python) - JSON format |
 | **Metrics** | Prometheus (/metrics endpoint) |
 | **Health** | /health, /ready, /live endpoints |
@@ -70,7 +69,6 @@
 | **Password-protected PDF** | Reject with `PASSWORD_PROTECTED` error |
 | **Embedding** | Fastembed only (self-hosted, no OpenAI) |
 | **Queue pattern** | HTTP dispatch (not dual consumers) |
-| **Auth** | API key (simple, production-ready) |
 | **Real-time updates** | React Query polling (not WebSockets) |
 | **Chunking** | 1000 chars, 200 overlap, markdown-aware |
 | **Retry** | 3 attempts, exponential backoff |

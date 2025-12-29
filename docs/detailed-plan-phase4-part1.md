@@ -36,7 +36,7 @@ main.py → router.get_converter(format) → FormatConverter.to_markdown()
 ### Key Files:
 - `src/router.py` - Format → Converter + Category mapping
 - `src/pipeline.py` - Unified processing pipeline
-- `src/converters/` - All format converters (7 files)
+- `src/converters/` - All format converters (12 files)
 
 ---
 
@@ -108,19 +108,25 @@ class FormatConverter(ABC):
 
 ```python
 # src/router.py
-CONVERTER_MAP = {
-    "pdf": PdfConverter, "docx": PdfConverter,
-    "txt": TextConverter, "md": TextConverter, "json": TextConverter,
-    "csv": CsvConverter, "html": HtmlConverter,
-    "xlsx": XlsxConverter, "epub": EpubConverter,
+FORMAT_CONVERTERS = {
+    "pdf": PyMuPDFConverter,  # Default fast converter
+    "docx": DocxConverter,    # Dedicated DOCX (Docling)
+    "txt": TxtConverter,
+    "md": MarkdownConverter,
+    "json": JsonConverter,
+    "csv": CsvConverter,
+    "html": HtmlConverter,
+    "xlsx": XlsxConverter,
+    "epub": EpubConverter,
     "pptx": PptxConverter,
 }
 
-CATEGORY_MAP = {
+FORMAT_CATEGORIES = {
     "pdf": "document", "docx": "document", "txt": "document",
     "md": "document", "html": "document", "epub": "document",
+    "json": "document",  # Treat JSON as document
     "pptx": "presentation",
-    "xlsx": "tabular", "csv": "tabular", "json": "tabular",
+    "xlsx": "tabular", "csv": "tabular",
 }
 ```
 
@@ -165,15 +171,26 @@ CATEGORY_MAP = {
 
 ---
 
-## Part 4B.4: PDF/DOCX Converter
+## Part 4B.4: PDF Converter
 
 **Status:** ✅ Complete  
-**File:** `src/converters/pdf_converter.py`
+**Files:** `src/converters/pdf_converter.py` (Docling), `src/converters/pymupdf_converter.py` (PyMuPDF)
 
 ### Features:
-- Use Docling for PDF and DOCX
-- OCR mode support (auto/force/never)
-- Fallback to PyMuPDF
+- **PyMuPDF** (default): Fast extraction, post-processing (line break merging, junk removal)
+- **Docling**: OCR mode support (auto/force/never), high-quality for scanned PDFs
+- Router selects via `get_pdf_converter(converter_type)` based on ProcessingProfile
+- Page count metadata
+
+---
+
+## Part 4B.4b: DOCX Converter
+
+**Status:** ✅ Complete  
+**File:** `src/converters/docx_converter.py`
+
+### Features:
+- Use Docling for DOCX
 - Page count metadata
 
 ---
@@ -204,15 +221,18 @@ CATEGORY_MAP = {
 
 ---
 
-## Part 4B.7: Text Converter
+## Part 4B.7: Text Converters (TXT/MD/JSON)
 
 **Status:** ✅ Complete  
-**File:** `src/converters/text_converter.py`
+**Files:** 
+- `src/converters/txt_converter.py` - Plain text
+- `src/converters/md_converter.py` - Markdown passthrough
+- `src/converters/json_converter.py` - JSON formatting
 
 ### Features:
-- TXT: Read as-is
-- MD: Passthrough
-- JSON: Pretty format or detect category (tabular if list/dict)
+- **TXT**: Read as-is, encoding detection
+- **MD**: Passthrough, preserve structure
+- **JSON**: Pretty format, category detection
 
 ---
 
@@ -243,8 +263,12 @@ apps/ai-worker/src/
 ├── normalizer.py            # 4A.2 Markdown normalization
 ├── converters/
 │   ├── base.py              # FormatConverter ABC
-│   ├── pdf_converter.py     # PDF/DOCX (Docling)
-│   ├── text_converter.py    # TXT/MD/JSON
+│   ├── pdf_converter.py     # Docling PDF (OCR)
+│   ├── pymupdf_converter.py # PyMuPDF PDF (fast, default)
+│   ├── docx_converter.py    # Docling DOCX
+│   ├── txt_converter.py     # TXT
+│   ├── md_converter.py      # Markdown
+│   ├── json_converter.py    # JSON
 │   ├── csv_converter.py     # 4B.1
 │   ├── html_converter.py    # 4B.2
 │   ├── epub_converter.py    # 4B.3

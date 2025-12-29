@@ -19,15 +19,15 @@ class TestProfileConfigModel:
         assert config.pdfOcrMode == "auto"
         assert config.pdfOcrLanguages == "en"
 
-        # Chunking defaults
-        assert config.documentChunkSize == 1000
-        assert config.documentChunkOverlap == 100
+        # Chunking defaults (match schema.prisma)
+        assert config.documentChunkSize == 1500
+        assert config.documentChunkOverlap == 200
         assert config.documentHeaderLevels == 3
         assert config.presentationMinChunk == 200
         assert config.tabularRowsPerChunk == 20
 
-        # Quality defaults
-        assert config.qualityMinChars == 50
+        # Quality defaults (match schema.prisma)
+        assert config.qualityMinChars == 500
         assert config.qualityMaxChars == 2000
         assert config.qualityPenaltyPerFlag == 0.15
         assert config.autoFixEnabled is True
@@ -111,8 +111,8 @@ class TestPipelineWithConfig:
         """Pipeline should use defaults when no config provided."""
         pipeline = create_pipeline()
 
-        assert pipeline.document_chunker.chunk_size == 1000
-        assert pipeline.document_chunker.chunk_overlap == 100
+        assert pipeline.document_chunker.chunk_size == 1500
+        assert pipeline.document_chunker.chunk_overlap == 200
 
 
 class TestQualityAnalyzerWithConfig:

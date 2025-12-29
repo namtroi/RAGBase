@@ -551,4 +551,119 @@ describe('Analytics API', () => {
       expect(data.avgTokensPerChunk).toBe(100);
     });
   });
+
+  // ============================================================
+  // Period Filtering Tests
+  // ============================================================
+
+  describe('GET /api/analytics/overview - Period Filter', () => {
+    it('should filter by period=24h', async () => {
+      const prisma = getPrisma();
+      // Create doc with metrics NOW (within 24h)
+      await seedDocumentWithMetrics();
+      // Create doc 48 hours ago (outside 24h window)
+      const oldDoc = await prisma.document.create({
+        data: {
+          filename: 'old.pdf',
+          mimeType: 'application/pdf',
+          fileSize: 1024,
+          format: 'pdf',
+          status: 'COMPLETED',
+          filePath: '/tmp/old.pdf',
+          md5Hash: `old-${Date.now()}`,
+          createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
+        },
+      });
+      await prisma.processingMetrics.create({
+        data: {
+          documentId: oldDoc.id,
+          totalTimeMs: 1000,
+          createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
+        },
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/analytics/overview?period=24h',
+      });
+
+      expect(response.statusCode).toBe(200);
+      const data = JSON.parse(response.body);
+      expect(data.period).toBe('24h');
+      expect(data.totalDocuments).toBe(1); // Only recent doc
+    });
+
+    it('should filter by period=7d', async () => {
+      await seedDocumentWithMetrics();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/analytics/overview?period=7d',
+      });
+
+      expect(response.statusCode).toBe(200);
+      const data = JSON.parse(response.body);
+      expect(data.period).toBe('7d');
+    });
+
+    it('should filter by period=30d', async () => {
+      await seedDocumentWithMetrics();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/analytics/overview?period=30d',
+      });
+
+      expect(response.statusCode).toBe(200);
+      const data = JSON.parse(response.body);
+      expect(data.period).toBe('30d');
+    });
+
+    it('should return all data with period=all', async () => {
+      const prisma = getPrisma();
+      await seedDocumentWithMetrics();
+      // Create old doc
+      const oldDoc = await prisma.document.create({
+        data: {
+          filename: 'ancient.pdf',
+          mimeType: 'application/pdf',
+          fileSize: 1024,
+          format: 'pdf',
+          status: 'COMPLETED',
+          filePath: '/tmp/ancient.pdf',
+          md5Hash: `ancient-${Date.now()}`,
+          createdAt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // 1 year ago
+        },
+      });
+      await prisma.processingMetrics.create({
+        data: {
+          documentId: oldDoc.id,
+          totalTimeMs: 1000,
+          createdAt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+        },
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/analytics/overview?period=all',
+      });
+
+      expect(response.statusCode).toBe(200);
+      const data = JSON.parse(response.body);
+      expect(data.period).toBe('all');
+      expect(data.totalDocuments).toBe(2); // Both docs
+    });
+
+    it('should use 7d as default period', async () => {
+      await seedDocumentWithMetrics();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/analytics/overview',
+      });
+
+      const data = JSON.parse(response.body);
+      expect(data.period).toBe('7d');
+    });
+  });
 });

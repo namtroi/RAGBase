@@ -54,15 +54,15 @@ class ProfileConfig(BaseModel):
     pdfOcrMode: str = "auto"  # Only used when pdfConverter = "docling"
     pdfOcrLanguages: str = "en"  # Comma-separated: "en,vi"
 
-    # Stage 2: Chunking
-    documentChunkSize: int = 1000
-    documentChunkOverlap: int = 100
+    # Stage 2: Chunking (defaults match schema.prisma)
+    documentChunkSize: int = 1500
+    documentChunkOverlap: int = 200
     documentHeaderLevels: int = 3
     presentationMinChunk: int = 200
     tabularRowsPerChunk: int = 20
 
-    # Stage 3: Quality
-    qualityMinChars: int = 50
+    # Stage 3: Quality (defaults match schema.prisma)
+    qualityMinChars: int = 500
     qualityMaxChars: int = 2000
     qualityPenaltyPerFlag: float = 0.15
     autoFixEnabled: bool = True

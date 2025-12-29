@@ -41,9 +41,10 @@ sequenceDiagram
 ```
 
 **Validation Rules:**
-- Max size: 50MB
-- Formats: PDF, JSON, TXT, MD
+- Max size: From active ProcessingProfile (`maxFileSizeMb`, default 50MB)
+- Formats: PDF, DOCX, PPTX, HTML, EPUB, XLSX, CSV, TXT, MD, JSON
 - Filename: sanitized via `basename()`, max 255 chars
+- Profile: Active profile ID captured at upload (snapshot)
 
 **Storage Path:** `/uploads/{md5Hash}` (no extension, prevents path traversal)
 
@@ -91,8 +92,8 @@ POST /process
 {
   documentId: string,
   filePath: string,
-  format: 'pdf' | 'md' | 'txt' | 'json',
-  config: { ocrMode, ocrLanguages }
+  format: 'pdf' | 'docx' | 'pptx' | 'html' | 'epub' | 'xlsx' | 'csv' | 'txt' | 'md' | 'json',
+  config: ProfileConfig  // From ProcessingProfile
 }
 ```
 
@@ -102,41 +103,65 @@ POST /process
 
 ```mermaid
 graph TD
-    A[Receive /process] --> B{Format?}
-    B -->|PDF| C[Docling + OCR]
-    B -->|MD| D[Return as-is]
-    B -->|TXT| E[Add heading]
-    B -->|JSON| F[Pretty print in code block]
+    A[Receive /process] --> B{Router by Format}
+    B -->|PDF| C[PyMuPDF or Docling]
+    B -->|DOCX/PPTX| D[Docling Converter]
+    B -->|HTML| E[BeautifulSoup]
+    B -->|EPUB| F[EbookLib]
+    B -->|XLSX| G[OpenPyXL]
+    B -->|CSV| H[Pandas]
+    B -->|TXT/MD/JSON| I[Dedicated Converters]
     
-    C --> G[Markdown Output]
-    D --> G
-    E --> G
-    F --> G
+    C --> J[Sanitizer + Normalizer]
+    D --> J
+    E --> J
+    F --> J
+    G --> J
+    H --> J
+    I --> J
     
-    G --> H[Chunker]
-    H --> I[Embedder]
-    I --> J[Callback]
+    J --> K{Chunker by Category}
+    K -->|Document| L[Header-based + Breadcrumbs]
+    K -->|Presentation| M[Slide-based]
+    K -->|Tabular| N[Row-based]
+    
+    L --> O[Quality Analyzer]
+    M --> O
+    N --> O
+    O --> P[Auto-Fix Rules]
+    P --> Q[Embedder bge-small]
+    Q --> R[Callback]
 ```
 
-**Format Handling:**
+**Format Categories:**
 
-| Format | Conversion |
-|--------|------------|
-| PDF | Docling (OCR if needed) → Markdown |
-| MD | Return as-is |
-| TXT | `# filename\n\n{content}` |
-| JSON | `# filename\n\n```json\n{pretty}\n``` ` |
+| Category | Formats | Chunking |
+|----------|---------|----------|
+| Document | PDF, DOCX, TXT, MD, HTML, EPUB, JSON | Header-based with breadcrumbs |
+| Presentation | PPTX | Slide-based with grouping |
+| Tabular | XLSX, CSV | Row-based |
 
 ---
 
-### 2.3 Chunking
+### 2.3 Chunking (Category-Based)
 
-**Library:** LangChain `RecursiveCharacterTextSplitter`
+**Document Chunker:**
+- `MarkdownHeaderTextSplitter` for H1-H3 headers
+- Builds breadcrumbs array from header hierarchy
+- Fallback to `RecursiveCharacterTextSplitter`
 
-**Config:**
-- `chunk_size`: 1000 characters
-- `chunk_overlap`: 200 characters
-- `separators`: `["\n\n", "\n", " ", ""]`
+**Presentation Chunker:**
+- Split by `<!-- slide -->` markers
+- Group small slides (<200 chars)
+
+**Tabular Chunker:**
+- Row-based splitting (`tabularRowsPerChunk`)
+- Preserve table format for small datasets
+
+**Config from ProfileConfig:**
+- `documentChunkSize`: 1500 (default)
+- `documentChunkOverlap`: 200
+- `documentHeaderLevels`: 3 (H1-H3)
 
 **Output per chunk:**
 ```python
@@ -144,27 +169,44 @@ graph TD
   "content": str,
   "index": int,
   "metadata": {
-    "charStart": int,
-    "charEnd": int
+    "breadcrumbs": ["Chapter 1", "Section 2"],
+    "location": {"page": 1},
+    "qualityScore": 0.85,
+    "qualityFlags": [],
+    "tokenCount": 234,
+    "chunkType": "document"
   }
 }
 ```
 
 ---
 
-### 2.4 Embedding
+### 2.4 Quality Analysis
+
+| Flag | Condition |
+|------|----------|
+| `TOO_SHORT` | < `qualityMinChars` (500) |
+| `TOO_LONG` | > `qualityMaxChars` (2000) |
+| `NO_CONTEXT` | No heading, no breadcrumbs |
+| `FRAGMENT` | Mid-sentence cut |
+| `EMPTY` | Whitespace only |
+
+**Auto-Fix Rules:**
+1. Split TOO_LONG chunks
+2. Merge TOO_SHORT chunks
+3. Skip EMPTY chunks
+4. Inject context for NO_CONTEXT
+
+**Scoring:** Base 1.0, penalty -0.15 per flag
+
+---
+
+### 2.5 Embedding
 
 **Model:** `BAAI/bge-small-en-v1.5` (sentence-transformers)
-
-**Config:**
 - Dimensions: 384
-- Normalization: enabled (for cosine similarity)
-
-**Process:**
-```python
-embeddings = model.encode(texts, normalize_embeddings=True)
-# Returns List[List[float]] - 384d vectors
-```
+- Normalization: enabled
+- Token count tracked per chunk
 
 ---
 
@@ -174,28 +216,25 @@ embeddings = model.encode(texts, normalize_embeddings=True)
 
 ```mermaid
 sequenceDiagram
-    AI Worker->>Backend: Callback (processedContent + chunks)
+    AI Worker->>Backend: Callback (content + chunks + quality + metrics)
     Backend->>Backend: Quality gate check
     alt Failed
         Backend->>Database: Update status=FAILED
         Backend->>SSE: Emit document:status (FAILED)
     else Passed
         Backend->>Database: Delete existing chunks
-        Backend->>Database: Insert chunks with vectors
+        Backend->>Database: Insert chunks with vectors + quality
+        Backend->>Database: Create ProcessingMetrics
         Backend->>Database: Update Document (COMPLETED)
         Backend->>SSE: Emit document:status (COMPLETED)
     end
 ```
 
-**Quality Gate:**
-- Reject if text < 50 characters
-- Reject if noise ratio > 80% (non-alphanumeric chars)
-
-**Chunk Storage (Raw SQL):**
-```sql
-INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, heading, created_at)
-VALUES (gen_random_uuid(), $1, $2, $3, $4::vector, $5, $6, null, NOW())
-```
+**Stored per chunk:**
+- `content`, `embedding`, `chunkIndex`
+- `breadcrumbs[]`, `qualityScore`, `qualityFlags[]`
+- `chunkType`, `tokenCount`, `location`
+- `searchVector` (tsvector for hybrid search)
 
 ---
 
@@ -207,35 +246,51 @@ VALUES (gen_random_uuid(), $1, $2, $3, $4::vector, $5, $6, null, NOW())
 |--------|------|-------------|
 | `id` | UUID | Primary key |
 | `filename` | String | Original filename |
-| `mime_type` | String | MIME type |
-| `file_size` | Int | Bytes |
-| `format` | Enum | pdf/json/txt/md |
+| `format` | Enum | pdf/docx/pptx/html/epub/xlsx/csv/txt/md/json |
 | `status` | Enum | PENDING/PROCESSING/COMPLETED/FAILED |
-| `file_path` | String | `/uploads/{md5Hash}` |
-| `md5_hash` | String | Unique, dedup key |
+| `format_category` | String | document/presentation/tabular |
 | `processed_content` | Text | Full markdown output |
-| `processing_metadata` | JSON | pageCount, ocrApplied, processingTimeMs |
+| `processing_profile_id` | UUID | FK → ProcessingProfile |
 | `source_type` | Enum | MANUAL/DRIVE |
-| `drive_file_id` | String? | Google Drive file ID |
-| `drive_config_id` | UUID? | FK → DriveConfig |
-| `is_active` | Boolean | User visibility toggle (default: true) |
-| `connection_state` | String | STANDALONE or LINKED |
-
----
+| `is_active` | Boolean | User visibility toggle |
 
 ### 4.2 Chunks Table
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | UUID | Primary key |
-| `document_id` | UUID | FK → Document (cascade delete) |
+| `document_id` | UUID | FK → Document (cascade) |
 | `content` | String | Chunk text |
-| `chunk_index` | Int | Order in document |
 | `embedding` | vector(384) | pgvector embedding |
-| `char_start` | Int | Position in source |
-| `char_end` | Int | End position |
+| `breadcrumbs` | String[] | Header hierarchy |
+| `quality_score` | Float | 0-1 score |
+| `quality_flags` | String[] | TOO_SHORT, etc |
+| `chunk_type` | String | document/presentation/tabular |
+| `token_count` | Int | Embedding tokens |
+| `search_vector` | tsvector | For BM25 keyword search |
 
-**Index:** HNSW on `embedding` for fast similarity search
+### 4.3 ProcessingProfile Table
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key |
+| `name` | String | Unique name |
+| `is_active` | Boolean | Active for manual uploads |
+| `pdf_converter` | String | pymupdf/docling |
+| `document_chunk_size` | Int | Default: 1500 |
+| `quality_min_chars` | Int | Default: 500 |
+| `auto_fix_enabled` | Boolean | Default: true |
+
+### 4.4 ProcessingMetrics Table (Analytics)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `document_id` | UUID | FK → Document (1:1) |
+| `conversion_time_ms` | Int | Conversion duration |
+| `chunking_time_ms` | Int | Chunking duration |
+| `embedding_time_ms` | Int | Embedding duration |
+| `queue_time_ms` | Int | Time in queue |
+| `avg_quality_score` | Float | Aggregated from chunks |
 
 ---
 
@@ -254,29 +309,29 @@ VALUES (gen_random_uuid(), $1, $2, $3, $4::vector, $5, $6, null, NOW())
 
 ## 5. Retrieval
 
-### 5.1 Semantic Search
+### 5.1 Semantic Search (Default)
 
-**Endpoint:** `POST /api/query`
+**Endpoint:** `POST /api/query` with `mode=semantic`
 
-```mermaid
-sequenceDiagram
-    User->>Backend: Query (text, topK)
-    Backend->>AI Worker: POST /embed (query text)
-    AI Worker->>Backend: 384d vector
-    Backend->>Database: Vector similarity search
-    Database->>Backend: Top K chunks
-    Backend->>User: Results with scores
-```
-
-**pgvector Query:**
 ```sql
 SELECT c.*, d.filename
-FROM chunks c
-JOIN documents d ON c.document_id = d.id
+FROM chunks c JOIN documents d ON c.document_id = d.id
 WHERE d.status = 'COMPLETED' AND d.is_active = true
 ORDER BY c.embedding <=> $queryVector
 LIMIT $topK
 ```
+
+### 5.2 Hybrid Search
+
+**Endpoint:** `POST /api/query` with `mode=hybrid`
+
+**Algorithm (RRF):**
+1. Get top-N vector results (cosine similarity)
+2. Get top-N keyword results (BM25 via `ts_rank`)
+3. Combine using RRF: `score = α*(1/(60+vector_rank)) + (1-α)*(1/(60+keyword_rank))`
+4. Return top-K merged results
+
+**Alpha:** 0.0 = pure keyword, 1.0 = pure vector, 0.7 = default
 
 ---
 
@@ -344,14 +399,12 @@ When file removed from Google Drive:
 
 ## Summary
 
-| Stage | Backend | AI Worker | Storage |
-|-------|---------|-----------|---------|
-| **Import** | upload-route, sync-service | - | Disk + Document record |
-| **Queue** | job-processor | - | BullMQ job |
-| **Process** | - | processor, text_processor | - |
-| **Chunk** | - | chunker (LangChain) | - |
-| **Embed** | - | embedder (bge-small) | - |
-| **Store** | callback-route | - | processedContent + chunks + vectors |
-| **Query** | query-route | /embed | Vector search |
-| **Delete** | config-routes | - | Cascade or soft delete |
-
+| Stage | Key Components |
+|-------|----------------|
+| **Import** | Upload route, Drive sync, ProcessingProfile snapshot |
+| **Process** | Router → 10 Converters → Sanitizer → Category Chunker |
+| **Quality** | Analyzer → Auto-Fix → Score (0-1) |
+| **Embed** | bge-small-en-v1.5, 384d, token count |
+| **Store** | Chunks + vectors + quality + ProcessingMetrics |
+| **Query** | Semantic (vector) or Hybrid (vector + BM25 RRF) |
+| **Analytics** | ProcessingMetrics, Chunks Explorer |

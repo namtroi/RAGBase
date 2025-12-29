@@ -66,7 +66,6 @@ class ProcessingPipeline:
 - Split by H1/H2/H3 with `MarkdownHeaderTextSplitter`
 - Build breadcrumbs array from header hierarchy
 - Fallback to `RecursiveCharacterTextSplitter` for large sections
-- Track `charStart`/`charEnd` positions
 
 ---
 
@@ -79,7 +78,6 @@ class ProcessingPipeline:
 - Split by `<!-- slide -->` markers
 - Group small slides (<200 chars)
 - Include slide number in location metadata
-- Track `charStart`/`charEnd` positions
 
 ---
 
@@ -92,7 +90,6 @@ class ProcessingPipeline:
 - Markdown table format → single chunk
 - Sentence format → split by `rows_per_chunk` (default: 20)
 - Include sheet name in breadcrumbs
-- Track `charStart`/`charEnd` positions
 
 ---
 
@@ -269,8 +266,12 @@ apps/ai-worker/src/
 ├── embedder.py              # Embeddings + token count
 ├── converters/
 │   ├── base.py              # FormatConverter ABC
-│   ├── pdf_converter.py     # PDF/DOCX
-│   ├── text_converter.py    # TXT/MD/JSON
+│   ├── pdf_converter.py     # Docling PDF (OCR)
+│   ├── pymupdf_converter.py # PyMuPDF PDF (fast, default)
+│   ├── docx_converter.py    # Docling DOCX
+│   ├── txt_converter.py     # TXT
+│   ├── md_converter.py      # Markdown
+│   ├── json_converter.py    # JSON
 │   ├── csv_converter.py
 │   ├── html_converter.py
 │   ├── epub_converter.py

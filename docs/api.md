@@ -1,6 +1,6 @@
 # RAGBase API Contracts
 
-**Phase 4 Complete** | **TDD Reference & Integration Spec**
+**Phase 4 + Extensions Complete** | **TDD Reference & Integration Spec**
 
 ---
 
@@ -61,10 +61,6 @@ interface Chunk {
   content: string;         // text content
   chunkIndex: number;      // order in document
   embedding: number[];     // 384d vector (sentence-transformers)
-  charStart: number;       // position in source
-  charEnd: number;
-  page?: number;           // PDF page (optional)
-  heading?: string;        // extracted heading (optional)
   
   // Phase 4: Quality & Location
   location?: Json;         // {"page": 1} or {"slide": 3} or {"sheet": "Sales"}
@@ -80,7 +76,7 @@ interface Chunk {
 }
 ```
 
-### DriveConfig (NEW)
+### DriveConfig
 
 ```typescript
 interface DriveConfig {
@@ -94,8 +90,93 @@ interface DriveConfig {
   pageToken?: string;      // Changes API token
   syncStatus: 'IDLE' | 'SYNCING' | 'ERROR';
   syncError?: string;
+  processingProfileId: string;  // FK → ProcessingProfile
   createdAt: Date;
   updatedAt: Date;
+}
+```
+
+### ProcessingProfile
+
+```typescript
+interface ProcessingProfile {
+  id: string;
+  name: string;            // Unique
+  description?: string;
+  isActive: boolean;       // Active for manual uploads
+  isDefault: boolean;      // System default (undeletable)
+  isArchived: boolean;     // Hidden from main list
+  
+  // Stage 1: Conversion
+  pdfConverter: 'pymupdf' | 'docling';  // Default: 'pymupdf'
+  pdfOcrMode: 'auto' | 'force' | 'never';  // Docling only
+  pdfOcrLanguages: string;    // Comma-separated: "en,vi"
+  conversionTableRows: number;  // Default: 35
+  conversionTableCols: number;  // Default: 20
+  maxFileSizeMb: number;        // Default: 50
+  
+  // Stage 2: Chunking
+  documentChunkSize: number;     // Default: 1500
+  documentChunkOverlap: number;  // Default: 200
+  documentHeaderLevels: number;  // 1=H1, 2=H1-H2, 3=H1-H3
+  presentationMinChunk: number;  // Default: 200
+  tabularRowsPerChunk: number;   // Default: 20
+  
+  // Stage 3: Quality
+  qualityMinChars: number;       // Default: 500
+  qualityMaxChars: number;       // Default: 2000
+  qualityPenaltyPerFlag: number; // Default: 0.15
+  autoFixEnabled: boolean;       // Default: true
+  autoFixMaxPasses: number;      // Default: 2
+  
+  // Stage 4: Embedding (display-only)
+  embeddingModel: string;        // Fixed: 'BAAI/bge-small-en-v1.5'
+  embeddingDimension: number;    // Fixed: 384
+  embeddingMaxTokens: number;    // Fixed: 512
+  
+  createdAt: Date;
+}
+```
+
+### ProcessingMetrics (Analytics)
+
+```typescript
+interface ProcessingMetrics {
+  id: string;
+  documentId: string;       // FK → Document (1:1)
+  
+  // Migrated from processingMetadata
+  pageCount: number;
+  ocrApplied: boolean;
+  
+  // Queue timing
+  enqueuedAt?: Date;
+  startedAt?: Date;
+  completedAt?: Date;
+  queueTimeMs: number;      // startedAt - enqueuedAt
+  
+  // Processing time breakdown
+  conversionTimeMs: number;
+  chunkingTimeMs: number;
+  embeddingTimeMs: number;
+  totalTimeMs: number;      // Sum of above
+  userWaitTimeMs: number;   // queueTimeMs + totalTimeMs
+  
+  // Size metrics
+  rawSizeBytes: number;
+  markdownSizeChars: number;
+  
+  // Chunking efficiency
+  totalChunks: number;
+  avgChunkSize: number;
+  oversizedChunks: number;
+  
+  // Quality summary (aggregated)
+  avgQualityScore: number;
+  qualityFlags: Json;       // {"TOO_SHORT": 2, "NO_CONTEXT": 1}
+  totalTokens: number;
+  
+  createdAt: Date;
 }
 ```
 
@@ -246,13 +327,15 @@ interface DocumentStatusResponse {
 }
 ```
 
-### Query
+### Query (Hybrid Search)
 
 ```typescript
 // POST /api/query
 interface QueryRequest {
   query: string;           // 1-1000 chars
   topK?: number;           // 1-100, default 5
+  mode?: 'semantic' | 'hybrid';  // Default: 'semantic'
+  alpha?: number;          // 0.0-1.0, default 0.7 (70% vector, 30% keyword)
 }
 
 interface QueryResponse {
@@ -261,17 +344,20 @@ interface QueryResponse {
 
 interface QueryResult {
   content: string;
-  score: number;           // 0-1 cosine similarity
+  score: number;           // Combined score (RRF for hybrid)
+  vectorScore?: number;    // Hybrid mode: vector component
+  keywordScore?: number;   // Hybrid mode: BM25 component
   documentId: string;
   metadata: {
-    charStart: number;
-    charEnd: number;
     page?: number;
     heading?: string;
+    breadcrumbs?: string[];
+    qualityScore?: number;
   };
 }
 
 // Note: Query automatically excludes documents with isActive=false
+// Hybrid mode uses RRF (Reciprocal Rank Fusion) for score combination
 ```
 
 // GET /api/documents?status=COMPLETED&limit=20&offset=0&driveConfigId=xxx
@@ -355,7 +441,7 @@ interface ContentJsonResponse {
 ### SSE Events (NEW)
 
 ```typescript
-// GET /api/events?apiKey=xxx
+// GET /api/events
 // Content-Type: text/event-stream
 
 // Events:
@@ -375,9 +461,6 @@ interface SSEEvent {
 // - document:deleted: Document hard deleted
 // - document:availability: Availability toggled
 // - bulk:completed: Bulk operation finished
-
-// Errors
-// 401: Invalid API key
 ```
 
 ### Drive Sync (NEW)
@@ -464,6 +547,132 @@ interface BulkDeleteResponse {
 }
 ```
 
+### Analytics API
+
+```typescript
+// GET /api/analytics/overview?period=7d
+interface AnalyticsOverviewResponse {
+  totalDocuments: number;
+  avgProcessingTimeMs: number;
+  avgQualityScore: number;
+  totalChunks: number;
+  periodStart: string;     // ISO
+  periodEnd: string;
+}
+
+// GET /api/analytics/processing?period=7d
+interface ProcessingAnalyticsResponse {
+  timeBreakdown: {
+    conversion: number;
+    chunking: number;
+    embedding: number;
+    queue: number;
+  };
+  trends: { date: string; count: number; avgTime: number }[];
+}
+
+// GET /api/analytics/quality?period=7d
+interface QualityAnalyticsResponse {
+  distribution: { excellent: number; good: number; low: number };
+  flagCounts: Record<string, number>;  // {"TOO_SHORT": 45, ...}
+}
+
+// GET /api/analytics/documents?page=1&limit=20
+// Paginated per-document metrics
+```
+
+### Chunks Explorer API
+
+```typescript
+// GET /api/chunks?documentId=xxx&quality=excellent&type=document&flags=TOO_SHORT&search=keyword&page=1&limit=20
+interface ChunksListResponse {
+  chunks: ChunkSummary[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+interface ChunkSummary {
+  id: string;
+  documentId: string;
+  documentFilename: string;
+  content: string;         // Truncated preview
+  chunkIndex: number;
+  qualityScore: number;
+  qualityFlags: string[];
+  chunkType: string;
+  tokenCount: number;
+  breadcrumbs: string[];
+}
+
+// GET /api/chunks/:id
+interface ChunkDetailResponse {
+  id: string;
+  content: string;         // Full content
+  // ... all Chunk fields
+}
+
+// Quality filter values:
+// - excellent: >= 0.85
+// - good: 0.70 - 0.84
+// - low: < 0.70
+```
+
+### Processing Profiles API
+
+```typescript
+// GET /api/profiles
+// GET /api/profiles?includeArchived=true
+interface ProfilesListResponse {
+  profiles: ProcessingProfile[];
+}
+
+// GET /api/profiles/active
+interface ActiveProfileResponse {
+  profile: ProcessingProfile;
+}
+
+// POST /api/profiles
+interface CreateProfileRequest {
+  name: string;
+  description?: string;
+  // All optional settings with defaults
+  pdfConverter?: 'pymupdf' | 'docling';
+  documentChunkSize?: number;
+  // ... other settings
+}
+
+// POST /api/profiles/:id/duplicate
+interface DuplicateProfileRequest {
+  name?: string;           // Auto-generated if not provided
+}
+
+// PUT /api/profiles/:id/activate
+// Sets profile as active, deactivates others
+// Returns 200 with updated profile
+
+// PUT /api/profiles/:id/archive
+// PUT /api/profiles/:id/unarchive
+// Returns 200 with updated profile
+
+// DELETE /api/profiles/:id
+interface DeleteProfileRequest {
+  confirmed?: boolean;     // Required if profile has documents
+}
+
+interface DeleteConfirmationResponse {
+  requireConfirmation: true;
+  documentCount: number;
+  chunkCount: number;
+  message: string;
+}
+
+// Errors:
+// 400: Cannot delete default profile
+// 400: Cannot delete active profile
+// 400: Must archive before delete
+```
+
 ---
 
 ## 4. Embedding Contract
@@ -507,23 +716,24 @@ interface ChunkingConfig {
 // Router selects converter by format:
 
 const CONVERTER_MAP = {
-  pdf: 'PdfConverter',      // Docling + OCR
-  docx: 'PdfConverter',     // Docling
+  pdf: 'PyMuPDFConverter',  // Fast default (or DoclingConverter via profile)
+  docx: 'DocxConverter',    // Docling
   pptx: 'PptxConverter',    // Docling + slide markers
   html: 'HtmlConverter',    // BeautifulSoup + Markdownify
   epub: 'EpubConverter',    // EbookLib
   xlsx: 'XlsxConverter',    // OpenPyXL
   csv: 'CsvConverter',      // Pandas
-  txt: 'TextConverter',     // Passthrough
-  md: 'TextConverter',      // Passthrough
-  json: 'TextConverter',    // Pretty print
+  txt: 'TxtConverter',      // Passthrough
+  md: 'MdConverter',        // Passthrough
+  json: 'JsonConverter',    // Pretty print
 };
 
 const CATEGORY_MAP = {
   pdf: 'document', docx: 'document', txt: 'document',
   md: 'document', html: 'document', epub: 'document',
+  json: 'document',         // Treat JSON as document
   pptx: 'presentation',
-  xlsx: 'tabular', csv: 'tabular', json: 'tabular',
+  xlsx: 'tabular', csv: 'tabular',
 };
 
 const REJECTION_RULES = {
@@ -541,19 +751,24 @@ const REJECTION_RULES = {
 
 ```typescript
 type QualityFlag =
-  | 'TOO_SHORT'     // < 50 chars
-  | 'TOO_LONG'      // > 2000 chars
+  | 'TOO_SHORT'     // < qualityMinChars (default: 500)
+  | 'TOO_LONG'      // > qualityMaxChars (default: 2000)
   | 'NO_CONTEXT'    // No heading, no breadcrumbs
   | 'FRAGMENT'      // Mid-sentence cut
   | 'EMPTY';        // Whitespace only
 
 // Score calculation:
 // Base: 1.0
-// Penalty: -0.15 per flag
+// Penalty: qualityPenaltyPerFlag (default: -0.15) per flag
 // Range: 0.0 - 1.0
+// Thresholds configurable via ProcessingProfile
 ```
 
 ---
 
-**Phase 4 Status:** ✅ COMPLETE (Dec 27, 2025)
+**Phase 4 + Extensions Status:** ✅ COMPLETE (Dec 29, 2025)
 
+- Phase 4: Format Converters, Chunking, Quality ✅
+- Analytics Dashboard ✅
+- Hybrid Search ✅  
+- Processing Profiles ✅

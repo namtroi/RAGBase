@@ -76,7 +76,7 @@
 
 **Implementation:**
 - Backend: In-memory EventEmitter (`EventBus`)
-- Endpoint: `GET /api/events?apiKey=xxx`
+- Endpoint: `GET /api/events`
 - Frontend: `EventProvider` with auto-reconnect
 
 **Events:**
@@ -191,7 +191,7 @@ class TextProcessor:
 ## API Changes
 
 ### **New Endpoints:**
-- `GET /api/events?apiKey=xxx` - SSE real-time updates ✅ NEW
+- `GET /api/events` - SSE real-time updates ✅ NEW
 - `GET /api/documents/:id/content?format=markdown|json` - Download processed content ✅
 - `POST /api/drive/configs` - Add Drive folder ✅
 - `GET /api/drive/configs` - List synced folders ✅
