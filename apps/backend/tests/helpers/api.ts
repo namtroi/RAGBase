@@ -51,15 +51,6 @@ export async function closeTestApp(): Promise<void> {
 }
 
 /**
- * Make authenticated request
- */
-export function authHeaders(apiKey: string = 'test-api-key'): Record<string, string> {
-  return {
-    'X-API-Key': apiKey,
-  };
-}
-
-/**
  * Inject helper for cleaner test syntax
  */
 export async function inject(
@@ -68,20 +59,15 @@ export async function inject(
   options?: {
     payload?: any;
     headers?: Record<string, string>;
-    auth?: boolean;
   }
 ): Promise<any> {
   const app = await getTestApp();
-  const headers = {
-    ...(options?.auth !== false ? authHeaders() : {}),
-    ...options?.headers,
-  };
 
   const response = await app.inject({
     method,
     url,
     payload: options?.payload,
-    headers,
+    headers: options?.headers,
   });
 
   return {
@@ -90,3 +76,4 @@ export async function inject(
     headers: response.headers,
   };
 }
+

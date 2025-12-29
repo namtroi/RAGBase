@@ -5,10 +5,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 describe('Chunks Explorer API', () => {
   let app: any;
-  const API_KEY = 'test-key';
+  
 
   beforeAll(async () => {
-    process.env.API_KEY = API_KEY;
+    
     app = await createTestApp();
   });
 
@@ -52,7 +52,7 @@ describe('Chunks Explorer API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/chunks',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(200);
@@ -70,7 +70,7 @@ describe('Chunks Explorer API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/chunks',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -87,7 +87,7 @@ describe('Chunks Explorer API', () => {
       const response = await app.inject({
         method: 'GET',
         url: `/api/chunks?documentId=${doc1.id}`,
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -103,7 +103,7 @@ describe('Chunks Explorer API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/chunks?quality=excellent',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -120,7 +120,7 @@ describe('Chunks Explorer API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/chunks?quality=good',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -137,7 +137,7 @@ describe('Chunks Explorer API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/chunks?quality=low',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -153,7 +153,7 @@ describe('Chunks Explorer API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/chunks?type=document',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -168,7 +168,7 @@ describe('Chunks Explorer API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/chunks?type=tabular',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -184,7 +184,7 @@ describe('Chunks Explorer API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/chunks?search=fox',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -201,7 +201,7 @@ describe('Chunks Explorer API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/chunks?limit=10',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -222,7 +222,7 @@ describe('Chunks Explorer API', () => {
       const response = await app.inject({
         method: 'GET',
         url: `/api/chunks/${chunk.id}`,
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(200);
@@ -239,7 +239,7 @@ describe('Chunks Explorer API', () => {
       const response = await app.inject({
         method: 'GET',
         url: `/api/chunks/${chunk.id}`,
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const data = JSON.parse(response.body);
@@ -255,7 +255,7 @@ describe('Chunks Explorer API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/chunks/00000000-0000-0000-0000-000000000000',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(404);

@@ -2,7 +2,7 @@ import { closeTestApp, createTestApp } from '@tests/helpers/api.js';
 import { cleanDatabase, getPrisma, seedDocument } from '@tests/helpers/database.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-const API_KEY = process.env.API_KEY || 'test-api-key';
+
 
 describe('GET /api/documents/:id/content', () => {
     let app: any;
@@ -24,7 +24,7 @@ describe('GET /api/documents/:id/content', () => {
             const response = await app.inject({
                 method: 'GET',
                 url: '/api/documents/invalid-id/content?format=markdown',
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(response.statusCode).toBe(400);
@@ -37,7 +37,7 @@ describe('GET /api/documents/:id/content', () => {
             const response = await app.inject({
                 method: 'GET',
                 url: `/api/documents/${doc.id}/content?format=invalid`,
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(response.statusCode).toBe(400);
@@ -50,7 +50,7 @@ describe('GET /api/documents/:id/content', () => {
             const response = await app.inject({
                 method: 'GET',
                 url: '/api/documents/00000000-0000-0000-0000-000000000000/content?format=markdown',
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(response.statusCode).toBe(404);
@@ -63,7 +63,7 @@ describe('GET /api/documents/:id/content', () => {
             const response = await app.inject({
                 method: 'GET',
                 url: `/api/documents/${doc.id}/content?format=markdown`,
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(response.statusCode).toBe(409);
@@ -76,7 +76,7 @@ describe('GET /api/documents/:id/content', () => {
             const response = await app.inject({
                 method: 'GET',
                 url: `/api/documents/${doc.id}/content?format=markdown`,
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(response.statusCode).toBe(409);
@@ -97,7 +97,7 @@ describe('GET /api/documents/:id/content', () => {
             const response = await app.inject({
                 method: 'GET',
                 url: `/api/documents/${doc.id}/content?format=markdown`,
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(response.statusCode).toBe(200);
@@ -126,7 +126,7 @@ describe('GET /api/documents/:id/content', () => {
             const response = await app.inject({
                 method: 'GET',
                 url: `/api/documents/${doc.id}/content?format=json`,
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(response.statusCode).toBe(200);

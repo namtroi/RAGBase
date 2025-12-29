@@ -8,10 +8,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 describe('Retry Route', () => {
     let app: any;
-    const API_KEY = 'test-key';
+    
 
     beforeAll(async () => {
-        process.env.API_KEY = API_KEY;
+        
         app = await createTestApp();
     });
 
@@ -34,7 +34,7 @@ describe('Retry Route', () => {
             const response = await app.inject({
                 method: 'POST',
                 url: `/api/documents/${doc.id}/retry`,
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(response.statusCode).toBe(200);
@@ -53,14 +53,14 @@ describe('Retry Route', () => {
             await app.inject({
                 method: 'POST',
                 url: `/api/documents/${doc.id}/retry`,
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             // Check document state
             const checkResponse = await app.inject({
                 method: 'GET',
                 url: `/api/documents/${doc.id}`,
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             const docState = checkResponse.json();
@@ -75,7 +75,7 @@ describe('Retry Route', () => {
             const response = await app.inject({
                 method: 'POST',
                 url: `/api/documents/${doc.id}/retry`,
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(response.statusCode).toBe(400);
@@ -88,7 +88,7 @@ describe('Retry Route', () => {
             const response = await app.inject({
                 method: 'POST',
                 url: `/api/documents/${doc.id}/retry`,
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(response.statusCode).toBe(400);
@@ -99,7 +99,7 @@ describe('Retry Route', () => {
             const response = await app.inject({
                 method: 'POST',
                 url: '/api/documents/550e8400-e29b-41d4-a716-446655440000/retry',
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(response.statusCode).toBe(404);
@@ -110,7 +110,7 @@ describe('Retry Route', () => {
             const response = await app.inject({
                 method: 'POST',
                 url: '/api/documents/not-a-uuid/retry',
-                headers: { 'X-API-Key': API_KEY },
+                
             });
 
             expect(response.statusCode).toBe(400);
@@ -126,7 +126,7 @@ describe('Retry Route', () => {
             const response = await app.inject({
                 method: 'POST',
                 url: '/api/documents/bulk/retry',
-                headers: { 'X-API-Key': API_KEY },
+                
                 payload: { documentIds: [doc1.id, doc2.id] },
             });
 
@@ -143,7 +143,7 @@ describe('Retry Route', () => {
             const response = await app.inject({
                 method: 'POST',
                 url: '/api/documents/bulk/retry',
-                headers: { 'X-API-Key': API_KEY },
+                
                 payload: { documentIds: [failed.id, completed.id] },
             });
 
@@ -162,7 +162,7 @@ describe('Retry Route', () => {
             const response = await app.inject({
                 method: 'POST',
                 url: '/api/documents/bulk/retry',
-                headers: { 'X-API-Key': API_KEY },
+                
                 payload: { documentIds: [doc.id, nonExistentId] },
             });
 
@@ -178,7 +178,7 @@ describe('Retry Route', () => {
             const response = await app.inject({
                 method: 'POST',
                 url: '/api/documents/bulk/retry',
-                headers: { 'X-API-Key': API_KEY },
+                
                 payload: { documentIds: [] },
             });
 
@@ -190,7 +190,7 @@ describe('Retry Route', () => {
             const response = await app.inject({
                 method: 'POST',
                 url: '/api/documents/bulk/retry',
-                headers: { 'X-API-Key': API_KEY },
+                
                 payload: { documentIds: ['not-a-uuid'] },
             });
 

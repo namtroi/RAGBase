@@ -11,11 +11,11 @@ import { tmpdir } from 'os';
 
 describe('Delete Route', () => {
   let app: any;
-  const API_KEY = 'test-key';
+  
   const TEST_UPLOAD_DIR = join(tmpdir(), 'ragbase-test-delete');
 
   beforeAll(async () => {
-    process.env.API_KEY = API_KEY;
+    
     // Create test upload directory
     mkdirSync(TEST_UPLOAD_DIR, { recursive: true });
     app = await createTestApp();
@@ -38,7 +38,7 @@ describe('Delete Route', () => {
       const response = await app.inject({
         method: 'DELETE',
         url: `/api/documents/${doc.id}`,
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(200);
@@ -50,7 +50,7 @@ describe('Delete Route', () => {
       const checkResponse = await app.inject({
         method: 'GET',
         url: `/api/documents/${doc.id}`,
-        headers: { 'X-API-Key': API_KEY },
+        
       });
       expect(checkResponse.statusCode).toBe(404);
     });
@@ -61,7 +61,7 @@ describe('Delete Route', () => {
       const response = await app.inject({
         method: 'DELETE',
         url: `/api/documents/${doc.id}`,
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(200);
@@ -74,7 +74,7 @@ describe('Delete Route', () => {
       const response = await app.inject({
         method: 'DELETE',
         url: `/api/documents/${doc.id}`,
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(200);
@@ -85,7 +85,7 @@ describe('Delete Route', () => {
       const response = await app.inject({
         method: 'DELETE',
         url: '/api/documents/550e8400-e29b-41d4-a716-446655440000',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(404);
@@ -98,7 +98,7 @@ describe('Delete Route', () => {
       const response = await app.inject({
         method: 'DELETE',
         url: `/api/documents/${doc.id}`,
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(409);
@@ -109,7 +109,7 @@ describe('Delete Route', () => {
       const response = await app.inject({
         method: 'DELETE',
         url: '/api/documents/not-a-uuid',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(400);
@@ -127,7 +127,7 @@ describe('Delete Route', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/documents/bulk/delete',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { documentIds: [doc1.id, doc2.id] },
       });
 
@@ -144,7 +144,7 @@ describe('Delete Route', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/documents/bulk/delete',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { documentIds: [completed.id, processing.id] },
       });
 
@@ -163,7 +163,7 @@ describe('Delete Route', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/documents/bulk/delete',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { documentIds: [doc.id, nonExistentId] },
       });
 
@@ -179,7 +179,7 @@ describe('Delete Route', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/documents/bulk/delete',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { documentIds: [] },
       });
 
@@ -191,7 +191,7 @@ describe('Delete Route', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/documents/bulk/delete',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { documentIds: ['not-a-uuid'] },
       });
 

@@ -4,10 +4,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 describe('GET /api/documents', () => {
   let app: any;
-  const API_KEY = 'test-key';
+  
 
   beforeAll(async () => {
-    process.env.API_KEY = API_KEY;
+    
     app = await createTestApp();
   });
 
@@ -24,7 +24,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(200);
@@ -40,7 +40,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.statusCode).toBe(200);
@@ -54,7 +54,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const doc = response.json().documents[0];
@@ -74,7 +74,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const body = response.json();
@@ -95,7 +95,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents?status=COMPLETED',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.json().documents).toHaveLength(1);
@@ -110,7 +110,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents?isActive=true',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.json().documents).toHaveLength(2);
@@ -127,7 +127,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents?connectionState=LINKED',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.json().documents).toHaveLength(2);
@@ -144,7 +144,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents?sourceType=DRIVE',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.json().documents).toHaveLength(2);
@@ -161,7 +161,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents?search=invoice',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.json().documents).toHaveLength(2);
@@ -175,7 +175,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents?status=COMPLETED&isActive=true',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.json().documents).toHaveLength(1);
@@ -193,7 +193,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const docs = response.json().documents;
@@ -209,7 +209,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents?sortOrder=asc',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const docs = response.json().documents;
@@ -224,7 +224,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents?sortBy=filename&sortOrder=asc',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const docs = response.json().documents;
@@ -239,7 +239,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents?sortBy=fileSize&sortOrder=desc',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       const docs = response.json().documents;
@@ -257,7 +257,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents?limit=10',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.json().documents).toHaveLength(10);
@@ -272,7 +272,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents?limit=5&offset=5',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.json().documents).toHaveLength(5);
@@ -286,7 +286,7 @@ describe('GET /api/documents', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/documents',
-        headers: { 'X-API-Key': API_KEY },
+        
       });
 
       expect(response.json().documents).toHaveLength(20);

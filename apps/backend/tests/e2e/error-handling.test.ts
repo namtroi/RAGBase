@@ -1,4 +1,4 @@
-import { API_KEY, getTestApp, setupE2E, teardownE2E } from '@tests/e2e/setup/e2e-setup.js';
+import { getTestApp, setupE2E, teardownE2E } from '@tests/e2e/setup/e2e-setup.js';
 import { cleanDatabase, ensureDefaultProfile } from '@tests/helpers/database.js';
 import { FIXTURES, readFixture } from '@tests/helpers/fixtures.js';
 import { ERRORS } from '@tests/mocks/python-worker-mock.js';
@@ -28,7 +28,6 @@ describe('E2E: Error Handling', () => {
         method: 'POST',
         url: '/api/documents',
         headers: {
-          'X-API-Key': API_KEY,
           'Content-Type': 'multipart/form-data; boundary=---e2e',
         },
         payload: createMultipartPayload('protected.pdf', pdfBuffer, 'application/pdf'),
@@ -48,7 +47,6 @@ describe('E2E: Error Handling', () => {
       const statusResponse = await app.inject({
         method: 'GET',
         url: `/api/documents/${documentId}`,
-        headers: { 'X-API-Key': API_KEY },
       });
 
       expect(statusResponse.json().status).toBe('FAILED');
@@ -66,7 +64,6 @@ describe('E2E: Error Handling', () => {
         method: 'POST',
         url: '/api/documents',
         headers: {
-          'X-API-Key': API_KEY,
           'Content-Type': 'multipart/form-data; boundary=---e2e',
         },
         payload: createMultipartPayload('short.pdf', pdfBuffer, 'application/pdf'),
@@ -101,7 +98,6 @@ describe('E2E: Error Handling', () => {
       const statusResponse = await app.inject({
         method: 'GET',
         url: `/api/documents/${documentId}`,
-        headers: { 'X-API-Key': API_KEY },
       });
 
       expect(statusResponse.json().status).toBe('FAILED');
@@ -116,7 +112,6 @@ describe('E2E: Error Handling', () => {
         method: 'POST',
         url: '/api/documents',
         headers: {
-          'X-API-Key': API_KEY,
           'Content-Type': 'multipart/form-data; boundary=---e2e',
         },
         payload: createMultipartPayload('noisy.pdf', pdfBuffer, 'application/pdf'),
@@ -151,7 +146,6 @@ describe('E2E: Error Handling', () => {
       const statusResponse = await app.inject({
         method: 'GET',
         url: `/api/documents/${documentId}`,
-        headers: { 'X-API-Key': API_KEY },
       });
 
       expect(statusResponse.json().status).toBe('FAILED');
@@ -169,7 +163,6 @@ describe('E2E: Error Handling', () => {
         method: 'POST',
         url: '/api/documents',
         headers: {
-          'X-API-Key': API_KEY,
           'Content-Type': 'multipart/form-data; boundary=---e2e',
         },
         payload: createMultipartPayload('first.pdf', pdfBuffer, 'application/pdf'),
@@ -182,7 +175,6 @@ describe('E2E: Error Handling', () => {
         method: 'POST',
         url: '/api/documents',
         headers: {
-          'X-API-Key': API_KEY,
           'Content-Type': 'multipart/form-data; boundary=---e2e',
         },
         payload: createMultipartPayload('second.pdf', pdfBuffer, 'application/pdf'),
@@ -202,7 +194,6 @@ describe('E2E: Error Handling', () => {
         method: 'POST',
         url: '/api/documents',
         headers: {
-          'X-API-Key': API_KEY,
           'Content-Type': 'multipart/form-data; boundary=---e2e',
         },
         payload: createMultipartPayload('image.png', Buffer.from('fake'), 'image/png'),
@@ -222,7 +213,6 @@ describe('E2E: Error Handling', () => {
         method: 'POST',
         url: '/api/documents',
         headers: {
-          'X-API-Key': API_KEY,
           'Content-Type': 'multipart/form-data; boundary=---e2e',
         },
         payload: createMultipartPayload('large.pdf', largeBuffer, 'application/pdf'),
@@ -242,7 +232,6 @@ describe('E2E: Error Handling', () => {
         method: 'POST',
         url: '/api/documents',
         headers: {
-          'X-API-Key': API_KEY,
           'Content-Type': 'multipart/form-data; boundary=---e2e',
         },
         payload: createMultipartPayload('corrupt.pdf', corruptBuffer, 'application/pdf'),
@@ -261,7 +250,6 @@ describe('E2E: Error Handling', () => {
       const statusResponse = await app.inject({
         method: 'GET',
         url: `/api/documents/${documentId}`,
-        headers: { 'X-API-Key': API_KEY },
       });
 
       expect(statusResponse.json().status).toBe('FAILED');

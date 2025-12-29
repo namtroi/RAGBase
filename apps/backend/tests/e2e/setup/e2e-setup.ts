@@ -29,7 +29,7 @@ export async function setupE2E() {
   // Set environment variables
   process.env.DATABASE_URL = postgresContainer.getConnectionUri();
   process.env.REDIS_URL = `redis://${redisContainer.getHost()}:${redisContainer.getPort()}`;
-  process.env.API_KEY = 'e2e-test-key';
+
   process.env.UPLOAD_DIR = '/tmp/e2e-uploads';
   process.env.NODE_ENV = 'test';
 
@@ -126,4 +126,3 @@ export function getTestApp(): FastifyInstance {
   return app;
 }
 
-export const API_KEY = 'e2e-test-key';

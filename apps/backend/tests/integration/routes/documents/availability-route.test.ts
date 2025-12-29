@@ -8,10 +8,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 describe('Availability Route', () => {
   let app: any;
-  const API_KEY = 'test-key';
+  
 
   beforeAll(async () => {
-    process.env.API_KEY = API_KEY;
+    
     app = await createTestApp();
   });
 
@@ -30,7 +30,7 @@ describe('Availability Route', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: `/api/documents/${doc.id}/availability`,
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { isActive: false },
       });
 
@@ -47,7 +47,7 @@ describe('Availability Route', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: `/api/documents/${doc.id}/availability`,
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { isActive: true },
       });
 
@@ -61,7 +61,7 @@ describe('Availability Route', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: `/api/documents/${doc.id}/availability`,
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { isActive: false },
       });
 
@@ -75,7 +75,7 @@ describe('Availability Route', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: `/api/documents/${doc.id}/availability`,
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { isActive: false },
       });
 
@@ -89,7 +89,7 @@ describe('Availability Route', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: `/api/documents/${doc.id}/availability`,
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { isActive: false },
       });
 
@@ -101,7 +101,7 @@ describe('Availability Route', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: '/api/documents/550e8400-e29b-41d4-a716-446655440000/availability',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { isActive: false },
       });
 
@@ -113,7 +113,7 @@ describe('Availability Route', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: '/api/documents/not-a-uuid/availability',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { isActive: false },
       });
 
@@ -127,7 +127,7 @@ describe('Availability Route', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: `/api/documents/${doc.id}/availability`,
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { isActive: 'not-boolean' },
       });
 
@@ -144,7 +144,7 @@ describe('Availability Route', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: '/api/documents/bulk/availability',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { documentIds: [doc1.id, doc2.id], isActive: false },
       });
 
@@ -161,7 +161,7 @@ describe('Availability Route', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: '/api/documents/bulk/availability',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { documentIds: [completed.id, pending.id], isActive: false },
       });
 
@@ -180,7 +180,7 @@ describe('Availability Route', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: '/api/documents/bulk/availability',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { documentIds: [doc.id, nonExistentId], isActive: false },
       });
 
@@ -196,7 +196,7 @@ describe('Availability Route', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: '/api/documents/bulk/availability',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { documentIds: [], isActive: false },
       });
 
@@ -208,7 +208,7 @@ describe('Availability Route', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: '/api/documents/bulk/availability',
-        headers: { 'X-API-Key': API_KEY },
+        
         payload: { documentIds: ['not-a-uuid'], isActive: false },
       });
 
