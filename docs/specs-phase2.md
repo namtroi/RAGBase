@@ -127,7 +127,7 @@ sequenceDiagram
     participant B as Backend
     participant E as EventBus
 
-    F->>B: GET /api/events?apiKey=xxx (EventSource)
+    F->>B: GET /api/events (EventSource)
     B->>F: SSE connection established
     
     Note over B: Document processing completes
@@ -147,8 +147,8 @@ sequenceDiagram
 
 **Implementation:**
 - Backend: In-memory EventEmitter (`EventBus`)
-- Endpoint: `GET /api/events?apiKey=xxx`
-- Auth: Query parameter (EventSource doesn't support headers)
+- Endpoint: `GET /api/events`
+- Auth: Demo mode (no authentication required)
 - Heartbeat: Every 30s to keep connection alive
 - Frontend: Auto-reconnect with exponential backoff
 
@@ -186,12 +186,7 @@ All formats then: **Chunk → Embed → Callback**
 
 Real-time event stream.
 
-**Query Params:**
-```typescript
-interface SSEQuery {
-  apiKey: string;  // Required (EventSource limitation)
-}
-```
+**Note:** Authentication removed in demo mode. SSE available without auth.
 
 **Response (200):**
 ```
@@ -207,7 +202,7 @@ data: {"type":"sync:complete","payload":{...},"timestamp":"..."}
 ```
 
 **Errors:**
-- `401`: Invalid API key
+- Connection errors handled by EventSource reconnect
 
 ---
 
@@ -404,20 +399,14 @@ fastembed  # No longer needed
 
 ## 5. Implementation Notes
 
-### 5.1 SSE Authentication
+### 5.1 SSE Connection
 
-**Challenge:** EventSource API doesn't support custom headers.
-
-**Solution:** Pass API key as query parameter:
+**Implementation:** EventSource with auto-reconnect:
 ```typescript
-const url = `/api/events?apiKey=${encodeURIComponent(apiKey)}`;
-const eventSource = new EventSource(url);
+const eventSource = new EventSource('/api/events');
 ```
 
-Backend auth middleware checks both header and query param:
-```typescript
-const apiKey = request.headers['x-api-key'] || request.query.apiKey;
-```
+> Note: API key authentication removed in demo mode. Phase 5 will add JWT authentication.
 
 ### 5.2 React Fast Refresh
 

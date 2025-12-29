@@ -152,7 +152,6 @@ Backend EventBus (EventEmitter) → SSE Endpoint → Frontend EventProvider → 
 ### Key Features:
 - ✅ Native Fastify SSE with EventSource API
 - ✅ Auto-reconnect with exponential backoff
-- ✅ API key authentication via query parameter (EventSource limitation)
 - ✅ Heartbeat every 30s to keep connection alive
 - ✅ React Query cache invalidation on events
 - ✅ Removed polling from `use-documents.ts` and `DriveSyncTab.tsx`
@@ -276,11 +275,10 @@ pnpm test
 
 ## Key Learnings
 
-1. **SSE Auth**: EventSource doesn't support custom headers → Use query param for API key
-2. **Fast Refresh**: React requires separating contexts/hooks/components into different files
-3. **Multi-format**: Always process ALL formats through AI worker for consistency
-4. **Polling Removal**: SSE eliminates need for `refetchInterval` in React Query
-5. **DELETE Requests**: Don't set `Content-Type: application/json` when body is empty
+1. **Fast Refresh**: React requires separating contexts/hooks/components into different files
+2. **Multi-format**: Always process ALL formats through AI worker for consistency
+3. **Polling Removal**: SSE eliminates need for `refetchInterval` in React Query
+4. **DELETE Requests**: Don't set `Content-Type: application/json` when body is empty
 
 ---
 

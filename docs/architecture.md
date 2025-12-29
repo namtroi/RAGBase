@@ -1,6 +1,6 @@
 # RAGBase Architecture
 
-**Phase 4 Complete** | **Last Updated:** 2025-12-27
+**Phase 4 + Extensions Complete** | **Last Updated:** 2025-12-29
 
 High-level system design & key architectural decisions.
 
@@ -84,12 +84,13 @@ graph LR
     Queue --> Dispatch[HTTP Dispatch]
     Dispatch --> Router{Router}
     
-    Router -->|PDF/DOCX/PPTX| Docling[Docling Converter]
+    Router -->|PDF| PyMuPDF[PyMuPDF/Docling Converter]
+    Router -->|DOCX/PPTX| Docling[Docling Converter]
     Router -->|HTML| BS[BeautifulSoup Converter]
     Router -->|EPUB| Ebook[EbookLib Converter]
     Router -->|XLSX| Excel[OpenPyXL Converter]
     Router -->|CSV| CSV[Pandas Converter]
-    Router -->|TXT/MD/JSON| Text[Text Converter]
+    Router -->|TXT/MD/JSON| Text[Dedicated Converters]
     
     Docling --> Sanitize[Sanitizer]
     BS --> Sanitize
@@ -119,9 +120,9 @@ graph LR
 
 | Category | Formats | Chunking Strategy |
 |----------|---------|-------------------|
-| **Document** | PDF, DOCX, TXT, MD, HTML, EPUB | Header-based with breadcrumbs |
+| **Document** | PDF, DOCX, TXT, MD, HTML, EPUB, JSON | Header-based with breadcrumbs |
 | **Presentation** | PPTX | Slide-based with grouping |
-| **Tabular** | XLSX, CSV, JSON | Row-based or table format |
+| **Tabular** | XLSX, CSV | Row-based or table format |
 
 ### 3.3 Quality Pipeline
 
@@ -148,7 +149,7 @@ sequenceDiagram
     participant B as Backend
     participant E as EventBus
     
-    F->>B: GET /api/events?apiKey=xxx
+    F->>B: GET /api/events
     B->>F: SSE connection established
     
     Note over B: Processing completes
@@ -170,7 +171,7 @@ sequenceDiagram
 
 **Implementation:**
 - Backend: In-memory EventEmitter (`EventBus`)
-- Auth: Query param (EventSource doesn't support headers)
+- Auth: In-memory connection tracking (demo mode)
 - Heartbeat: 30s to keep connection alive
 - Frontend: Auto-reconnect with exponential backoff
 
@@ -206,21 +207,32 @@ graph LR
 
 ### 6.1 Schema Overview
 
-**Document:** Stores file metadata + processed content
+**Document:** File metadata + processed content
 - `processedContent`, `sourceType`, `driveFileId`, `driveConfigId`
-- `isActive`, `connectionState`
+- `isActive`, `connectionState`, `processingProfileId`
 - Phase 4: `formatCategory` (document/presentation/tabular)
 
-**Chunk:** Text content + 384d vector embeddings + quality metadata
+**Chunk:** Text content + 384d vector + quality metadata
 - Phase 4: `qualityScore`, `qualityFlags[]`, `chunkType`, `breadcrumbs[]`, `tokenCount`, `location`
+- Hybrid Search: `searchVector` (tsvector for BM25)
 
-**DriveConfig:** Folder sync configuration
+**DriveConfig:** Folder sync configuration + `processingProfileId`
 
-### 6.2 Vector Storage (pgvector)
+**ProcessingProfile:** Configurable pipeline settings
+- Conversion: `pdfConverter`, `pdfOcrMode`, `conversionTableRows/Cols`
+- Chunking: `documentChunkSize`, `documentChunkOverlap`, `documentHeaderLevels`
+- Quality: `qualityMinChars`, `qualityMaxChars`, `autoFixEnabled`
+- Immutable after creation, duplicate to modify
 
-- Operator: `<=>` (cosine distance)
-- Index: HNSW for fast similarity search
-- Query: Top-K nearest neighbors
+**ProcessingMetrics:** Analytics data (1:1 with Document)
+- Timing: `conversionTimeMs`, `chunkingTimeMs`, `embeddingTimeMs`, `queueTimeMs`
+- Quality: `avgQualityScore`, aggregated `qualityFlags`
+
+### 6.2 Vector Storage (pgvector + tsvector)
+
+- **Vector Search:** Cosine distance (`<=>`) with HNSW index
+- **Keyword Search:** PostgreSQL tsvector with GIN index
+- **Hybrid Search:** RRF (Reciprocal Rank Fusion) combines both
 
 ---
 
@@ -231,8 +243,6 @@ graph LR
 | **Timing-Safe Auth** | `crypto.timingSafeEqual()` | Prevent timing attacks |
 | **Path Traversal Protection** | `basename()` + MD5 hash | Prevent directory escape |
 | **SQL Injection Prevention** | Prisma parameterized queries | Auto-escape input |
-| **Input Validation** | Zod SafeParse | Type-safe validation |
-| **SSE Auth** | Query param API key | EventSource limitation |
 
 ---
 
@@ -320,32 +330,35 @@ sequenceDiagram
 
 ## 12. Configuration
 
-### 12.1 Environment Variables
+### 12.1 Processing Profile (UI Configurable)
+
+All processing settings now in `ProcessingProfile` model:
+- **Conversion:** `pdfConverter` (pymupdf/docling), `pdfOcrMode`, table limits
+- **Chunking:** chunk size/overlap, header levels, presentation/tabular settings
+- **Quality:** min/max chars, penalty per flag, auto-fix passes
+
+Manual uploads use active profile. Drive sync uses per-folder profile.
+
+### 12.2 Environment Variables
 
 **Backend:**
-- `DATABASE_URL` - PostgreSQL connection
-- `REDIS_HOST`, `REDIS_PORT` - Redis connection
-- `API_KEY` - Authentication secret
-- `UPLOAD_DIR` - File storage path
-- `AI_WORKER_URL` - AI worker endpoint
-- `CALLBACK_URL` - Callback endpoint
-- `DRIVE_SERVICE_ACCOUNT_KEY` - Google Drive auth
-- `DRIVE_SYNC_CRON` - Default sync schedule
+- `DATABASE_URL`, `REDIS_HOST`, `REDIS_PORT`
+- `UPLOAD_DIR`, `AI_WORKER_URL`, `CALLBACK_URL`
+- `DRIVE_SERVICE_ACCOUNT_KEY`, `DRIVE_SYNC_CRON`
+- `PDF_CONCURRENCY` - Controls BullMQ + AI worker concurrency
 
 **AI Worker:**
-- `PORT` - Server port
-- `CALLBACK_URL` - Backend callback endpoint
-- `EMBEDDING_MODEL` - BAAI/bge-small-en-v1.5
-- `CHUNK_SIZE`, `CHUNK_OVERLAP` - Chunking params
-- `OCR_MODE` - auto/force/never (PDF only)
+- `PORT`, `CALLBACK_URL`
+- `EMBEDDING_MODEL` - Fixed: BAAI/bge-small-en-v1.5
 
 ---
 
-**Phase 4 Status:** ✅ COMPLETE (2025-12-27)
+**Phase 4 + Extensions Status:** ✅ COMPLETE (2025-12-29)
 
 **Documentation:**
 - [product.md](./product.md) - Product overview
 - [api.md](./api.md) - API contracts
-- [detailed-plan-phase4-part1.md](./detailed-plan-phase4-part1.md) - Format converters
-- [detailed-plan-phase4-part2.md](./detailed-plan-phase4-part2.md) - Chunking + quality
-
+- [processing-settings.md](./processing-settings.md) - Configuration reference
+- [extension-processing-profile.md](./extension-processing-profile.md) - Processing profiles
+- [extension-analytics-dashboard.md](./extension-analytics-dashboard.md) - Analytics
+- [extension-hybrid-search.md](./extension-hybrid-search.md) - Hybrid search

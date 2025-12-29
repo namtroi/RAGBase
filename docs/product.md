@@ -178,7 +178,6 @@ Upload (any format) → Queue → Job Processor
 - ✅ Health checks (/health, /ready, /live)
 - ✅ Rate limiting (100 req/min)
 - ✅ Security headers (Helmet)
-- ✅ API key authentication
 
 ---
 
@@ -232,11 +231,11 @@ Upload (any format) → Queue → Job Processor
 
 ---
 
-## 10. Planned Extensions
+## 10. Extensions
 
-- **Analytics Dashboard** - Pipeline metrics, quality scores, Chunks Explorer ([extension-analytics-dashboard.md](./extension-analytics-dashboard.md))
-- **Hybrid Search** - Vector + BM25 full-text with RRF reranking ([extension-hybrid-search.md](./extension-hybrid-search.md))
-- **Processing Profiles** - Configurable conversion/chunking/quality parameters
+- ✅ **Analytics Dashboard** - Pipeline metrics, quality scores, Chunks Explorer ([extension-analytics-dashboard.md](./extension-analytics-dashboard.md))
+- ✅ **Hybrid Search** - Vector + BM25 full-text with RRF reranking ([extension-hybrid-search.md](./extension-hybrid-search.md))
+- ✅ **Processing Profiles** - Configurable conversion/chunking/quality parameters ([extension-processing-profile.md](./extension-processing-profile.md))
 
 ---
 
@@ -246,6 +245,7 @@ Upload (any format) → Queue → Job Processor
 - **[api.md](./api.md)** - API specifications
 - **[detailed-plan-phase4-part1.md](./detailed-plan-phase4-part1.md)** - Format converters + pre-processing
 - **[detailed-plan-phase4-part2.md](./detailed-plan-phase4-part2.md)** - Chunking + quality + schema
+- **[processing-settings.md](./processing-settings.md)** - Processing configuration reference
 - **[roadmap.md](./roadmap.md)** - Product roadmap & future features
 
 ---

@@ -25,7 +25,7 @@ export async function configureSecurity(fastify: FastifyInstance): Promise<void>
     await fastify.register(cors, {
       origin: process.env.CORS_ORIGIN?.split(',') || true,
       methods: ['GET', 'POST', 'PUT', 'DELETE'],
-      allowedHeaders: ['Content-Type', 'X-API-Key'],
+      allowedHeaders: ['Content-Type'],
       credentials: true,
     });
   }

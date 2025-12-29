@@ -1,6 +1,6 @@
 # RAGBase Testing Strategy
 
-**Phase 3 Complete** | **TDD Methodology**
+**Phase 4 + Extensions Complete** | **TDD Methodology**
 
 ---
 
@@ -26,8 +26,8 @@ graph LR
 - Refactor confidence - change without fear
 
 **Current Test Suite:**
-- **Backend:** 28 test files (unit + integration + e2e)
-- **AI Worker:** 8 test files (pytest)
+- **Backend:** 45 test files (unit + integration + e2e)
+- **AI Worker:** 24 test files (pytest)
 - **Coverage target:** 70-90% depending on module
 
 ---
@@ -56,198 +56,258 @@ graph TB
 | **Integration** | Medium (~100ms) | Testcontainers | API routes, DB, Queue |
 | **E2E** | Slow (~seconds) | Docker Compose | Full pipeline, critical flows |
 
-**Why 60-30-10?**
-- Unit tests: Fast feedback, easy debug
-- Integration: Verify service boundaries
-- E2E: Expensive, only critical paths
-
 ---
 
-## 3. Test Boundaries
+## 3. Test Organization
 
-### Unit Tests (No I/O)
-
-**Test:** Pure functions, validators, business logic  
-**Mock:** Database, file system, HTTP requests
-
-### Integration Tests (Real DB, Mocked External)
-
-**Test:** API routes, DB interactions, queue behavior  
-**Mock:** Python AI worker, embedding generation
-
-**Use Testcontainers for:**
-- PostgreSQL + pgvector
-- Redis
-
-### E2E Tests (Full Pipeline)
-
-**Test:** Upload → Queue → Callback → Chunks → Query  
-**Real:** All services (or mock AI worker for speed)
-
----
-
-## 4. Mock Strategy
-
-### When to Mock
-
-**Mock:**
-- External APIs (Python AI worker)
-- Slow operations (embedding generation)
-- Non-deterministic behavior
-
-**Don't Mock:**
-- Database (use Testcontainers)
-- Your own code
-- Third-party libraries (trust them)
-
-### Mock Principles
-
-- **Deterministic** - same input → same output
-- **Realistic** - match actual API contracts
-- **Maintainable** - centralized, reusable
-
----
-
-## 5. Test Infrastructure
-
-### Testcontainers
-
-**Why?**
-- Real PostgreSQL + pgvector
-- Real Redis for BullMQ
-- Isolated environment
-- Automatic cleanup
-
-### Test Isolation
-
-**Between tests:**
-- Clean database tables
-- Reset queues (backend)
-- Clear file uploads
-
-**Why:** Tests don't affect each other, parallel execution safe
-
----
-
-## 6. Coverage Requirements
-
-| Area | Target | Rationale |
-|------|--------|-----------|
-| Validation | 100% | Critical - user input |
-| Business Logic | 90% | Core functionality |
-| API Routes | 80% | Happy + error paths |
-| Utils | 70% | Edge cases optional |
-
-**Phase 1 Achievement:** 79% overall
-
----
-
-## 7. Test Organization
+### Backend (44 files)
 
 ```
 apps/backend/tests/
 ├── unit/
-│   ├── validators/        # Input validation
-│   └── services/          # event-bus, sync-relink, quality-gate
+│   ├── validators/
+│   │   ├── availability-validator.test.ts
+│   │   ├── callback-validator.test.ts
+│   │   ├── file-format-detector.test.ts
+│   │   ├── list-query-validator.test.ts
+│   │   ├── query-validator.test.ts      # Hybrid search mode/alpha
+│   │   └── upload-validator.test.ts
+│   ├── services/
+│   │   ├── event-bus.test.ts
+│   │   ├── hash-service.test.ts
+│   │   ├── hybrid-search.test.ts        # RRF algorithm
+│   │   ├── quality-gate-service.test.ts
+│   │   └── sync-service-relink.test.ts
+│   ├── models/
+│   │   └── profile-model.test.ts        # ProcessingProfile
+│   └── queue/
+│       └── concurrency-config.test.ts
 ├── integration/
-│   ├── routes/            # API endpoints
-│   │   └── documents/     # Phase 3: availability, delete, retry
-│   ├── queue/             # BullMQ processing
-│   └── middleware/        # Auth
-├── e2e/                   # Full pipeline
-├── fixtures/              # Test files (PDF, JSON, TXT, MD)
-├── mocks/                 # AI worker mocks
-└── helpers/               # Test utilities
-
-apps/ai-worker/tests/
-├── conftest.py            # Fixtures
-├── test_processor.py      # PDF processing
-├── test_text_processor.py # MD/TXT/JSON processing
-├── test_chunker.py        # Chunking
-├── test_embedder.py       # Embedding
-└── test_callback.py       # HTTP callback
+│   ├── routes/
+│   │   ├── analytics-api.test.ts        # Analytics endpoints
+│   │   ├── analytics-e2e.test.ts        # Analytics E2E
+│   │   ├── callback-metrics.test.ts     # ProcessingMetrics
+│   │   ├── callback-route.test.ts
+│   │   ├── chunks-api.test.ts           # Chunks Explorer
+│   │   ├── content-route.test.ts
+│   │   ├── list-route.test.ts
+│   │   ├── profile-routes.test.ts       # ProcessingProfile CRUD
+│   │   ├── search-route.test.ts         # Hybrid search integration
+│   │   ├── sse-route.test.ts
+│   │   ├── status-route.test.ts
+│   │   ├── upload-route.test.ts
+│   │   └── documents/
+│   │       ├── availability-route.test.ts
+│   │       ├── delete-route.test.ts
+│   │       └── retry-route.test.ts
+│   ├── queue/
+│   │   ├── processing-queue.test.ts
+│   │   └── retry-handler.test.ts
+│   ├── middleware/
+│   │   └── auth-middleware.test.ts
+│   └── production-readiness.test.ts
+├── e2e/
+│   ├── pdf-upload-flow.test.ts
+│   ├── multi-format-flow.test.ts     # MD/TXT/JSON E2E
+│   ├── query-flow.test.ts
+│   └── error-handling.test.ts
+├── fixtures/                            # Test files (10 formats)
+├── mocks/
+│   ├── bullmq-mock.ts
+│   ├── embedding-mock.ts
+│   └── python-worker-mock.ts
+└── helpers/
+    ├── api.ts
+    ├── database.ts
+    └── fixtures.ts
 ```
 
-**Naming:**
-- `*.test.ts` - Unit/Integration
-- `*.e2e.test.ts` - E2E
-- `test_*.py` - Python (pytest)
+### AI Worker (26 files)
+
+```
+apps/ai-worker/tests/
+├── conftest.py                          # Fixtures
+│
+├── # Converters (Phase 4)
+├── test_base_converter.py
+├── test_pymupdf_converter.py            # Fast PDF
+├── test_pdf_converter.py                # Docling + OCR modes
+├── test_csv_processor.py
+├── test_html_processor.py
+├── test_epub_processor.py
+├── test_pptx_processor.py
+├── test_xlsx_processor.py
+├── test_text_processor.py               # TXT/MD/JSON
+│
+├── # Chunking (Phase 4)
+├── test_document_chunker.py             # Header-based
+├── test_presentation_chunker.py         # Slide-based
+├── test_tabular_chunker.py              # Row-based
+│
+├── # Quality (Phase 4)
+├── test_quality_analyzer.py             # Flags + scoring
+├── test_auto_fix.py                     # Merge/split/inject
+│
+├── # Pre-processing (Phase 4)
+├── test_sanitizer.py                    # Input cleanup
+├── test_normalizer.py                   # Markdown normalization
+│
+├── # Core
+├── test_embedder.py
+├── test_callback.py
+├── test_main.py
+│
+├── # Extensions
+├── test_profile_config.py               # ProcessingProfile
+├── test_metrics.py                      # Analytics metrics
+├── test_error_handling.py               # Error boundaries
+│
+├── # E2E & Regression
+├── e2e/
+│   └── test_format_processing.py        # 10 format E2E
+└── regression/
+    └── test_existing_formats.py         # PDF/TXT/MD/JSON still work
+```
 
 ---
 
-## 8. Phase 2/3 Test Coverage
+## 4. Coverage by Phase
 
-### Phase 2 Tests
+### Phase 1-3 (Core)
 
 | Feature | Test File |
-|---------|----------|
-| SSE Events | `sse-route.test.ts` |
+|---------|-----------|
+| Upload/Validation | `upload-validator.test.ts`, `upload-route.test.ts` |
+| SSE Events | `sse-route.test.ts`, `event-bus.test.ts` |
 | Content Export | `content-route.test.ts` |
-| Drive Sync | `integration/routes/` (various) |
-| TextProcessor | `test_text_processor.py` |
-
-### Phase 3 Tests
-
-| Feature | Test File |
-|---------|----------|
 | Availability Toggle | `availability-route.test.ts` |
 | Hard Delete | `delete-route.test.ts` |
 | Retry Failed | `retry-route.test.ts` |
-| Enhanced List | `list-query-validator.test.ts`, `list-route.test.ts` |
 | Drive Re-link | `sync-service-relink.test.ts` |
+
+### Phase 4 (10 Formats + Quality)
+
+| Feature | Test Files |
+|---------|-----------|
+| **Converters** | `test_pymupdf_converter.py`, `test_csv/html/epub/pptx/xlsx_processor.py` |
+| **Category Chunking** | `test_document/presentation/tabular_chunker.py` |
+| **Quality Analysis** | `test_quality_analyzer.py`, `test_auto_fix.py` |
+| **Pre-processing** | `test_sanitizer.py`, `test_normalizer.py` |
+| **Format Regression** | `regression/test_existing_formats.py` |
+| **Format E2E** | `e2e/test_format_processing.py` |
+
+### Extensions
+
+| Feature | Test Files |
+|---------|-----------|
+| **Analytics Dashboard** | `analytics-api.test.ts`, `callback-metrics.test.ts`, `test_metrics.py` |
+| **Hybrid Search** | `hybrid-search.test.ts`, `search-route.test.ts`, `query-validator.test.ts` |
+| **Processing Profiles** | `profile-routes.test.ts`, `profile-model.test.ts`, `test_profile_config.py` |
+| **Chunks Explorer** | `chunks-api.test.ts` |
 
 ---
 
-## 9. Test Commands
+## 5. Test Gaps (TODO)
+
+> [!NOTE]
+> Gaps reviewed Dec 29, 2025. Most Backend gaps addressed.
+
+### Backend
+
+| Gap | Priority | Status |
+|-----|----------|--------|
+| Drive sync with ProcessingProfile | Medium | Phase 5 |
+| ~~Profile cascade delete~~ | ~~High~~ | ✅ Covered in profile-model.test.ts |
+| ~~Analytics period filtering~~ | ~~Medium~~ | ✅ Added 24h/7d/30d/all tests |
+| ~~Chunks multi-filter~~ | ~~Medium~~ | ✅ Added quality+type+search tests |
+| ~~E2E multi-format~~ | ~~Medium~~ | ✅ Added MD/TXT/JSON flows |
+| Search document/format filters | Low | API lacks support (future) |
+
+### AI Worker
+
+| Gap | Priority | Status |
+|-----|----------|--------|
+| ~~Docling PDF converter~~ | ~~Medium~~ | ✅ Added test_pdf_converter.py |
+| ~~OCR mode variations~~ | ~~Medium~~ | ✅ Covered in test_pdf_converter.py |
+| ~~Error boundary tests~~ | ~~Medium~~ | ✅ Added test_error_handling.py |
+| Large file handling | Low | Future (streaming) |
+
+---
+
+## 6. Test Commands
 
 **Backend:**
 ```bash
-pnpm --filter @ragbase/backend test:unit        # Fast
-pnpm --filter @ragbase/backend test:integration # Needs Docker
-pnpm --filter @ragbase/backend test:e2e         # Full stack
-pnpm --filter @ragbase/backend test:coverage    # Coverage report
+pnpm --filter backend test:unit        # Fast (~5s)
+pnpm --filter backend test:integration # Needs Docker (~30s)
+pnpm --filter backend test:e2e         # Full stack (~60s)
+pnpm --filter backend test:coverage    # With report
 ```
 
 **AI Worker:**
 ```bash
 cd apps/ai-worker
 pytest                              # All tests
-pytest --cov=src --cov-report=html  # With coverage
+pytest tests/test_quality_analyzer.py -v  # Specific file
+pytest --cov=src --cov-report=html  # Coverage report
+```
+
+**All Tests:**
+```bash
+pnpm test                           # Runs test-all.sh
 ```
 
 ---
 
-## 10. Testing Anti-Patterns (Avoid)
+## 7. Mock Strategy
 
-### Don't Test Implementation Details
+### What to Mock
 
-**❌ Bad:** Testing internal function calls  
-**✅ Good:** Testing behavior/output
+| Mock | Don't Mock |
+|------|-----------|
+| External APIs (AI worker HTTP) | Database (use Testcontainers) |
+| Slow operations (embeddings) | Your own code |
+| Non-deterministic behavior | Third-party libs |
+| Google Drive API | Redis (use Testcontainers) |
 
-### Don't Test Third-Party Libraries
+### Key Mocks
 
-**❌ Bad:** Testing Prisma/Zod behavior  
-**✅ Good:** Testing your business logic
+| Mock | Location | Purpose |
+|------|----------|---------|
+| `python-worker-mock.ts` | Backend | Fake AI worker responses |
+| `embedding-mock.ts` | Backend | 384d zero vectors |
+| `bullmq-mock.ts` | Backend | Queue without Redis |
 
-### Don't Over-Mock
+---
 
-**❌ Bad:** Mocking everything (testing nothing)  
-**✅ Good:** Use real services (Testcontainers)
+## 8. Testing Anti-Patterns (Avoid)
+
+| ❌ Bad | ✅ Good |
+|--------|---------|
+| Test implementation details | Test behavior/output |
+| Test Prisma/Zod behavior | Test your business logic |
+| Mock everything | Use Testcontainers for real DB |
+| Duplicate test logic | Centralize in helpers/fixtures |
+| Test after implementation | Write tests first (TDD) |
 
 ---
 
-## 11. Key Decisions
+## 9. Key Decisions
 
-| Decision | Rationale | Trade-off |
-|----------|-----------|-----------|
-| **Testcontainers** | Real DB/Redis (backend) | Slower than mocks |
-| **Vitest** | Fast, native ESM | Smaller ecosystem |
-| **Mock AI worker** | Fast, deterministic | Not testing real Docling |
-| **79% coverage** | Balance speed/quality | Not 100% (diminishing returns) |
+| Decision | Rationale |
+|----------|-----------|
+| Testcontainers | Real PostgreSQL + pgvector + Redis |
+| Vitest | Fast, native ESM, Jest-compatible |
+| Mock AI worker | Fast, deterministic integration tests |
+| Pytest | Python standard, good fixtures |
+| 70-90% coverage | Balance speed vs quality |
 
 ---
+
+**Latest Test Run:** All tests passed (Dec 29, 2025)
+- Backend: Unit ✅, Integration ✅, E2E ✅
+- AI Worker: 24 tests ✅
 
 **Documentation:**
 - [architecture.md](./architecture.md) - System design
 - [api.md](./api.md) - API contracts
-- [product.md](./product.md) - Product overview

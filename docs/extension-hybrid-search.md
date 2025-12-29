@@ -1,5 +1,7 @@
 # Hybrid Search Implementation Plan
 
+> **Status**: Complete
+
 ## Overview
 
 Add two search modes to RAG query endpoint:
