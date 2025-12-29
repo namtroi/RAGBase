@@ -79,8 +79,16 @@ class TestTabularChunker:
         chunks = chunker.chunk(text)
         assert len(chunks) >= 2
 
-    def test_large_markdown_table_safety_split(self, chunker):
-        """Test that even a Markdown table is split if it's extremely large (fallback)."""
-        # This is more of a safety feature. For now, let's assume we keep them together
-        # unless we implement a specific table splitter.
-        pass
+    def test_large_markdown_table_stays_single_chunk(self, chunker):
+        """Large Markdown tables remain as single chunk (current behavior)."""
+        # Generate a large table with 100 rows
+        header = "| Name | Age | City |\n|---|---|---|\n"
+        rows = "| Alice | 30 | NYC |\n" * 100
+        large_table = header + rows
+
+        chunks = chunker.chunk(large_table)
+
+        # Current behavior: Markdown tables are kept as single chunk
+        assert len(chunks) == 1
+        assert chunks[0]["metadata"]["chunk_type"] == "tabular"
+        assert "Alice" in chunks[0]["content"]

@@ -98,3 +98,62 @@ Deep content
         chunks = chunker.chunk(text)
         assert len(chunks) == 1
         assert chunks[0]["content"] == text
+
+
+class TestHeaderLevels:
+    """Tests for header_levels parameter in DocumentChunker."""
+
+    def test_header_levels_default(self):
+        """Default header_levels is 3."""
+        chunker = DocumentChunker()
+        assert chunker.header_levels == 3
+
+    def test_header_levels_custom_one(self):
+        """header_levels=1 only splits by H1."""
+        chunker = DocumentChunker(chunk_size=500, header_levels=1)
+        text = "# H1 Title\nContent\n## H2 Sub\nMore content"
+        chunks = chunker.chunk(text)
+
+        # H2 should NOT appear in breadcrumbs (not being tracked)
+        for chunk in chunks:
+            assert all("H2" not in b for b in chunk["metadata"]["breadcrumbs"])
+
+    def test_header_levels_custom_four(self):
+        """header_levels=4 tracks up to H4."""
+        chunker = DocumentChunker(chunk_size=500, header_levels=4)
+        text = "# H1\n## H2\n### H3\n#### H4\nContent\n##### H5\nMore"
+        chunks = chunker.chunk(text)
+
+        # Find chunk with H4 content
+        h4_chunk = next((c for c in chunks if "H4" in c["content"]), None)
+        assert h4_chunk is not None
+        # H4 should be in breadcrumbs
+        assert "H4" in h4_chunk["metadata"]["breadcrumbs"]
+
+    def test_header_levels_clamping_low(self):
+        """Values below 1 are clamped to 1."""
+        chunker = DocumentChunker(header_levels=0)
+        assert chunker.header_levels == 1
+
+        chunker = DocumentChunker(header_levels=-5)
+        assert chunker.header_levels == 1
+
+    def test_header_levels_clamping_high(self):
+        """Values above 6 are clamped to 6."""
+        chunker = DocumentChunker(header_levels=7)
+        assert chunker.header_levels == 6
+
+        chunker = DocumentChunker(header_levels=100)
+        assert chunker.header_levels == 6
+
+    def test_header_levels_six(self):
+        """header_levels=6 tracks all heading levels."""
+        chunker = DocumentChunker(chunk_size=1000, header_levels=6)
+        text = "# H1\n## H2\n### H3\n#### H4\n##### H5\n###### H6\nDeep content"
+        chunks = chunker.chunk(text)
+
+        # Find chunk with deep content
+        deep_chunk = next((c for c in chunks if "Deep content" in c["content"]), None)
+        assert deep_chunk is not None
+        # All 6 levels should be in breadcrumbs
+        assert len(deep_chunk["metadata"]["breadcrumbs"]) == 6
