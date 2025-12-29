@@ -133,3 +133,98 @@ code2
         # These are not bullets, should not change
         assert "2*3+4" in result
         assert "a*b+c" in result
+
+
+class TestRemovePageArtifacts:
+    """Tests for MarkdownNormalizer.remove_page_artifacts()"""
+
+    def test_remove_standalone_number(self, normalizer):
+        """Isolated numbers 1-999 are removed."""
+        text = "Content here.\n\n3\n\nMore content."
+        result = normalizer.remove_page_artifacts(text)
+        assert "3" not in result
+        assert "Content here." in result
+        assert "More content." in result
+
+    def test_remove_page_prefix(self, normalizer):
+        """'page X' and 'Page X' patterns are removed."""
+        text = "Content.\n\npage 12\n\nMore."
+        result = normalizer.remove_page_artifacts(text)
+        assert "page 12" not in result
+
+        text2 = "Content.\n\nPage 5\n\nMore."
+        result2 = normalizer.remove_page_artifacts(text2)
+        assert "Page 5" not in result2
+
+    def test_remove_dashed_number(self, normalizer):
+        """'- X -' format is removed."""
+        text = "Content.\n\n- 5 -\n\nMore."
+        result = normalizer.remove_page_artifacts(text)
+        assert "- 5 -" not in result
+
+    def test_preserve_number_in_paragraph(self, normalizer):
+        """Numbers within text are preserved."""
+        text = "The answer is 3.\n\nNext paragraph."
+        result = normalizer.remove_page_artifacts(text)
+        assert "The answer is 3." in result
+
+    def test_preserve_multiline_paragraph(self, normalizer):
+        """Numbers in multi-line paragraphs are preserved."""
+        text = "Line1\n3\nLine3\n\nNext."
+        result = normalizer.remove_page_artifacts(text)
+        assert "3" in result
+
+    def test_preserve_four_digit_numbers(self, normalizer):
+        """4-digit numbers (e.g., years) are preserved."""
+        text = "Content.\n\n2024\n\nMore."
+        result = normalizer.remove_page_artifacts(text)
+        assert "2024" in result
+
+    def test_empty_string(self, normalizer):
+        """Empty string returns empty string."""
+        result = normalizer.remove_page_artifacts("")
+        assert result == ""
+
+    def test_remove_with_whitespace(self, normalizer):
+        """Page numbers with leading/trailing whitespace are removed."""
+        text = "Content.\n\n                                            1\n\nMore."
+        result = normalizer.remove_page_artifacts(text)
+        assert "1" not in result
+        assert "Content." in result
+        assert "More." in result
+
+
+class TestRemoveJunkCodeBlocks:
+    """Tests for MarkdownNormalizer.remove_junk_code_blocks()"""
+
+    def test_remove_empty_code_block(self, normalizer):
+        """Empty code blocks are removed."""
+        text = "Content.\n\n```\n\n```\n\nMore."
+        result = normalizer.remove_junk_code_blocks(text)
+        assert "```" not in result
+        assert "Content." in result
+        assert "More." in result
+
+    def test_remove_code_block_with_page_number(self, normalizer):
+        """Code blocks with only page number are removed."""
+        text = "Content.\n\n```\n|         |         1\n```\n\nMore."
+        result = normalizer.remove_junk_code_blocks(text)
+        assert "```" not in result
+
+    def test_remove_code_block_with_whitespace_page(self, normalizer):
+        """Code blocks with whitespace and page number are removed."""
+        text = "Content.\n\n```\n                                            1\n```\n\nMore."
+        result = normalizer.remove_junk_code_blocks(text)
+        assert "```" not in result
+
+    def test_preserve_real_code_block(self, normalizer):
+        """Code blocks with actual code are preserved."""
+        text = "```python\ndef foo():\n    return 1\n```"
+        result = normalizer.remove_junk_code_blocks(text)
+        assert "def foo():" in result
+        assert "```python" in result
+
+    def test_empty_string(self, normalizer):
+        """Empty string returns empty string."""
+        result = normalizer.remove_junk_code_blocks("")
+        assert result == ""

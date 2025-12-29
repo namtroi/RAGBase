@@ -130,7 +130,7 @@ class DoclingPdfConverter(FormatConverter):
 
             markdown = result.document.export_to_markdown()
             markdown = self._sanitize_raw(markdown)
-            markdown = self._post_process(markdown)
+            markdown = self._post_process_pdf(markdown)
             page_count = (
                 len(result.document.pages) if hasattr(result.document, "pages") else 1
             )

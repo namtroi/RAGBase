@@ -63,6 +63,15 @@ class FormatConverter(ABC):
         """
         return self._normalizer.normalize(markdown)
 
+    def _post_process_pdf(self, markdown: str) -> str:
+        """
+        Post-process for PDF: normalize + remove page artifacts + junk code blocks.
+        """
+        markdown = self._normalizer.normalize(markdown)
+        markdown = self._normalizer.remove_page_artifacts(markdown)
+        markdown = self._normalizer.remove_junk_code_blocks(markdown)
+        return markdown
+
     async def process(self, file_path: str, *args, **kwargs) -> ProcessorOutput:
         """Backward-compatible alias for to_markdown()."""
         return await self.to_markdown(file_path, *args, **kwargs)

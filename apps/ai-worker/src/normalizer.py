@@ -31,6 +31,13 @@ class MarkdownNormalizer:
     # Note: Handling "H3 followed by H2" via regex is complex.
     # For Phase 4, cleaning strict duplicates (H2->H2) is the 80/20 win.
 
+    # Page number artifact patterns (strict: 1-999 only)
+    _PAGE_ARTIFACT_PATTERNS = [
+        re.compile(r"^[1-9]\d{0,2}$"),  # Standalone: 1-999
+        re.compile(r"^[Pp]age\s+[1-9]\d{0,2}$"),  # "page 12", "Page 5"
+        re.compile(r"^[-–—]\s*[1-9]\d{0,2}\s*[-–—]$"),  # "- 5 -", "— 12 —"
+    ]
+
     def normalize(self, markdown: str) -> str:
         if not markdown:
             return ""
@@ -111,3 +118,57 @@ class MarkdownNormalizer:
             text = self._EMPTY_SECTION_PATTERN.sub("", text)
             count += 1
         return text
+
+    def remove_page_artifacts(self, markdown: str) -> str:
+        """
+        Remove standalone page numbers from markdown (PDF-specific).
+        Uses paragraph-level analysis with strict patterns.
+        """
+        if not markdown:
+            return ""
+
+        paragraphs = re.split(r"\n\s*\n", markdown)
+        result = []
+
+        for para in paragraphs:
+            stripped = para.strip()
+
+            # Keep empty paragraphs (preserve spacing)
+            if not stripped:
+                result.append(para)
+                continue
+
+            # Keep multi-line paragraphs (page nums are single-line)
+            if "\n" in stripped:
+                result.append(para)
+                continue
+
+            # Check if single-line matches any page pattern
+            is_page = any(p.match(stripped) for p in self._PAGE_ARTIFACT_PATTERNS)
+            if not is_page:
+                result.append(para)
+
+        return "\n\n".join(result)
+
+    def remove_junk_code_blocks(self, markdown: str) -> str:
+        """
+        Remove code blocks that are:
+        - Empty (only whitespace)
+        - Only contain page numbers (with optional whitespace/pipes)
+        Includes surrounding newlines in match, replaces with normalized spacing.
+        """
+        if not markdown:
+            return ""
+
+        # Pattern 1: Empty code blocks + surrounding newlines
+        empty_pattern = re.compile(r"\n*```[^\n]*\n\s*```\n*", re.MULTILINE)
+        markdown = empty_pattern.sub("\n\n", markdown)
+
+        # Pattern 2: Code blocks with page number + surrounding newlines
+        page_pattern = re.compile(
+            r"\n*```[^\n]*\n[\s|]*[1-9]\d{0,2}[\s|]*\n```\n*",
+            re.MULTILINE,
+        )
+        markdown = page_pattern.sub("\n\n", markdown)
+
+        return markdown

@@ -51,7 +51,7 @@ class PyMuPDFConverter(FormatConverter):
 
             # Sanitize and normalize
             markdown = self._sanitize_raw(markdown)
-            markdown = self._post_process(markdown)
+            markdown = self._post_process_pdf(markdown)
 
             # Get page count
             page_count = self._get_page_count(path)
