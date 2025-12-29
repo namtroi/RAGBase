@@ -72,6 +72,17 @@ class FormatConverter(ABC):
         markdown = self._normalizer.remove_junk_code_blocks(markdown)
         return markdown
 
+    def _post_process_pymupdf(self, markdown: str) -> str:
+        """
+        Post-process for PyMuPDF: includes soft linebreak merge.
+        PyMuPDF4LLM preserves PDF hard line breaks more than Docling.
+        """
+        markdown = self._normalizer.normalize(markdown)
+        markdown = self._normalizer.merge_soft_linebreaks(markdown)
+        markdown = self._normalizer.remove_page_artifacts(markdown)
+        markdown = self._normalizer.remove_junk_code_blocks(markdown)
+        return markdown
+
     async def process(self, file_path: str, *args, **kwargs) -> ProcessorOutput:
         """Backward-compatible alias for to_markdown()."""
         return await self.to_markdown(file_path, *args, **kwargs)
