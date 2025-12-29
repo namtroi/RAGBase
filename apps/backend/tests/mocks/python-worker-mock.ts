@@ -39,7 +39,7 @@ export function successCallback(documentId: string, options?: Partial<Processing
     content: content,
     index: 0,
     embedding: Array(384).fill(0.1),
-    metadata: { charStart: 0, charEnd: content.length }
+    metadata: {}
   }];
 
   return {

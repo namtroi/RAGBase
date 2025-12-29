@@ -10,12 +10,16 @@ const defaultFilters: ChunkFilterState = {
     search: '',
     quality: '',
     type: '',
+    sortBy: '',
 };
 
 export function ChunksExplorerPage() {
     const [filters, setFilters] = useState<ChunkFilterState>(defaultFilters);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(20);
+
+    // Parse sortBy into field and order
+    const [sortField, sortOrder] = filters.sortBy ? filters.sortBy.split('-') as ['tokenCount' | 'qualityScore', 'asc' | 'desc'] : [undefined, undefined];
 
     // Build query params
     const queryParams: ChunksListParams = {
@@ -24,6 +28,8 @@ export function ChunksExplorerPage() {
         quality: filters.quality || undefined,
         type: filters.type || undefined,
         search: filters.search || undefined,
+        sortBy: sortField,
+        sortOrder: sortOrder,
     };
 
     // Fetch chunks list

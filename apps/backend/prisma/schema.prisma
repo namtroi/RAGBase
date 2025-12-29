@@ -99,8 +99,7 @@ model Chunk {
   content     String
   chunkIndex  Int      @map("chunk_index")
   embedding   Unsupported("vector(384)")
-  charStart   Int      @map("char_start")
-  charEnd     Int      @map("char_end")
+
   page        Int?
   heading     String?
   createdAt   DateTime @default(now()) @map("created_at")
@@ -214,14 +213,14 @@ model ProcessingProfile {
   maxFileSizeMb          Int     @default(50)   @map("max_file_size_mb")
   
   // === Stage 2: Chunking ===
-  documentChunkSize       Int @default(1000) @map("document_chunk_size")
-  documentChunkOverlap    Int @default(100)  @map("document_chunk_overlap")
+  documentChunkSize       Int @default(1500) @map("document_chunk_size")
+  documentChunkOverlap    Int @default(200)  @map("document_chunk_overlap")
   documentHeaderLevels    Int @default(3)    @map("document_header_levels")
   presentationMinChunk    Int @default(200)  @map("presentation_min_chunk")
   tabularRowsPerChunk     Int @default(20)   @map("tabular_rows_per_chunk")
   
   // === Stage 3: Quality ===
-  qualityMinChars         Int     @default(50)   @map("quality_min_chars")
+  qualityMinChars         Int     @default(500)   @map("quality_min_chars")
   qualityMaxChars         Int     @default(2000) @map("quality_max_chars")
   qualityPenaltyPerFlag   Float   @default(0.15) @map("quality_penalty_per_flag")
   autoFixEnabled          Boolean @default(true) @map("auto_fix_enabled")

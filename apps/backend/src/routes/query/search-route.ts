@@ -59,8 +59,6 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
       id: string;
       content: string;
       document_id: string;
-      char_start: number;
-      char_end: number;
       page: number | null;
       heading: string | null;
       quality_score: number | null;
@@ -72,8 +70,6 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
         c.id,
         c.content,
         c.document_id,
-        c.char_start,
-        c.char_end,
         c.page,
         c.heading,
         c.quality_score,
@@ -94,8 +90,6 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
         score: Math.max(0, r.similarity),  // Ensure non-negative scores
         documentId: r.document_id,
         metadata: {
-          charStart: r.char_start,
-          charEnd: r.char_end,
           page: r.page ?? undefined,
           heading: r.heading ?? undefined,
           qualityScore: r.quality_score ?? undefined,

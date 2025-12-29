@@ -31,13 +31,13 @@ describe('Chunks Explorer API', () => {
     const qualityScore = overrides.qualityScore ?? 0.85;
     const chunkType = overrides.chunkType ?? 'document';
     const qualityFlags = overrides.qualityFlags ?? [];
-    
+
     // Build vector string outside of template
     const vectorStr = `[${Array(384).fill(0.1).join(',')}]`;
-    
+
     const result = await prisma.$queryRaw<Array<{ id: string }>>`
-      INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, quality_score, chunk_type, quality_flags, created_at)
-      VALUES (gen_random_uuid(), ${documentId}, ${content as string}, ${chunkIndex as number}, ${Prisma.sql`${vectorStr}::vector`}, 0, 100, ${qualityScore as number}, ${chunkType as string}, ${qualityFlags as string[]}, NOW())
+      INSERT INTO chunks (id, document_id, content, chunk_index, embedding, quality_score, chunk_type, quality_flags, created_at)
+      VALUES (gen_random_uuid(), ${documentId}, ${content as string}, ${chunkIndex as number}, ${Prisma.sql`${vectorStr}::vector`}, ${qualityScore as number}, ${chunkType as string}, ${qualityFlags as string[]}, NOW())
       RETURNING id
     `;
     return result[0];
@@ -213,8 +213,8 @@ describe('Chunks Explorer API', () => {
   describe('GET /api/chunks/:id', () => {
     it('should return chunk detail by id', async () => {
       const doc = await seedDocument({ status: 'COMPLETED', md5Hash: `chunk-doc-${++docCounter}` });
-      const chunk = await seedChunk(doc.id, { 
-        chunkIndex: 0, 
+      const chunk = await seedChunk(doc.id, {
+        chunkIndex: 0,
         content: 'Full content here',
         qualityScore: 0.88,
       });

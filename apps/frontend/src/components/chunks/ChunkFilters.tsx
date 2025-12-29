@@ -6,6 +6,7 @@ export interface ChunkFilterState {
     search: string;
     quality: '' | 'excellent' | 'good' | 'low';
     type: '' | 'document' | 'presentation' | 'tabular';
+    sortBy: '' | 'tokenCount-desc' | 'tokenCount-asc' | 'qualityScore-desc' | 'qualityScore-asc';
 }
 
 interface ChunkFiltersProps {
@@ -49,6 +50,14 @@ export function ChunkFilters({ filters, onChange, counts }: ChunkFiltersProps) {
         { label: 'Tabular', value: 'tabular' },
     ];
 
+    const sortOptions = [
+        { label: 'Default', value: '' },
+        { label: 'Tokens ↓ (Largest)', value: 'tokenCount-desc' },
+        { label: 'Tokens ↑ (Smallest)', value: 'tokenCount-asc' },
+        { label: 'Quality ↓ (Best)', value: 'qualityScore-desc' },
+        { label: 'Quality ↑ (Worst)', value: 'qualityScore-asc' },
+    ];
+
     return (
         <div className="space-y-4">
             {/* Search and Filters Row */}
@@ -81,6 +90,15 @@ export function ChunkFilters({ filters, onChange, counts }: ChunkFiltersProps) {
                     options={typeOptions}
                     placeholder="Type"
                     className="w-[140px]"
+                />
+
+                {/* Sort By */}
+                <Select
+                    value={filters.sortBy}
+                    onChange={(val) => updateFilter('sortBy', val as ChunkFilterState['sortBy'])}
+                    options={sortOptions}
+                    placeholder="Sort"
+                    className="w-[160px]"
                 />
             </div>
         </div>

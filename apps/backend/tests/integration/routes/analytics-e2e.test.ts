@@ -34,7 +34,7 @@ describe('Analytics E2E Flow', () => {
                         content: 'Test chunk content for analytics',
                         index: 0,
                         embedding: Array(384).fill(0.1),
-                        metadata: { charStart: 0, charEnd: 50, qualityScore: 0.85 }
+                        metadata: { qualityScore: 0.85 }
                     }],
                     pageCount: 1,
                     ocrApplied: false,

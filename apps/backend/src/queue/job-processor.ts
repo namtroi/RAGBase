@@ -120,6 +120,11 @@ export function createJobProcessor(connection: Redis): Worker<ProcessingJob> {
         });
       }
     } catch (updateError) {
+      // P2025: Document already deleted, ignore
+      if ((updateError as any)?.code === 'P2025') {
+        logger.info({ jobId: job.id }, 'job_status_update_skipped_doc_deleted');
+        return;
+      }
       logger.error({ err: updateError, jobId: job.id }, 'job_status_update_failed');
     }
   });

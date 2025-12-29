@@ -17,8 +17,6 @@ interface RawSearchResult {
     id: string;
     content: string;
     document_id: string;
-    char_start: number;
-    char_end: number;
     page: number | null;
     heading: string | null;
     quality_score: number | null;
@@ -37,8 +35,6 @@ export interface SearchResult {
     vectorScore: number;
     keywordScore: number;
     metadata: {
-        charStart: number;
-        charEnd: number;
         page?: number;
         heading?: string;
         qualityScore?: number;
@@ -114,8 +110,6 @@ export class HybridSearchService {
         c.id,
         c.content,
         c.document_id,
-        c.char_start,
-        c.char_end,
         c.page,
         c.heading,
         c.quality_score,
@@ -144,8 +138,6 @@ export class HybridSearchService {
         c.id,
         c.content,
         c.document_id,
-        c.char_start,
-        c.char_end,
         c.page,
         c.heading,
         c.quality_score,
@@ -203,8 +195,6 @@ export class HybridSearchService {
                 vectorScore,
                 keywordScore,
                 metadata: {
-                    charStart: rawResult.char_start,
-                    charEnd: rawResult.char_end,
                     page: rawResult.page ?? undefined,
                     heading: rawResult.heading ?? undefined,
                     qualityScore: rawResult.quality_score ?? undefined,

@@ -88,7 +88,7 @@ describe('E2E: Error Handling', () => {
               content: 'Too short',
               index: 0,
               embedding: Array(384).fill(0.1),
-              metadata: { charStart: 0, charEnd: 9 }
+              metadata: {}
             }],
             pageCount: 1,
             ocrApplied: false,
@@ -139,7 +139,7 @@ describe('E2E: Error Handling', () => {
               content: noisyContent,
               index: 0,
               embedding: Array(384).fill(0.1),
-              metadata: { charStart: 0, charEnd: noisyContent.length }
+              metadata: {}
             }],
             pageCount: 1,
             ocrApplied: true,

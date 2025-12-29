@@ -97,7 +97,7 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
           await prisma.$executeRaw`
             INSERT INTO chunks (
               id, document_id, content, chunk_index, embedding, 
-              char_start, char_end, heading, created_at,
+              heading, created_at,
               location, quality_score, quality_flags, chunk_type, 
               completeness, has_title, breadcrumbs, token_count
             )
@@ -107,8 +107,6 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
               ${chunk.content},
               ${chunk.index},
               ${embeddingStr}::vector,
-              ${meta.charStart || 0},
-              ${meta.charEnd || 0},
               null, 
               NOW(),
               ${locationJson}::jsonb,
@@ -233,7 +231,7 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
           where: { id: documentId },
           data: {
             status: 'FAILED',
-            failReason: `PROCESSING_ERROR: ${err.message}`,
+            failReason: `PROCESSING_ERROR: ${err.message} `,
           },
         });
 

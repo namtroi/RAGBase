@@ -37,7 +37,6 @@ class PresentationChunker:
         final_chunks = []
         current_accumulation = []
         current_indices = []
-        cumulative_pos = 0  # Track position for charStart/charEnd
 
         for i, slide_content in enumerate(raw_slides):
             slide_nr = i + 1
@@ -55,9 +54,8 @@ class PresentationChunker:
             # If we met the minimum size or this is the last slide, emit a chunk
             if total_size >= self.min_chunk_size or i == len(raw_slides) - 1:
                 chunk = self._create_chunk(
-                    current_accumulation, current_indices, cumulative_pos
+                    current_accumulation, current_indices, len(final_chunks)
                 )
-                cumulative_pos = chunk["metadata"]["charEnd"]
                 final_chunks.append(chunk)
                 current_accumulation = []
                 current_indices = []
@@ -65,14 +63,14 @@ class PresentationChunker:
         # If anything is left over (e.g., the last slide was empty but we had an accumulation)
         if current_accumulation:
             chunk = self._create_chunk(
-                current_accumulation, current_indices, cumulative_pos
+                current_accumulation, current_indices, len(final_chunks)
             )
             final_chunks.append(chunk)
 
         return final_chunks
 
     def _create_chunk(
-        self, contents: List[str], indices: List[int], char_start: int
+        self, contents: List[str], indices: List[int], index: int
     ) -> Dict[str, Any]:
         """
         Helper to format a chunk dictionary.
@@ -91,8 +89,7 @@ class PresentationChunker:
             "type": "presentation",
             "hasTitle": bool(title),
             "title": title,
-            "charStart": char_start,
-            "charEnd": char_start + len(combined_content),
+            "index": index,
         }
 
         # Backward compatibility: ensure slide_number is set even if grouped

@@ -16,8 +16,6 @@ class TabularChunker:
             return []
 
         # 1. Split by --- (multiple sheets)
-        # FIX: Chỉ split khi có xuống dòng rõ ràng (\n\n---\n\n).
-        # Tuyệt đối không split "---" khơi khơi vì sẽ cắt nát Markdown Table (|---|).
         delimiter = "\n\n---\n\n"
         if delimiter in text:
             sections = [s.strip() for s in text.split(delimiter) if s.strip()]
@@ -25,7 +23,6 @@ class TabularChunker:
             sections = [text.strip()]
 
         final_chunks = []
-        cumulative_pos = 0
 
         for section in sections:
             # 2. Extract breadcrumbs (Sheet Name from H1)
@@ -50,7 +47,7 @@ class TabularChunker:
             # Check for Markdown Table syntax (| col | col | + separator |---|)
             is_markdown_table = (
                 "|" in content_text
-                and "\n|-" in content_text  # Check kỹ hơn chút để tránh nhầm
+                and "\n|-" in content_text
                 and content_text.count("|") > 2
             )
 
@@ -63,12 +60,9 @@ class TabularChunker:
                             "breadcrumbs": breadcrumbs,
                             "chunk_type": "tabular",
                             "index": len(final_chunks),
-                            "charStart": cumulative_pos,
-                            "charEnd": cumulative_pos + len(section),
                         },
                     }
                 )
-                cumulative_pos += len(section)
             else:
                 # STRATEGY B: Sentence Format -> Split by rows
                 # Assumes rows are separated by double newlines (from converter)
@@ -82,8 +76,6 @@ class TabularChunker:
                     batch = rows[i : i + self.rows_per_chunk]
                     batch_text = "\n\n".join(batch)
 
-                    # FIX: Inject Header an toàn hơn
-                    # Nếu có breadcrumb (Sheet name), tái tạo lại header cho mỗi chunk
                     if breadcrumbs:
                         header_line = f"# {breadcrumbs[0]}"
                         chunk_display_text = f"{header_line}\n\n{batch_text}"
@@ -97,11 +89,8 @@ class TabularChunker:
                                 "breadcrumbs": breadcrumbs,
                                 "chunk_type": "tabular",
                                 "index": len(final_chunks),
-                                "charStart": cumulative_pos,
-                                "charEnd": cumulative_pos + len(chunk_display_text),
                             },
                         }
                     )
-                    cumulative_pos += len(chunk_display_text)
 
         return final_chunks

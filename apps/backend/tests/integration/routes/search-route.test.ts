@@ -8,10 +8,10 @@ mockEmbeddingClient();
 
 describe('POST /api/query', () => {
   let app: any;
-  
+
 
   beforeAll(async () => {
-    
+
     app = await createTestApp();
   });
 
@@ -33,14 +33,14 @@ describe('POST /api/query', () => {
       const embedding = mockEmbedding('test content');
 
       await prisma.$executeRaw`
-        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, created_at)
-        VALUES (gen_random_uuid(), ${doc.id}, 'Test content chunk', 0, ${JSON.stringify(embedding)}::vector, 0, 18, NOW())
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, created_at)
+        VALUES (gen_random_uuid(), ${doc.id}, 'Test content chunk', 0, ${JSON.stringify(embedding)}::vector, NOW())
       `;
 
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'test content', topK: 5 },
       });
 
@@ -60,16 +60,16 @@ describe('POST /api/query', () => {
       const embedding2 = mockEmbedding('deep learning');
 
       await prisma.$executeRaw`
-        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, created_at)
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, created_at)
         VALUES
-          (gen_random_uuid(), ${doc.id}, 'Machine learning basics', 0, ${JSON.stringify(embedding1)}::vector, 0, 23, NOW()),
-          (gen_random_uuid(), ${doc.id}, 'Deep learning advanced', 1, ${JSON.stringify(embedding2)}::vector, 23, 45, NOW())
+          (gen_random_uuid(), ${doc.id}, 'Machine learning basics', 0, ${JSON.stringify(embedding1)}::vector, NOW()),
+          (gen_random_uuid(), ${doc.id}, 'Deep learning advanced', 1, ${JSON.stringify(embedding2)}::vector, NOW())
       `;
 
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'machine learning', topK: 2 },
       });
 
@@ -88,15 +88,15 @@ describe('POST /api/query', () => {
         const embedding = mockEmbedding(`chunk ${i}`);
 
         await prisma.$executeRaw`
-          INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, created_at)
-          VALUES (gen_random_uuid(), ${doc.id}, ${`Chunk ${i} content`}, ${i}, ${JSON.stringify(embedding)}::vector, ${i * 10}, ${(i + 1) * 10}, NOW())
+          INSERT INTO chunks (id, document_id, content, chunk_index, embedding, created_at)
+          VALUES (gen_random_uuid(), ${doc.id}, ${`Chunk ${i} content`}, ${i}, ${JSON.stringify(embedding)}::vector, NOW())
         `;
       }
 
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'test', topK: 3 },
       });
 
@@ -110,14 +110,14 @@ describe('POST /api/query', () => {
       const embedding = mockEmbedding('test');
 
       await prisma.$executeRaw`
-        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, page, heading, created_at)
-        VALUES (gen_random_uuid(), ${doc.id}, 'Content', 0, ${JSON.stringify(embedding)}::vector, 0, 7, 1, 'Introduction', NOW())
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, page, heading, created_at)
+        VALUES (gen_random_uuid(), ${doc.id}, 'Content', 0, ${JSON.stringify(embedding)}::vector, 1, 'Introduction', NOW())
       `;
 
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'test', topK: 1 },
       });
 
@@ -134,7 +134,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: '' },
       });
 
@@ -145,7 +145,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'a'.repeat(1001) },
       });
 
@@ -156,7 +156,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'test' },
       });
 
@@ -168,7 +168,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'test', mode: 'invalid' },
       });
 
@@ -179,7 +179,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'test', alpha: -0.1 },
       });
 
@@ -190,7 +190,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'test', alpha: 1.5 },
       });
 
@@ -203,7 +203,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'test', topK: 5 },
       });
 
@@ -217,8 +217,8 @@ describe('POST /api/query', () => {
       const prisma = getPrisma();
       const embedding = mockEmbedding(content);
       await prisma.$executeRaw`
-        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, created_at)
-        VALUES (gen_random_uuid(), ${docId}, ${content}, 0, ${JSON.stringify(embedding)}::vector, 0, ${content.length}, NOW())
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, created_at)
+        VALUES (gen_random_uuid(), ${docId}, ${content}, 0, ${JSON.stringify(embedding)}::vector, NOW())
       `;
     }
 
@@ -232,7 +232,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'content', topK: 10 },
       });
 
@@ -253,7 +253,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'content', topK: 10 },
       });
 
@@ -270,7 +270,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'content', topK: 10 },
       });
 
@@ -284,8 +284,8 @@ describe('POST /api/query', () => {
       const embedding = mockEmbedding(content);
       // Insert with search_vector to support hybrid search
       await prisma.$executeRaw`
-        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, search_vector, char_start, char_end, created_at)
-        VALUES (gen_random_uuid(), ${docId}, ${content}, ${chunkIndex}, ${JSON.stringify(embedding)}::vector, to_tsvector('english', ${content}), 0, ${content.length}, NOW())
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, search_vector, created_at)
+        VALUES (gen_random_uuid(), ${docId}, ${content}, ${chunkIndex}, ${JSON.stringify(embedding)}::vector, to_tsvector('english', ${content}), NOW())
       `;
     }
 
@@ -293,7 +293,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'test' },
       });
 
@@ -305,7 +305,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'test', mode: 'semantic' },
       });
 
@@ -317,7 +317,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'test', mode: 'hybrid' },
       });
 
@@ -329,7 +329,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'test', mode: 'hybrid', alpha: 0.5 },
       });
 
@@ -343,7 +343,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'test', mode: 'hybrid' },
       });
 
@@ -358,14 +358,14 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'machine learning', mode: 'hybrid', topK: 5 },
       });
 
       expect(response.statusCode).toBe(200);
       const body = response.json();
       expect(body.results.length).toBeGreaterThan(0);
-      
+
       const result = body.results[0];
       expect(result.vectorScore).toBeDefined();
       expect(result.keywordScore).toBeDefined();
@@ -380,7 +380,7 @@ describe('POST /api/query', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/query',
-        
+
         payload: { query: 'test content', mode: 'semantic', topK: 5 },
       });
 

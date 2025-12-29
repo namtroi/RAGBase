@@ -57,8 +57,8 @@ describe('GET /api/documents/:id', () => {
 
       // Add chunks
       await Promise.all([
-        seedChunk(doc.id, { content: 'Chunk 1', chunkIndex: 0, charStart: 0, charEnd: 10 }),
-        seedChunk(doc.id, { content: 'Chunk 2', chunkIndex: 1, charStart: 10, charEnd: 20 }),
+        seedChunk(doc.id, { content: 'Chunk 1', chunkIndex: 0 }),
+        seedChunk(doc.id, { content: 'Chunk 2', chunkIndex: 1 }),
       ]);
 
       const response = await app.inject({

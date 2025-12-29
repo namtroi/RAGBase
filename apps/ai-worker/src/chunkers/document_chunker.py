@@ -16,16 +16,25 @@ class DocumentChunker:
     Split Markdown documents by headers while maintaining hierarchy context.
     """
 
-    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 100):
+    # All supported header levels (H1-H6)
+    ALL_HEADERS = [
+        ("#", "Header 1"),
+        ("##", "Header 2"),
+        ("###", "Header 3"),
+        ("####", "Header 4"),
+        ("#####", "Header 5"),
+        ("######", "Header 6"),
+    ]
+
+    def __init__(
+        self, chunk_size: int = 1000, chunk_overlap: int = 100, header_levels: int = 3
+    ):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
+        self.header_levels = min(max(header_levels, 1), 6)  # Clamp to 1-6
 
-        # Split by H1, H2, H3
-        headers_to_split_on = [
-            ("#", "Header 1"),
-            ("##", "Header 2"),
-            ("###", "Header 3"),
-        ]
+        # Build headers_to_split_on based on configured levels
+        headers_to_split_on = self.ALL_HEADERS[: self.header_levels]
         self.header_splitter = MarkdownHeaderTextSplitter(
             headers_to_split_on=headers_to_split_on
         )
@@ -34,6 +43,18 @@ class DocumentChunker:
             chunk_overlap=chunk_overlap,
             separators=["\n\n", "\n", ". ", " ", ""],
         )
+
+    def _create_chunk(
+        self, content: str, breadcrumbs: List[str], index: int
+    ) -> Dict[str, Any]:
+        """Create a chunk dict with content and metadata."""
+        return {
+            "content": content,
+            "metadata": {
+                "breadcrumbs": breadcrumbs,
+                "index": index,
+            },
+        }
 
     def chunk(self, text: str) -> List[Dict[str, Any]]:
         """
@@ -46,18 +67,14 @@ class DocumentChunker:
         header_splits = self.header_splitter.split_text(text)
 
         final_chunks = []
-        cumulative_pos = 0  # Track position for charStart/charEnd
 
-        for i, split in enumerate(header_splits):
+        for split in header_splits:
             # Extract headers from metadata to build breadcrumbs
-            # MarkdownHeaderTextSplitter returns metadata like {"Header 1": "Title", ...}
             breadcrumbs = []
-            if "Header 1" in split.metadata:
-                breadcrumbs.append(split.metadata["Header 1"])
-            if "Header 2" in split.metadata:
-                breadcrumbs.append(split.metadata["Header 2"])
-            if "Header 3" in split.metadata:
-                breadcrumbs.append(split.metadata["Header 3"])
+            for i in range(1, self.header_levels + 1):
+                key = f"Header {i}"
+                if key in split.metadata:
+                    breadcrumbs.append(split.metadata[key])
 
             # 2. Format breadcrumbs as a context header
             context_prefix = ""
@@ -73,29 +90,11 @@ class DocumentChunker:
                 for sub_text in sub_chunks:
                     content = context_prefix + sub_text
                     final_chunks.append(
-                        {
-                            "content": content,
-                            "metadata": {
-                                "breadcrumbs": breadcrumbs,
-                                "index": len(final_chunks),
-                                "charStart": cumulative_pos,
-                                "charEnd": cumulative_pos + len(content),
-                            },
-                        }
+                        self._create_chunk(content, breadcrumbs, len(final_chunks))
                     )
-                    cumulative_pos += len(content)
             else:
                 final_chunks.append(
-                    {
-                        "content": chunk_content,
-                        "metadata": {
-                            "breadcrumbs": breadcrumbs,
-                            "index": len(final_chunks),
-                            "charStart": cumulative_pos,
-                            "charEnd": cumulative_pos + len(chunk_content),
-                        },
-                    }
+                    self._create_chunk(chunk_content, breadcrumbs, len(final_chunks))
                 )
-                cumulative_pos += len(chunk_content)
 
         return final_chunks

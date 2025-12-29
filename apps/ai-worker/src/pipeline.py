@@ -31,6 +31,7 @@ class ProcessingPipeline:
         self.document_chunker = DocumentChunker(
             chunk_size=self.config.documentChunkSize,
             chunk_overlap=self.config.documentChunkOverlap,
+            header_levels=self.config.documentHeaderLevels,
         )
         self.presentation_chunker = PresentationChunker(
             min_chunk_size=self.config.presentationMinChunk,
@@ -43,10 +44,193 @@ class ProcessingPipeline:
         self.analyzer = QualityAnalyzer(
             min_chars=self.config.qualityMinChars,
             max_chars=self.config.qualityMaxChars,
+            ideal_length=self.config.documentChunkSize,
             penalty_per_flag=self.config.qualityPenaltyPerFlag,
         )
 
         self.embedder = Embedder()
+
+    def _strip_breadcrumb_prefix(self, content: str) -> str:
+        """Remove breadcrumb prefix (> Chapter > Section) from content."""
+        lines = content.split("\n")
+        if lines and lines[0].startswith(">"):
+            # Skip breadcrumb line and any following empty lines
+            start = 1
+            while start < len(lines) and not lines[start].strip():
+                start += 1
+            return "\n".join(lines[start:])
+        return content
+
+    def merge_small_chunks(
+        self, chunks: List[Dict[str, Any]], min_chars: int, max_chars: int
+    ) -> List[Dict[str, Any]]:
+        """
+        Optimally merge small chunks using greedy accumulator algorithm.
+
+        Goals:
+        - Maximize number of normal-sized chunks (>= min_chars)
+        - Never exceed max_chars
+        - Preserve document order
+
+        Args:
+            chunks: List of chunks with content and metadata.
+            min_chars: Minimum chars for a chunk to be considered complete.
+            max_chars: Maximum chars allowed per chunk.
+        """
+        if len(chunks) <= 1:
+            return chunks
+
+        result: List[Dict[str, Any]] = []
+        # Accumulator for small chunks
+        acc_content: str = ""
+        acc_metadata: Optional[Dict[str, Any]] = None
+
+        for chunk in chunks:
+            content = chunk.get("content", "")
+            content_len = len(content)
+            acc_len = len(acc_content)
+
+            # Case 1: Normal-sized chunk
+            if content_len >= min_chars:
+                if acc_len > 0:
+                    # Try to prepend accumulator to this chunk
+                    combined_len = acc_len + 2 + content_len  # +2 for "\n\n"
+                    if combined_len <= max_chars:
+                        # Fits! Prepend accumulator
+                        chunk["content"] = acc_content + "\n\n" + content
+                        result.append(chunk)
+                    else:
+                        # Doesn't fit. Flush accumulator separately first.
+                        if acc_len >= min_chars:
+                            # Accumulator is big enough on its own
+                            result.append(
+                                {
+                                    "content": acc_content,
+                                    "metadata": acc_metadata or {"breadcrumbs": []},
+                                }
+                            )
+                        elif result:
+                            # Try append to previous chunk
+                            prev_len = len(result[-1]["content"])
+                            if prev_len + 2 + acc_len <= max_chars:
+                                result[-1]["content"] += "\n\n" + acc_content
+                            else:
+                                # Can't fit anywhere, keep as undersized chunk
+                                result.append(
+                                    {
+                                        "content": acc_content,
+                                        "metadata": acc_metadata or {"breadcrumbs": []},
+                                    }
+                                )
+                        else:
+                            # No previous chunk, keep as undersized
+                            result.append(
+                                {
+                                    "content": acc_content,
+                                    "metadata": acc_metadata or {"breadcrumbs": []},
+                                }
+                            )
+                        result.append(chunk)
+                    # Reset accumulator
+                    acc_content = ""
+                    acc_metadata = None
+                else:
+                    # No accumulator, just add chunk
+                    result.append(chunk)
+
+            # Case 2: Small chunk → accumulate
+            else:
+                stripped = self._strip_breadcrumb_prefix(content)
+                if not stripped.strip():
+                    continue
+
+                if acc_len == 0:
+                    # Start new accumulator
+                    acc_content = stripped
+                    acc_metadata = chunk.get("metadata", {}).copy()
+                else:
+                    # Try to add to accumulator
+                    combined_len = acc_len + 2 + len(stripped)
+                    if combined_len <= max_chars:
+                        acc_content += "\n\n" + stripped
+                    else:
+                        # Would exceed max. Flush accumulator first.
+                        if acc_len >= min_chars:
+                            result.append(
+                                {
+                                    "content": acc_content,
+                                    "metadata": acc_metadata or {"breadcrumbs": []},
+                                }
+                            )
+                        elif result:
+                            prev_len = len(result[-1]["content"])
+                            if prev_len + 2 + acc_len <= max_chars:
+                                result[-1]["content"] += "\n\n" + acc_content
+                            else:
+                                result.append(
+                                    {
+                                        "content": acc_content,
+                                        "metadata": acc_metadata or {"breadcrumbs": []},
+                                    }
+                                )
+                        else:
+                            result.append(
+                                {
+                                    "content": acc_content,
+                                    "metadata": acc_metadata or {"breadcrumbs": []},
+                                }
+                            )
+                        # Start new accumulator with current small chunk
+                        acc_content = stripped
+                        acc_metadata = chunk.get("metadata", {}).copy()
+
+                # Check if accumulator reached min_chars → flush as complete chunk
+                if len(acc_content) >= min_chars:
+                    result.append(
+                        {
+                            "content": acc_content,
+                            "metadata": acc_metadata or {"breadcrumbs": []},
+                        }
+                    )
+                    acc_content = ""
+                    acc_metadata = None
+
+        # Handle leftover accumulator
+        if acc_content:
+            acc_len = len(acc_content)
+            if acc_len >= min_chars:
+                result.append(
+                    {
+                        "content": acc_content,
+                        "metadata": acc_metadata or {"breadcrumbs": []},
+                    }
+                )
+            elif result:
+                prev_len = len(result[-1]["content"])
+                if prev_len + 2 + acc_len <= max_chars:
+                    result[-1]["content"] += "\n\n" + acc_content
+                else:
+                    result.append(
+                        {
+                            "content": acc_content,
+                            "metadata": acc_metadata or {"breadcrumbs": []},
+                        }
+                    )
+            else:
+                result.append(
+                    {
+                        "content": acc_content,
+                        "metadata": acc_metadata or {"breadcrumbs": []},
+                    }
+                )
+
+        # Re-index chunks after merge
+        for i, chunk in enumerate(result):
+            if "metadata" not in chunk:
+                chunk["metadata"] = {}
+            chunk["metadata"]["index"] = i
+
+        return result
 
     def run(
         self,
@@ -79,6 +263,23 @@ class ProcessingPipeline:
 
         if not chunks:
             return [], 0
+
+        # 2. Merge small chunks when autoFix enabled
+        if self.config.autoFixEnabled:
+            original_count = len(chunks)
+            chunks = self.merge_small_chunks(
+                chunks,
+                self.config.qualityMinChars,
+                self.config.qualityMaxChars,
+            )
+            if len(chunks) < original_count:
+                logger.info(
+                    "chunks_merged",
+                    original=original_count,
+                    merged=len(chunks),
+                    min_chars=self.config.qualityMinChars,
+                    max_chars=self.config.qualityMaxChars,
+                )
 
         # 3. Analyze quality for each chunk
         for i, chunk in enumerate(chunks):

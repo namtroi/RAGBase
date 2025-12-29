@@ -31,6 +31,13 @@ class MarkdownNormalizer:
     # Note: Handling "H3 followed by H2" via regex is complex.
     # For Phase 4, cleaning strict duplicates (H2->H2) is the 80/20 win.
 
+    # Page number artifact patterns (strict: 1-999 only)
+    _PAGE_ARTIFACT_PATTERNS = [
+        re.compile(r"^[1-9]\d{0,2}$"),  # Standalone: 1-999
+        re.compile(r"^[Pp]age\s+[1-9]\d{0,2}$"),  # "page 12", "Page 5"
+        re.compile(r"^[-–—]\s*[1-9]\d{0,2}\s*[-–—]$"),  # "- 5 -", "— 12 —"
+    ]
+
     def normalize(self, markdown: str) -> str:
         if not markdown:
             return ""
@@ -111,3 +118,159 @@ class MarkdownNormalizer:
             text = self._EMPTY_SECTION_PATTERN.sub("", text)
             count += 1
         return text
+
+    def remove_page_artifacts(self, markdown: str) -> str:
+        """
+        Remove standalone page numbers from markdown (PDF-specific).
+        Uses paragraph-level analysis with strict patterns.
+        """
+        if not markdown:
+            return ""
+
+        paragraphs = re.split(r"\n\s*\n", markdown)
+        result = []
+
+        for para in paragraphs:
+            stripped = para.strip()
+
+            # Keep empty paragraphs (preserve spacing)
+            if not stripped:
+                result.append(para)
+                continue
+
+            # Keep multi-line paragraphs (page nums are single-line)
+            if "\n" in stripped:
+                result.append(para)
+                continue
+
+            # Check if single-line matches any page pattern
+            is_page = any(p.match(stripped) for p in self._PAGE_ARTIFACT_PATTERNS)
+            if not is_page:
+                result.append(para)
+
+        return "\n\n".join(result)
+
+    def remove_junk_code_blocks(self, markdown: str) -> str:
+        """
+        Remove code blocks that are:
+        - Empty (only whitespace)
+        - Only contain page numbers (with optional whitespace/pipes)
+        Includes surrounding newlines in match, replaces with normalized spacing.
+        """
+        if not markdown:
+            return ""
+
+        # Pattern 1: Empty code blocks + surrounding newlines
+        empty_pattern = re.compile(r"\n*```[^\n]*\n\s*```\n*", re.MULTILINE)
+        markdown = empty_pattern.sub("\n\n", markdown)
+
+        # Pattern 2: Code blocks with page number + surrounding newlines
+        page_pattern = re.compile(
+            r"\n*```[^\n]*\n[\s|]*[1-9]\d{0,2}[\s|]*\n```\n*",
+            re.MULTILINE,
+        )
+        markdown = page_pattern.sub("\n\n", markdown)
+
+        return markdown
+
+    def merge_soft_linebreaks(self, markdown: str) -> str:
+        """
+        Merge single newlines within paragraphs (PDF-specific).
+        PDF rendering creates hard line breaks at page-width boundaries.
+        This joins them to form proper paragraphs for better chunking.
+
+        Rules (conservative):
+        - ONLY merge if next line starts with lowercase [a-z]
+        - DON'T merge if current line ends with closing bracket ] or )
+        - DON'T merge lines starting with markdown syntax: # - * > | digit.
+        - Protect code blocks from processing
+        """
+        if not markdown:
+            return ""
+
+        # 1. Extract code blocks to protect them
+        code_blocks: List[str] = []
+        markdown = self._extract_code_blocks(markdown, code_blocks)
+
+        # 2. Process line by line
+        lines = markdown.split("\n")
+        result = []
+
+        # Patterns for lines that should NOT be merged into
+        skip_patterns = re.compile(
+            r"^\s*("
+            r"#{1,6}\s|"  # Headings
+            r"[-*+]\s|"  # List items
+            r"\d+\.\s|"  # Numbered lists
+            r">\s?|"  # Blockquotes
+            r"\|"  # Tables
+            r")"
+        )
+
+        i = 0
+        while i < len(lines):
+            current = lines[i]
+            current_stripped = current.rstrip()
+
+            # Check if we should try to merge with next line
+            if i + 1 < len(lines):
+                next_line = lines[i + 1]
+                next_stripped = next_line.lstrip()
+
+                # Handle empty line (potential paragraph break)
+                if not next_stripped:
+                    # Check if this is a PDF artifact (fake paragraph break)
+                    # Pattern: "mid-sentence\n\nlowercase continuation"
+                    if i + 2 < len(lines) and current_stripped:
+                        after_empty = lines[i + 2].lstrip()
+                        no_sentence_end = not re.search(r"[.!?:]$", current_stripped)
+                        lowercase_start = bool(re.match(r"[a-z]", after_empty))
+                        no_bracket_end = not re.search(r"[\]\)]$", current_stripped)
+
+                        if no_sentence_end and lowercase_start and no_bracket_end:
+                            # PDF artifact → merge across empty line
+                            merged = current_stripped + " " + after_empty
+                            lines[i + 2] = merged
+                            i += 2  # skip current + empty line
+                            continue
+
+                    # Real paragraph break → keep
+                    result.append(current)
+                    i += 1
+                    continue
+
+                # Skip if next line starts with markdown syntax
+                if skip_patterns.match(next_stripped):
+                    result.append(current)
+                    i += 1
+                    continue
+
+                # Skip if current line is empty
+                if not current_stripped:
+                    result.append(current)
+                    i += 1
+                    continue
+
+                # Conservative merge: ONLY if next starts lowercase
+                starts_with_lowercase = bool(re.match(r"[a-z]", next_stripped))
+                ends_with_bracket = bool(re.search(r"[\]\)]$", current_stripped))
+
+                if starts_with_lowercase and not ends_with_bracket:
+                    # Safe to merge: lowercase continuation
+                    merged = current_stripped + " " + next_stripped
+                    lines[i + 1] = merged  # Replace next with merged
+                    i += 1  # Skip current, process merged as next
+                else:
+                    # Keep newline: capital/bracket = new item/sentence
+                    result.append(current)
+                    i += 1
+            else:
+                result.append(current)
+                i += 1
+
+        markdown = "\n".join(result)
+
+        # 3. Restore code blocks
+        markdown = self._restore_code_blocks(markdown, code_blocks)
+
+        return markdown

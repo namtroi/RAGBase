@@ -56,7 +56,7 @@ describe('POST /internal/callback', () => {
             content: 'Chunk content',
             index: 0,
             embedding: Array(384).fill(0.1),
-            metadata: { charStart: 0, charEnd: 10 }
+            metadata: {}
           }],
           pageCount: 1,
           ocrApplied: false,
