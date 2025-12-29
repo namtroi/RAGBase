@@ -86,34 +86,28 @@ export async function seedChunk(documentId: string, data: Partial<any> = {}) {
   const id = data.id || crypto.randomUUID();
   const content = data.content || 'Test chunk content';
   const chunkIndex = data.chunkIndex ?? 0;
-  const charStart = data.charStart ?? 0;
-  const charEnd = data.charEnd ?? 100;
   const heading = data.heading || null;
 
   await prisma.$executeRaw`
-    INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, page, heading, created_at)
+    INSERT INTO chunks (id, document_id, content, chunk_index, embedding, page, heading, created_at)
     VALUES (
       ${id}::uuid,
       ${documentId}::uuid,
       ${content},
       ${chunkIndex},
       array_fill(0, ARRAY[384])::vector,
-      ${charStart},
-      ${charEnd},
       ${data.page || null},
       ${heading},
       NOW()
     )
   `;
 
-  // Return a mock object that looks like the chunk since we can't easily fetch it back without pgvector issues if we select everything
+  // Return a mock object that looks like the chunk
   return {
     id,
     documentId,
     content,
     chunkIndex,
-    charStart,
-    charEnd,
     heading,
   };
 }

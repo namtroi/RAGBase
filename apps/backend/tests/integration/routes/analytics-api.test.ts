@@ -5,10 +5,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 describe('Analytics API', () => {
   let app: any;
-  
+
 
   beforeAll(async () => {
-    
+
     app = await createTestApp();
   });
 
@@ -63,7 +63,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/overview',
-        
+
       });
 
       expect(response.statusCode).toBe(200);
@@ -78,7 +78,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/overview',
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -92,7 +92,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/overview',
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -111,7 +111,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/processing',
-        
+
       });
 
       expect(response.statusCode).toBe(200);
@@ -127,7 +127,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/processing',
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -141,7 +141,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/processing',
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -156,7 +156,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/quality',
-        
+
       });
 
       expect(response.statusCode).toBe(200);
@@ -172,7 +172,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/quality',
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -189,7 +189,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/documents',
-        
+
       });
 
       expect(response.statusCode).toBe(200);
@@ -205,7 +205,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/documents',
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -218,7 +218,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/documents',
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -233,7 +233,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/documents?page=1&limit=2',
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -250,18 +250,18 @@ describe('Analytics API', () => {
       // Create test chunks with proper vector syntax
       const vectorStr = `[${Array(384).fill(0.1).join(',')}]`;
       await prisma.$executeRaw`
-        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, created_at)
-        VALUES (gen_random_uuid(), ${doc.id}, 'Test chunk 1', 0, ${Prisma.sql`${vectorStr}::vector`}, 0, 100, NOW())
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, created_at)
+        VALUES (gen_random_uuid(), ${doc.id}, 'Test chunk 1', 0, ${Prisma.sql`${vectorStr}::vector`}, NOW())
       `;
       await prisma.$executeRaw`
-        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, created_at)
-        VALUES (gen_random_uuid(), ${doc.id}, 'Test chunk 2', 1, ${Prisma.sql`${vectorStr}::vector`}, 100, 200, NOW())
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, created_at)
+        VALUES (gen_random_uuid(), ${doc.id}, 'Test chunk 2', 1, ${Prisma.sql`${vectorStr}::vector`}, NOW())
       `;
 
       const response = await app.inject({
         method: 'GET',
         url: `/api/analytics/documents/${doc.id}/chunks`,
-        
+
       });
 
       expect(response.statusCode).toBe(200);
@@ -277,18 +277,18 @@ describe('Analytics API', () => {
       // Insert out of order with proper vector syntax
       const vectorStr = `[${Array(384).fill(0.1).join(',')}]`;
       await prisma.$executeRaw`
-        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, created_at)
-        VALUES (gen_random_uuid(), ${doc.id}, 'Chunk B', 1, ${Prisma.sql`${vectorStr}::vector`}, 100, 200, NOW())
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, created_at)
+        VALUES (gen_random_uuid(), ${doc.id}, 'Chunk B', 1, ${Prisma.sql`${vectorStr}::vector`}, NOW())
       `;
       await prisma.$executeRaw`
-        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, created_at)
-        VALUES (gen_random_uuid(), ${doc.id}, 'Chunk A', 0, ${Prisma.sql`${vectorStr}::vector`}, 0, 100, NOW())
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, created_at)
+        VALUES (gen_random_uuid(), ${doc.id}, 'Chunk A', 0, ${Prisma.sql`${vectorStr}::vector`}, NOW())
       `;
 
       const response = await app.inject({
         method: 'GET',
         url: `/api/analytics/documents/${doc.id}/chunks`,
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -300,7 +300,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/documents/00000000-0000-0000-0000-000000000000/chunks',
-        
+
       });
 
       expect(response.statusCode).toBe(404);
@@ -333,7 +333,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/overview',
-        
+
       });
 
       expect(response.statusCode).toBe(200);
@@ -362,7 +362,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/overview',
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -378,7 +378,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/overview',
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -407,7 +407,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/processing?format=pdf',
-        
+
       });
 
       expect(response.statusCode).toBe(200);
@@ -423,7 +423,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/processing?format=pdf',
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -438,7 +438,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/processing?format=pdf',
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -458,7 +458,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/quality',
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -476,7 +476,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/quality',
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -494,7 +494,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/quality',
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -509,26 +509,26 @@ describe('Analytics API', () => {
       // Create 4 chunks: 2 with breadcrumbs, 2 without = 50%
       const vectorStr = `[${Array(384).fill(0.1).join(',')}]`;
       await prisma.$executeRaw`
-        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, breadcrumbs, created_at)
-        VALUES (gen_random_uuid(), ${doc.id}, 'Chunk 1', 0, ${Prisma.sql`${vectorStr}::vector`}, 0, 100, ARRAY['Heading 1'], NOW())
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, breadcrumbs, created_at)
+        VALUES (gen_random_uuid(), ${doc.id}, 'Chunk 1', 0, ${Prisma.sql`${vectorStr}::vector`}, ARRAY['Heading 1'], NOW())
       `;
       await prisma.$executeRaw`
-        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, breadcrumbs, created_at)
-        VALUES (gen_random_uuid(), ${doc.id}, 'Chunk 2', 1, ${Prisma.sql`${vectorStr}::vector`}, 100, 200, ARRAY['Heading 1', 'Heading 2'], NOW())
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, breadcrumbs, created_at)
+        VALUES (gen_random_uuid(), ${doc.id}, 'Chunk 2', 1, ${Prisma.sql`${vectorStr}::vector`}, ARRAY['Heading 1', 'Heading 2'], NOW())
       `;
       await prisma.$executeRaw`
-        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, breadcrumbs, created_at)
-        VALUES (gen_random_uuid(), ${doc.id}, 'Chunk 3', 2, ${Prisma.sql`${vectorStr}::vector`}, 200, 300, ARRAY[]::text[], NOW())
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, breadcrumbs, created_at)
+        VALUES (gen_random_uuid(), ${doc.id}, 'Chunk 3', 2, ${Prisma.sql`${vectorStr}::vector`}, ARRAY[]::text[], NOW())
       `;
       await prisma.$executeRaw`
-        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, breadcrumbs, created_at)
-        VALUES (gen_random_uuid(), ${doc.id}, 'Chunk 4', 3, ${Prisma.sql`${vectorStr}::vector`}, 300, 400, ARRAY[]::text[], NOW())
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, breadcrumbs, created_at)
+        VALUES (gen_random_uuid(), ${doc.id}, 'Chunk 4', 3, ${Prisma.sql`${vectorStr}::vector`}, ARRAY[]::text[], NOW())
       `;
 
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/quality',
-        
+
       });
 
       const data = JSON.parse(response.body);
@@ -543,7 +543,7 @@ describe('Analytics API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/analytics/quality',
-        
+
       });
 
       const data = JSON.parse(response.body);

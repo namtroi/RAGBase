@@ -40,8 +40,6 @@ export async function contentRoute(fastify: FastifyInstance): Promise<void> {
                         id: true,
                         content: true,
                         chunkIndex: true,
-                        charStart: true,
-                        charEnd: true,
                         heading: true,
                         // Phase 4: Quality metadata
                         qualityScore: true,
@@ -102,8 +100,6 @@ export async function contentRoute(fastify: FastifyInstance): Promise<void> {
                 content: chunk.content,
                 index: chunk.chunkIndex,
                 metadata: {
-                    charStart: chunk.charStart,
-                    charEnd: chunk.charEnd,
                     heading: chunk.heading || undefined,
                     // Phase 4: Quality metadata
                     qualityScore: chunk.qualityScore,

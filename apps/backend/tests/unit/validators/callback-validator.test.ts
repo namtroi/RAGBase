@@ -16,7 +16,7 @@ describe('CallbackSchema', () => {
             content: 'chunk',
             index: 0,
             embedding: Array(384).fill(0.1),
-            metadata: { charStart: 0, charEnd: 5 }
+            metadata: {}
           }]
         },
       };

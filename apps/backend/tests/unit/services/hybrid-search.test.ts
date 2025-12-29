@@ -87,8 +87,6 @@ describe('HybridSearchService', () => {
             id,
             content,
             document_id: 'doc-1',
-            char_start: 0,
-            char_end: 100,
             page: null,
             heading: null,
             quality_score: null,

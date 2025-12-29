@@ -2,8 +2,7 @@ import { z } from 'zod';
 
 // Phase 4: Quality metadata in chunk
 const ChunkMetadataSchema = z.object({
-  charStart: z.number().optional(),
-  charEnd: z.number().optional(),
+
   location: z.record(z.unknown()).optional(),
   breadcrumbs: z.array(z.string()).optional(),
   qualityScore: z.number().optional(),

@@ -20,7 +20,7 @@ async def test_callback_payload_structure(monkeypatch):
                 "content": "chunk",
                 "index": 0,
                 "embedding": [0.1] * 384,
-                "metadata": {"charStart": 0, "charEnd": 5},
+                "metadata": {},
             }
         ],
         page_count=1,

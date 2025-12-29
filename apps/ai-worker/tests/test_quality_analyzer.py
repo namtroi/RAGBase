@@ -52,12 +52,22 @@ class TestQualityFlags:
 
 
 class TestQualityScore:
-    """Tests for quality scoring."""
+    """Tests for quality scoring using multi-factor system."""
 
     def test_perfect_score(self, analyzer):
-        """No issues results in score 1.0."""
+        """A well-formed chunk with ideal length achieves score 1.0."""
+        # Create content with ~1000 chars (ideal_length) to max out length_score
+        # - Has title (starts with #) -> context_score = 1.0
+        # - Has breadcrumbs -> context_score = 1.0
+        # - Ends with period -> completeness_score = 1.0
+        # - No flags -> base_quality = 1.0
+        # - Length ~1000 chars -> length_score = 1.0
+        # Score = 1.0*0.4 + 1.0*0.3 + 1.0*0.2 + 1.0*0.1 = 1.0
+        content = (
+            "# Title\n\n" + "This is a great paragraph with meaningful content. " * 20
+        )
         chunk = {
-            "content": "# Title\n\nThis is a complete sentence with enough content to pass the minimum threshold.",
+            "content": content,
             "metadata": {"breadcrumbs": ["Title"]},
         }
         result = analyzer.analyze(chunk)
@@ -65,12 +75,20 @@ class TestQualityScore:
         assert result["flags"] == []
 
     def test_penalty_per_flag(self, analyzer):
-        """Each flag reduces the score."""
-        # Too short + no context = 2 flags
+        """Flags reduce score via multi-factor weighted calculation."""
+        # "Hi." = 3 chars -> TOO_SHORT flag, no breadcrumbs -> NO_CONTEXT flag
+        # Ends with '.' -> ends_properly = True, no FRAGMENT flag
+        # Calculations:
+        # - base_quality = 1.0 - (0.15 * 2) = 0.70
+        # - length_score = min(1.0, 3/1000) = 0.003
+        # - context_score = 0.5 (no title, no breadcrumbs)
+        # - completeness_score = 1.0 (ends properly)
+        # Score = 0.70*0.4 + 0.003*0.3 + 0.5*0.2 + 1.0*0.1 = 0.28 + 0.001 + 0.1 + 0.1 = 0.48
         chunk = {"content": "Hi.", "metadata": {"breadcrumbs": []}}
         result = analyzer.analyze(chunk)
         assert result["score"] < 1.0
-        assert result["score"] == 1.0 - (0.15 * len(result["flags"]))
+        # Verify the exact calculation with multi-factor scoring
+        assert result["score"] == 0.48
 
 
 class TestQualityMetrics:

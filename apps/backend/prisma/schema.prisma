@@ -99,8 +99,7 @@ model Chunk {
   content     String
   chunkIndex  Int      @map("chunk_index")
   embedding   Unsupported("vector(384)")
-  charStart   Int      @map("char_start")
-  charEnd     Int      @map("char_end")
+
   page        Int?
   heading     String?
   createdAt   DateTime @default(now()) @map("created_at")

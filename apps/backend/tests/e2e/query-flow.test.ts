@@ -111,8 +111,8 @@ desired behaviors and punishing undesired ones.`,
         const embedding = mockEmbedding(`chunk ${i} content`);
         const embeddingStr = `[${embedding.join(',')}]`;
         await prisma.$executeRaw`
-          INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, created_at)
-          VALUES (gen_random_uuid(), ${doc.id}, ${`Chunk ${i} with searchable content`}, ${i}, ${embeddingStr}::vector, ${i * 100}, ${(i + 1) * 100}, NOW())
+          INSERT INTO chunks (id, document_id, content, chunk_index, embedding, created_at)
+          VALUES (gen_random_uuid(), ${doc.id}, ${`Chunk ${i} with searchable content`}, ${i}, ${embeddingStr}::vector, NOW())
         `;
       }
 
@@ -146,8 +146,8 @@ desired behaviors and punishing undesired ones.`,
         const embedding = mockEmbedding(contents[i]);
         const embeddingStr = `[${embedding.join(',')}]`;
         await prisma.$executeRaw`
-          INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, created_at)
-          VALUES (gen_random_uuid(), ${doc.id}, ${contents[i]}, ${i}, ${embeddingStr}::vector, ${i * 50}, ${(i + 1) * 50}, NOW())
+          INSERT INTO chunks (id, document_id, content, chunk_index, embedding, created_at)
+          VALUES (gen_random_uuid(), ${doc.id}, ${contents[i]}, ${i}, ${embeddingStr}::vector, NOW())
         `;
       }
 
@@ -176,8 +176,8 @@ desired behaviors and punishing undesired ones.`,
       const embedding = mockEmbedding('test content');
       const embeddingStr = `[${embedding.join(',')}]`;
       await prisma.$executeRaw`
-        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, page, heading, created_at)
-        VALUES (gen_random_uuid(), ${doc.id}, 'Test content for metadata check', 0, ${embeddingStr}::vector, 0, 30, 5, 'Chapter 1', NOW())
+        INSERT INTO chunks (id, document_id, content, chunk_index, embedding, page, heading, created_at)
+        VALUES (gen_random_uuid(), ${doc.id}, 'Test content for metadata check', 0, ${embeddingStr}::vector, 5, 'Chapter 1', NOW())
       `;
 
       const queryResponse = await app.inject({
@@ -191,8 +191,6 @@ desired behaviors and punishing undesired ones.`,
       const result = queryResponse.json().results[0];
 
       expect(result.metadata).toBeDefined();
-      expect(result.metadata.charStart).toBe(0);
-      expect(result.metadata.charEnd).toBe(30);
       expect(result.metadata.page).toBe(5);
       expect(result.metadata.heading).toBe('Chapter 1');
     }, 30000);

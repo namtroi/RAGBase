@@ -29,6 +29,7 @@ class QualityAnalyzer:
         self,
         min_chars: int = 50,
         max_chars: int = 2000,
+        ideal_length: int = 1000,
         penalty_per_flag: float = 0.15,
     ):
         """Initialize analyzer with configurable thresholds.
@@ -36,15 +37,23 @@ class QualityAnalyzer:
         Args:
             min_chars: Minimum characters for a chunk to be considered complete.
             max_chars: Maximum characters before flagging as TOO_LONG.
+            ideal_length: Target chunk size for optimal length score.
             penalty_per_flag: Score reduction per quality flag.
         """
         self.min_chars = min_chars
         self.max_chars = max_chars
+        self.ideal_length = ideal_length
         self.penalty_per_flag = penalty_per_flag
 
     def analyze(self, chunk: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Analyze a chunk and return quality metrics.
+        Analyze a chunk and return quality metrics using multi-factor scoring.
+
+        Factors:
+        - Base quality (40%): Penalty-based on flags
+        - Length score (30%): Proportional to ideal length
+        - Context score (20%): Has title/breadcrumbs
+        - Completeness (10%): Ends properly
 
         Args:
             chunk: Dict with 'content' and 'metadata' keys.
@@ -80,7 +89,7 @@ class QualityAnalyzer:
         if char_count > self.max_chars:
             flags.append(QualityFlag.TOO_LONG)
 
-        # 4. Check NO_CONTEXT
+        # 4. Check context
         has_title = stripped.startswith("#") or stripped.startswith(">")
         has_breadcrumbs = len(breadcrumbs) > 0
         if not has_title and not has_breadcrumbs:
@@ -89,13 +98,35 @@ class QualityAnalyzer:
         # 5. Check FRAGMENT (ends mid-sentence)
         sentence_enders = (".", "!", "?", ":", "```", ">")
         last_char = stripped.rstrip()[-1] if stripped.rstrip() else ""
-        if last_char not in sentence_enders and not stripped.endswith("```"):
+        ends_properly = last_char in sentence_enders or stripped.endswith("```")
+        if not ends_properly:
             flags.append(QualityFlag.FRAGMENT)
 
-        # Calculate score
-        score = max(0.0, 1.0 - (self.penalty_per_flag * len(flags)))
+        # === Multi-Factor Score Calculation ===
 
-        # Determine completeness
+        # Factor 1: Base quality (40%) - flag penalty
+        flag_penalty = self.penalty_per_flag * len(flags)
+        base_quality = max(0.0, 1.0 - flag_penalty)
+
+        # Factor 2: Length score (30%) - proportional to ideal chunk size
+        # Score increases as chunk approaches ideal_length, capped at 1.0
+        length_score = min(1.0, char_count / self.ideal_length)
+
+        # Factor 3: Context score (20%) - has structural markers
+        context_score = 1.0 if (has_title or has_breadcrumbs) else 0.5
+
+        # Factor 4: Completeness score (10%) - ends properly
+        completeness_score = 1.0 if ends_properly else 0.7
+
+        # Weighted average
+        score = (
+            base_quality * 0.40
+            + length_score * 0.30
+            + context_score * 0.20
+            + completeness_score * 0.10
+        )
+
+        # Determine completeness label
         if QualityFlag.FRAGMENT in flags:
             completeness = "partial"
         elif QualityFlag.EMPTY in flags:
@@ -105,7 +136,7 @@ class QualityAnalyzer:
 
         return {
             "flags": flags,
-            "score": score,
+            "score": round(score, 2),
             "char_count": char_count,
             "has_title": has_title,
             "completeness": completeness,

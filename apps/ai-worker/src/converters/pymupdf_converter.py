@@ -2,6 +2,7 @@
 """Fast PDF converter using PyMuPDF4LLM."""
 
 import gc
+import re
 from pathlib import Path
 
 from src.logging_config import get_logger
@@ -51,6 +52,7 @@ class PyMuPDFConverter(FormatConverter):
 
             # Sanitize and normalize
             markdown = self._sanitize_raw(markdown)
+            markdown = self._strip_hidden_links(markdown)
             markdown = self._post_process_pdf(markdown)
 
             # Get page count
@@ -95,3 +97,15 @@ class PyMuPDFConverter(FormatConverter):
                 return len(doc)
         except Exception:
             return 1
+
+    def _strip_hidden_links(self, markdown: str) -> str:
+        """
+        Strip markdown link formatting, keeping display text only.
+        PyMuPDF4LLM extracts hidden hyperlinks; we remove the link syntax.
+        Example: [Click here](https://...) -> Click here
+        Handles nested brackets: [Text [note]](url) -> Text [note]
+        """
+        # Pattern handles one level of nested brackets in link text
+        # [non-brackets [non-brackets] non-brackets](url)
+        pattern = r"\[([^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*)\]\([^)]+\)"
+        return re.sub(pattern, r"\1", markdown)

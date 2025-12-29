@@ -112,9 +112,6 @@ export function ChunkCard({ chunk }: ChunkCardProps) {
 
             {/* Footer: Extra metadata */}
             <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
-                <span>
-                    <span className="text-gray-400">Chars:</span> {chunk.charStart} - {chunk.charEnd}
-                </span>
                 {chunk.completeness && (
                     <span>
                         <span className="text-gray-400">Completeness:</span> {chunk.completeness}

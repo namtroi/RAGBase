@@ -43,8 +43,6 @@ export interface QueryResult {
   vectorScore?: number;
   keywordScore?: number;
   metadata: {
-    charStart: number;
-    charEnd: number;
     page?: number;
     heading?: string;
     qualityScore?: number;
@@ -254,8 +252,6 @@ export interface ChunkListItem {
   formatCategory: string | null;
   index: number;
   content: string;
-  charStart: number;
-  charEnd: number;
   qualityScore: number | null;
   chunkType: string | null;
   completeness: string | null;
@@ -271,8 +267,6 @@ export interface ChunkDetail {
   document: { id: string; filename: string; format: string; formatCategory: string | null };
   index: number;
   content: string;
-  charStart: number;
-  charEnd: number;
   qualityScore: number | null;
   qualityFlags: string[];
   chunkType: string | null;
@@ -292,6 +286,8 @@ export interface ChunksListParams {
   type?: 'document' | 'presentation' | 'tabular';
   flags?: string;
   search?: string;
+  sortBy?: 'index' | 'tokenCount' | 'qualityScore';
+  sortOrder?: 'asc' | 'desc';
 }
 
 // Analytics endpoints
@@ -336,6 +332,8 @@ export const chunksApi = {
     if (params?.type) query.set('type', params.type);
     if (params?.flags) query.set('flags', params.flags);
     if (params?.search) query.set('search', params.search);
+    if (params?.sortBy) query.set('sortBy', params.sortBy);
+    if (params?.sortOrder) query.set('sortOrder', params.sortOrder);
     const queryStr = query.toString();
     return api.get<{ chunks: ChunkListItem[]; pagination: { total: number; page: number; limit: number; totalPages: number } }>(
       `/chunks${queryStr ? `?${queryStr}` : ''}`

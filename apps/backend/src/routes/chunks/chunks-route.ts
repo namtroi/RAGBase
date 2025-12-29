@@ -10,7 +10,23 @@ const ChunksQuerySchema = z.object({
   type: z.enum(['document', 'presentation', 'tabular']).optional(),
   flags: z.string().optional(), // Comma-separated flags
   search: z.string().optional(),
+  sortBy: z.enum(['index', 'tokenCount', 'qualityScore']).optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
 });
+
+type SortByField = 'index' | 'tokenCount' | 'qualityScore';
+type SortOrder = 'asc' | 'desc';
+
+function buildOrderBy(sortBy?: SortByField, sortOrder?: SortOrder) {
+  if (sortBy === 'tokenCount') {
+    return [{ tokenCount: sortOrder || 'desc' }];
+  }
+  if (sortBy === 'qualityScore') {
+    return [{ qualityScore: sortOrder || 'desc' }];
+  }
+  // Default: by document then index
+  return [{ documentId: 'asc' as const }, { chunkIndex: 'asc' as const }];
+}
 
 export async function chunksRoute(fastify: FastifyInstance): Promise<void> {
   /**
@@ -27,7 +43,7 @@ export async function chunksRoute(fastify: FastifyInstance): Promise<void> {
       });
     }
 
-    const { page, limit, documentId, quality, type, flags, search } = queryResult.data;
+    const { page, limit, documentId, quality, type, flags, search, sortBy, sortOrder } = queryResult.data;
     const prisma = getPrismaClient();
     const offset = (page - 1) * limit;
 
@@ -73,8 +89,6 @@ export async function chunksRoute(fastify: FastifyInstance): Promise<void> {
           documentId: true,
           chunkIndex: true,
           content: true,
-          charStart: true,
-          charEnd: true,
           qualityScore: true,
           qualityFlags: true,
           chunkType: true,
@@ -90,10 +104,7 @@ export async function chunksRoute(fastify: FastifyInstance): Promise<void> {
             },
           },
         },
-        orderBy: [
-          { documentId: 'asc' },
-          { chunkIndex: 'asc' },
-        ],
+        orderBy: buildOrderBy(sortBy, sortOrder),
         skip: offset,
         take: limit,
       }),
@@ -109,8 +120,6 @@ export async function chunksRoute(fastify: FastifyInstance): Promise<void> {
         formatCategory: c.document.formatCategory,
         index: c.chunkIndex,
         content: c.content, // Full content, no truncation
-        charStart: c.charStart,
-        charEnd: c.charEnd,
         qualityScore: c.qualityScore,
         qualityFlags: c.qualityFlags,
         chunkType: c.chunkType,
@@ -143,8 +152,6 @@ export async function chunksRoute(fastify: FastifyInstance): Promise<void> {
         documentId: true,
         chunkIndex: true,
         content: true,
-        charStart: true,
-        charEnd: true,
         qualityScore: true,
         qualityFlags: true,
         chunkType: true,
@@ -178,8 +185,6 @@ export async function chunksRoute(fastify: FastifyInstance): Promise<void> {
       document: chunk.document,
       index: chunk.chunkIndex,
       content: chunk.content,
-      charStart: chunk.charStart,
-      charEnd: chunk.charEnd,
       qualityScore: chunk.qualityScore,
       qualityFlags: chunk.qualityFlags,
       chunkType: chunk.chunkType,

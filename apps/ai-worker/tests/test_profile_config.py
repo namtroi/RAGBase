@@ -142,14 +142,19 @@ class TestQualityAnalyzerWithConfig:
         assert "TOO_LONG" in [f.value for f in result["flags"]]
 
     def test_custom_penalty(self):
-        """Analyzer should use custom penalty_per_flag."""
+        """Analyzer should use custom penalty_per_flag in multi-factor scoring."""
         analyzer = QualityAnalyzer(penalty_per_flag=0.25)
 
         # A short chunk (30 chars < 50 min) without context will have:
         # - TOO_SHORT flag
         # - NO_CONTEXT flag (no heading/breadcrumbs)
         # - FRAGMENT flag (doesn't end with sentence ender)
-        # Score = max(0.0, 1.0 - (3 flags * 0.25)) = 0.25
+        # Multi-factor calculation:
+        # - base_quality = max(0.0, 1.0 - (3 * 0.25)) = 0.25
+        # - length_score = min(1.0, 30/1000) = 0.03
+        # - context_score = 0.5 (no title/breadcrumbs)
+        # - completeness_score = 0.7 (fragment)
+        # Score = 0.25*0.4 + 0.03*0.3 + 0.5*0.2 + 0.7*0.1 = 0.1 + 0.009 + 0.1 + 0.07 = 0.279 -> rounds to 0.28
         chunk = {"content": "x" * 30, "metadata": {}}
         result = analyzer.analyze(chunk)
-        assert result["score"] == pytest.approx(0.25, abs=0.01)
+        assert result["score"] == pytest.approx(0.28, abs=0.01)

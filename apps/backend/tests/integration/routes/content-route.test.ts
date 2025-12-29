@@ -119,8 +119,8 @@ describe('GET /api/documents/:id/content', () => {
             // Create a chunk using raw SQL (chunks table has pgvector)
             const dummyEmbedding = `[${Array(384).fill(0.1).join(',')}]`;
             await prisma.$executeRaw`
-              INSERT INTO chunks (id, document_id, content, chunk_index, embedding, char_start, char_end, created_at)
-              VALUES (gen_random_uuid(), ${doc.id}, ${'Test chunk content'}, ${0}, ${dummyEmbedding}::vector, ${0}, ${18}, NOW())
+              INSERT INTO chunks (id, document_id, content, chunk_index, embedding, created_at)
+              VALUES (gen_random_uuid(), ${doc.id}, ${'Test chunk content'}, ${0}, ${dummyEmbedding}::vector, NOW())
             `;
 
             const response = await app.inject({
