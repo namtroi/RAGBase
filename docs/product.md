@@ -73,7 +73,7 @@
 
 ### Storage
 - **Primary DB:** PostgreSQL 16+
-- **Vector DB:** Qdrant (Hybrid Search: Dense + Sparse vectors)
+- **Vector DB:** Qdrant Cloud (Managed Hybrid Search: Dense + Sparse vectors)
 - **Cache/Queue:** Redis 7+
 - **Security:** AES-256-GCM for encrypted OAuth tokens
 

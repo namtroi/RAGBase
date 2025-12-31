@@ -91,9 +91,9 @@ graph LR
 # Security
 APP_ENCRYPTION_KEY=... # 32-byte hex string
 
-# Qdrant
-QDRANT_URL=http://localhost:6333
-QDRANT_API_KEY=...
+# Qdrant (Managed Cloud Service)
+QDRANT_URL=https://your-cluster-url.qdrant.io:6333
+QDRANT_API_KEY=your-secret-api-key
 QDRANT_COLLECTION=ragbase_hybrid
 
 # Feature Flags

@@ -614,24 +614,22 @@ fastembed>=0.3.0
 
 ---
 
-## Docker Compose Update
+## Qdrant Cloud Setup
 
-```yaml
-# docker-compose.yml
-services:
-  qdrant:
-    image: qdrant/qdrant:v1.12.0
-    ports:
-      - "6333:6333"
-      - "6334:6334"  # gRPC
-    volumes:
-      - qdrant_data:/qdrant/storage
-    environment:
-      - QDRANT__SERVICE__GRPC_PORT=6334
+Instead of self-hosting, we use **Qdrant Cloud** (Managed Service) for Phase 5.
 
-volumes:
-  qdrant_data:
-```
+### Setup Steps:
+1.  **Create Account**: Sign up at [cloud.qdrant.io](https://cloud.qdrant.io/).
+2.  **Create Cluster**: Create a free-tier or paid cluster.
+3.  **Get Credentials**:
+    -   **Cluster URL**: e.g., `https://xxxxxx.eu-central-1.aws.cloud.qdrant.io:6333`
+    -   **API Key**: Generate a read-write API key from the dashboard.
+4.  **Create Collection**: Run the initialization script (Part 5C.1) to create the hybrid collection.
+
+### Benefits of Cloud:
+-   Zero maintenance (backups, updates handled).
+-   Seamless scaling from free tier to production.
+-   Built-in monitoring dashboard.
 
 ---
 
