@@ -48,7 +48,7 @@ graph TB
         Worker[AI Worker] -->|Dense + Sparse| Backend
         Backend -->|Insert PENDING| Postgres[(PostgreSQL)]
         Postgres -->|Poll| SyncJob[Qdrant Sync Job]
-        SyncJob -->|Upsert| Qdrant[(Qdrant)]
+        SyncJob -->|Upsert| QdrantCloud[(Qdrant Cloud)]
         SyncJob -->|Update SYNCED + NULL vectors| Postgres
     end
     
@@ -56,8 +56,8 @@ graph TB
         User -->|Query| Backend2[Backend]
         Backend2 -->|Embed| Worker2[AI Worker]
         Worker2 -->|Dense + Sparse| Backend2
-        Backend2 -->|Hybrid Search| Qdrant2[(Qdrant)]
-        Qdrant2 -->|Chunk IDs| Backend2
+        Backend2 -->|Hybrid Search| QdrantCloud2[(Qdrant Cloud)]
+        QdrantCloud2 -->|Chunk IDs| Backend2
         Backend2 -->|Fetch content| Postgres2[(PostgreSQL)]
         Backend2 -->|Results| User
     end
@@ -283,24 +283,71 @@ class QdrantService {
   "sparse_vectors": {
     "sparse": {
       "index": {
-        "on_disk": true
+        "on_disk": true  // Critical for Free tier (1GB)
       }
     }
   }
 }
 ```
 
+> **⚠️ Qdrant Cloud Free Tier Warning:**
+> - Free tier = 1GB storage
+> - Sparse vectors can grow fast (~5K chunks may fill tier)
+> - Monitor via Qdrant Dashboard, upgrade to Starter (4GB) for production
+> - `on_disk: true` is already set to save RAM
+
 ### 5C.3 Environment Variables
 
 ```bash
 # .env
-QDRANT_URL=http://localhost:6333
-QDRANT_API_KEY=           # Optional for local dev
+# Qdrant Cloud
+QDRANT_URL=https://<cluster-id>.us-east4-0.gcp.cloud.qdrant.io:6333
+QDRANT_API_KEY=<your-api-key>  # Required for Qdrant Cloud
 QDRANT_COLLECTION=ragbase_hybrid
 VECTOR_DB_PROVIDER=qdrant  # Feature flag: "pgvector" | "qdrant"
 ```
 
-### 5C.4 TDD Test Cases
+**Qdrant Cloud Setup:**
+1. Create account at [cloud.qdrant.io](https://cloud.qdrant.io)
+2. Create cluster (Free tier: 1GB, Starter: 4GB+)
+3. Copy cluster URL and API key to `.env`
+4. Collection auto-created by `QdrantService.ensureCollection()`
+
+### 5C.4 Hybrid Search with Query API (Qdrant 1.10+)
+
+**Use Qdrant's Prefetch + Fusion for server-side RRF** (no manual calculation):
+
+```typescript
+// QdrantService.hybridSearch - Using Query API
+async hybridSearch(params: HybridSearchParams): Promise<SearchResult[]> {
+  const response = await this.client.query(COLLECTION_NAME, {
+    prefetch: [
+      {
+        query: params.sparse,  // Sparse vector
+        using: 'sparse',
+        limit: params.topK * 2
+      }
+    ],
+    query: params.dense,       // Dense vector
+    using: 'dense',
+    limit: params.topK,
+    with_payload: true,        // Returns content directly!
+  });
+  
+  return response.points.map(p => ({
+    id: p.id as string,
+    score: p.score,
+    payload: p.payload as ChunkPayload
+  }));
+}
+```
+
+**Benefits:**
+- RRF fusion computed server-side (faster)
+- Single round-trip to Qdrant Cloud
+- Payload includes content (no PostgreSQL fetch needed)
+
+### 5C.5 TDD Test Cases
 
 ```typescript
 // apps/backend/tests/integration/qdrant.service.test.ts
@@ -429,42 +476,35 @@ describe('QdrantSyncProcessor', () => {
 **File:** `apps/backend/src/services/hybrid-search.ts`
 
 ```typescript
-// Before: pgvector + tsvector
-// After: Qdrant hybrid
+// Before: pgvector + tsvector + PostgreSQL fetch
+// After: Qdrant Cloud hybrid - content from payload (no DB roundtrip)
 
 class HybridSearchService {
   async search(params: HybridSearchParams): Promise<SearchResult[]> {
     // 1. Get query embeddings from AI Worker
     const queryVectors = await aiWorkerClient.embed(params.queryText);
     
-    // 2. Qdrant hybrid search
-    const qdrantResults = await qdrantService.hybridSearch({
+    // 2. Qdrant hybrid search (returns content in payload)
+    const results = await qdrantService.hybridSearch({
       dense: queryVectors.dense,
       sparse: queryVectors.sparse,
       topK: params.topK
     });
     
-    // 3. Fetch content from PostgreSQL
-    const chunkIds = qdrantResults.map(r => r.id);
-    const chunks = await prisma.chunk.findMany({
-      where: { id: { in: chunkIds } },
-      include: { document: true }
-    });
-    
-    // 4. Merge scores with content
-    return qdrantResults.map(r => {
-      const chunk = chunks.find(c => c.id === r.id);
-      return {
-        id: r.id,
-        content: chunk.content,
-        documentId: chunk.documentId,
-        score: r.score,
-        metadata: { ... }
-      };
-    });
+    // 3. Map results - content from Qdrant payload (no PostgreSQL fetch!)
+    return results.map(r => ({
+      id: r.id,
+      content: r.payload.content,
+      documentId: r.payload.documentId,
+      score: r.score,
+      metadata: r.payload.metadata
+    }));
   }
 }
 ```
+
+> **Note:** PostgreSQL is now "Cold Storage" - only for backup/re-sync.
+> Search is 100% from Qdrant Cloud.
 
 ### 5E.2 Query Embedding Endpoint
 
@@ -512,37 +552,50 @@ describe('Hybrid Search (Qdrant)', () => {
 
 ---
 
-## Database Migration Plan
+## Database Schema Changes (Dev Phase)
 
-### Migration 1: Add Chunk sync columns
+> **Note:** Dev phase - no migrations needed. Drop database and recreate with new schema.
 
-```sql
--- 20250101_add_chunk_sync_status.sql
-ALTER TABLE chunks ADD COLUMN sync_status VARCHAR(20) DEFAULT 'PENDING';
-ALTER TABLE chunks ADD COLUMN qdrant_id VARCHAR(255);
-ALTER TABLE chunks ADD COLUMN dense_vector FLOAT[];
-ALTER TABLE chunks ADD COLUMN sparse_indices INTEGER[];
-ALTER TABLE chunks ADD COLUMN sparse_values FLOAT[];
-
-CREATE INDEX idx_chunks_sync_status ON chunks(sync_status);
+```bash
+# Reset database (dev only)
+cd apps/backend
+npx prisma db push --force-reset
 ```
 
-### Migration 2: Add DriveConfig encryption columns
+### Chunk Model (New Fields)
 
-```sql
--- 20250102_add_drive_config_encryption.sql
-ALTER TABLE drive_configs ADD COLUMN encrypted_refresh_token TEXT;
-ALTER TABLE drive_configs ADD COLUMN token_iv VARCHAR(32);
-ALTER TABLE drive_configs ADD COLUMN token_auth_tag VARCHAR(32);
+```prisma
+model Chunk {
+  // ... existing fields ...
+  
+  // Qdrant sync
+  syncStatus     SyncStatus  @default(PENDING) @map("sync_status")
+  qdrantId       String?     @map("qdrant_id")
+  
+  // Vectors (nullable after sync to Qdrant Cloud)
+  denseVector    Float[]?    @map("dense_vector")
+  sparseIndices  Int[]?      @map("sparse_indices")
+  sparseValues   Float[]?    @map("sparse_values")
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+}
 ```
 
-### Migration 3: Backfill existing data
+### DriveConfig Model (New Fields)
 
-```sql
--- Run via script, not migration
--- 1. Generate vectors for existing chunks (via AI Worker)
--- 2. Sync to Qdrant
--- 3. Mark as SYNCED, nullify vectors
+```prisma
+model DriveConfig {
+  // ... existing fields ...
+  
+  // Encrypted OAuth tokens (AES-256-GCM)
+  encryptedRefreshToken  String?  @map("encrypted_refresh_token")
+  tokenIv                String?  @map("token_iv")
+  tokenAuthTag           String?  @map("token_auth_tag")
+}
 ```
 
 ---
@@ -555,9 +608,9 @@ ALTER TABLE drive_configs ADD COLUMN token_auth_tag VARCHAR(32);
 # Security
 APP_ENCRYPTION_KEY=<64-char-hex>  # openssl rand -hex 32
 
-# Qdrant
-QDRANT_URL=http://localhost:6333
-QDRANT_API_KEY=
+# Qdrant Cloud
+QDRANT_URL=https://<cluster-id>.us-east4-0.gcp.cloud.qdrant.io:6333
+QDRANT_API_KEY=<your-api-key>
 QDRANT_COLLECTION=ragbase_hybrid
 
 # Feature Flags
@@ -616,20 +669,28 @@ fastembed>=0.3.0
 
 ## Qdrant Cloud Setup
 
-Instead of self-hosting, we use **Qdrant Cloud** (Managed Service) for Phase 5.
+### Cluster Configuration
 
-### Setup Steps:
-1.  **Create Account**: Sign up at [cloud.qdrant.io](https://cloud.qdrant.io/).
-2.  **Create Cluster**: Create a free-tier or paid cluster.
-3.  **Get Credentials**:
-    -   **Cluster URL**: e.g., `https://xxxxxx.eu-central-1.aws.cloud.qdrant.io:6333`
-    -   **API Key**: Generate a read-write API key from the dashboard.
-4.  **Create Collection**: Run the initialization script (Part 5C.1) to create the hybrid collection.
+| Setting | Value |
+|---------|-------|
+| **Provider** | GCP / AWS / Azure |
+| **Region** | us-east4 (or nearest) |
+| **Tier** | Free (1GB) → Starter (4GB+) for production |
+| **Collection** | `ragbase_hybrid` (auto-created) |
 
-### Benefits of Cloud:
--   Zero maintenance (backups, updates handled).
--   Seamless scaling from free tier to production.
--   Built-in monitoring dashboard.
+### Connection
+
+```typescript
+// apps/backend/src/services/qdrant.service.ts
+import { QdrantClient } from '@qdrant/js-client-rest';
+
+const client = new QdrantClient({
+  url: process.env.QDRANT_URL,      // https://<cluster>.cloud.qdrant.io:6333
+  apiKey: process.env.QDRANT_API_KEY
+});
+```
+
+**No local container needed** - fully managed cloud service.
 
 ---
 

@@ -3,7 +3,7 @@
 **Slogan:** _The "Set & Forget" Data Pipeline for Enterprise RAG._  
 **(Open Source | Self-Hosted | Structure-Aware | Production-Ready)**
 
-**Status:** Phase 4 Complete | Phase 5 Planned (Qdrant & Security)
+**Status:** Phase 4 Complete (2025-12-27)
 
 ---
 
@@ -60,7 +60,7 @@
 - **Runtime:** Python 3.11+
 - **Framework:** FastAPI 0.126
 - **Converters:** Docling (PDF/DOCX/PPTX), BeautifulSoup (HTML), EbookLib (EPUB), OpenPyXL (XLSX), Pandas (CSV)
-- **Embedding:** fastembed (Dense: bge-small-en-v1.5, Sparse: SPLADE)
+- **Embedding:** sentence-transformers (bge-small-en-v1.5, 384d)
 - **Chunking:** LangChain 0.3 (category-aware: document/presentation/tabular)
 - **Quality:** Analyzer + Auto-fix (TOO_SHORT, TOO_LONG, NO_CONTEXT, FRAGMENT)
 - **HTTP Client:** httpx 0.28
@@ -72,10 +72,9 @@
 - **Data Fetching:** React Query + SSE (real-time updates)
 
 ### Storage
-- **Primary DB:** PostgreSQL 16+
-- **Vector DB:** Qdrant Cloud (Managed Hybrid Search: Dense + Sparse vectors)
+- **Database:** PostgreSQL 16+ with pgvector
+- **Vector Search:** Cosine similarity (384d embeddings)
 - **Cache/Queue:** Redis 7+
-- **Security:** AES-256-GCM for encrypted OAuth tokens
 
 ---
 
@@ -172,17 +171,6 @@ Upload (any format) → Queue → Job Processor
 - ✅ **Auto-Fix Rules** - Merge short, split long, inject context
 - ✅ **Token Count** - Accurate token counts via model tokenizer
 - ✅ **Strategy Pattern** - Unified pipeline with router → converter → pipeline flow
-
-### Phase 5 (Planned)
-- 📋 **Qdrant Hybrid Search** - Dense + Neural Sparse (SPLADE) with RRF fusion
-- 📋 **AES-256-GCM Security** - Millitary-grade encryption for Drive OAuth tokens
-- 📋 **Outbox Pattern Sync** - Staging vectors → Sync to Qdrant → Nullify in PostgreSQL
-
-### Phase 6 (Planned)
-- 📋 **Multi-tenant SaaS** - Supabase Auth, Stripe billing, Quota enforcement
-- 📋 **Per-user Drive OAuth** - Secure individual Drive access
-- 📋 **API Keys** - User-generated keys for programmatic access
-- 📋 **Data Export** - JSON archive (GDPR compliance)
 
 ### Production Features
 - ✅ Structured logging (Pino/structlog)
