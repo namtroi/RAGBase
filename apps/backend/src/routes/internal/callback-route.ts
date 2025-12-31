@@ -85,8 +85,23 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
         });
 
         for (const chunk of result.chunks) {
-          // Convert embedding array to PostgreSQL vector string format
-          const embeddingStr = `[${chunk.embedding.join(',')}]`;
+          // Phase 5: Support both old (embedding) and new (vector) formats
+          let denseVector: number[] = [];
+          let sparseIndices: number[] = [];
+          let sparseValues: number[] = [];
+          let embeddingStr = '[' + Array(384).fill(0).join(',') + ']';  // Default zero vector
+
+          if (chunk.vector) {
+            // New Phase 5 format: hybrid vector
+            denseVector = chunk.vector.dense;
+            sparseIndices = chunk.vector.sparse.indices;
+            sparseValues = chunk.vector.sparse.values;
+            embeddingStr = `[${denseVector.join(',')}]`;
+          } else if (chunk.embedding) {
+            // Legacy Phase 4 format: dense only
+            denseVector = chunk.embedding;
+            embeddingStr = `[${chunk.embedding.join(',')}]`;
+          }
 
           // Phase 4: Extract quality metadata
           const meta = chunk.metadata || {};
@@ -99,7 +114,8 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
               id, document_id, content, chunk_index, embedding, 
               heading, created_at,
               location, quality_score, quality_flags, chunk_type, 
-              completeness, has_title, breadcrumbs, token_count
+              completeness, has_title, breadcrumbs, token_count,
+              sync_status, dense_vector, sparse_indices, sparse_values
             )
             VALUES (
               gen_random_uuid(),
@@ -116,7 +132,11 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
               ${meta.completeness || null},
               ${meta.hasTitle || null},
               ${breadcrumbsArr},
-              ${meta.tokenCount || null}
+              ${meta.tokenCount || null},
+              'PENDING',
+              ${denseVector},
+              ${sparseIndices},
+              ${sparseValues}
             )
           `;
         }

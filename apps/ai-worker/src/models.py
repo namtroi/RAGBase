@@ -114,3 +114,33 @@ class EmbedResponse(BaseModel):
     """Response with generated embeddings."""
 
     embeddings: List[List[float]]
+
+
+# Phase 5: Hybrid Embedding Models for Query
+
+
+class SparseVectorModel(BaseModel):
+    """Sparse vector for BM25-style keyword matching."""
+
+    indices: List[int]
+    values: List[float]
+
+
+class HybridVectorModel(BaseModel):
+    """Combined dense + sparse vector for hybrid search."""
+
+    dense: List[float]
+    sparse: SparseVectorModel
+
+
+class HybridEmbedRequest(BaseModel):
+    """Request to generate hybrid embeddings for search query."""
+
+    text: str
+
+
+class HybridEmbedResponse(BaseModel):
+    """Response with hybrid embeddings for search."""
+
+    dense: List[float]
+    sparse: SparseVectorModel

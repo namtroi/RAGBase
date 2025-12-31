@@ -117,13 +117,27 @@ model Chunk {
   // Hybrid Search: BM25 full-text search vector
   searchVector   Unsupported("tsvector")?  @map("search_vector")
 
+  // Phase 5D: Qdrant Sync (Outbox Pattern)
+  syncStatus     ChunkSyncStatus  @default(PENDING) @map("sync_status")
+  denseVector    Float[]          @default([]) @map("dense_vector")
+  sparseIndices  Int[]            @default([]) @map("sparse_indices")
+  sparseValues   Float[]          @default([]) @map("sparse_values")
+
   document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@unique([documentId, chunkIndex])
   @@index([qualityScore])
   @@index([chunkType])
   @@index([searchVector], type: Gin)
+  @@index([syncStatus])
   @@map("chunks")
+}
+
+// Phase 5D: Chunk sync status for Qdrant outbox pattern
+enum ChunkSyncStatus {
+  PENDING
+  SYNCED
+  FAILED
 }
 
 model DriveConfig {
@@ -139,6 +153,11 @@ model DriveConfig {
   syncError     String?     @map("sync_error")
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  // Phase 5A: AES-256-GCM Encrypted OAuth Tokens
+  encryptedRefreshToken  String?  @map("encrypted_refresh_token")
+  tokenIv                String?  @map("token_iv")
+  tokenAuthTag           String?  @map("token_auth_tag")
 
   documents     Document[]
 

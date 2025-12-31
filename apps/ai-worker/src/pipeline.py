@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from .chunkers.document_chunker import DocumentChunker
 from .chunkers.presentation_chunker import PresentationChunker
 from .chunkers.tabular_chunker import TabularChunker
-from .embedder import Embedder
+from .hybrid_embedder import HybridEmbedder
 from .logging_config import get_logger
 from .models import ProfileConfig
 from .quality.analyzer import QualityAnalyzer
@@ -48,7 +48,8 @@ class ProcessingPipeline:
             penalty_per_flag=self.config.qualityPenaltyPerFlag,
         )
 
-        self.embedder = Embedder()
+        # Phase 5: Hybrid embedder (dense + sparse)
+        self.embedder = HybridEmbedder()
 
     def _strip_breadcrumb_prefix(self, content: str) -> str:
         """Remove breadcrumb prefix (> Chapter > Section) from content."""
@@ -291,15 +292,22 @@ class ProcessingPipeline:
             chunk["metadata"]["chunkType"] = category
             chunk["index"] = i
 
-        # 4. Generate embeddings and token counts (with timing)
+        # 4. Generate hybrid embeddings and token counts (with timing)
         texts = [c["content"] for c in chunks]
         embed_start = time.time()
-        embeddings = self.embedder.embed(texts)
+        hybrid_vectors = self.embedder.embed(texts)
         token_counts = self.embedder.get_token_counts(texts)
         embedding_time_ms = int((time.time() - embed_start) * 1000)
 
         for i, chunk in enumerate(chunks):
-            chunk["embedding"] = embeddings[i]
+            # Phase 5: Hybrid vector format for Qdrant
+            chunk["vector"] = {
+                "dense": hybrid_vectors[i].dense,
+                "sparse": {
+                    "indices": hybrid_vectors[i].sparse.indices,
+                    "values": hybrid_vectors[i].sparse.values,
+                },
+            }
             chunk["metadata"]["tokenCount"] = token_counts[i]
 
         logger.info(

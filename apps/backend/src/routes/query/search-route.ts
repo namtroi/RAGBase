@@ -1,6 +1,7 @@
 import { getPrismaClient } from '@/services/database.js';
 import { EmbeddingClient } from '@/services/embedding-client.js';
 import { hybridSearchService } from '@/services/hybrid-search.js';
+import { qdrantHybridSearchService, shouldUseQdrantSearch } from '@/services/qdrant-hybrid-search.js';
 import { QuerySchema } from '@/validators/index.js';
 import { FastifyInstance } from 'fastify';
 
@@ -19,7 +20,31 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
 
     const { query, topK, mode, alpha } = input.data;
 
-    // Generate embedding for query via AI Worker
+    // Phase 5E: Use Qdrant when configured (VECTOR_DB_PROVIDER=qdrant)
+    if (shouldUseQdrantSearch()) {
+      try {
+        const qdrantResults = await qdrantHybridSearchService.search({
+          queryText: query,
+          topK,
+        });
+
+        return reply.send({
+          mode: 'qdrant_hybrid',
+          provider: 'qdrant',
+          results: qdrantResults.map(r => ({
+            content: r.content,
+            score: r.score,
+            documentId: r.documentId,
+            metadata: r.metadata,
+          })),
+        });
+      } catch (error: any) {
+        // Fallback to pgvector if Qdrant fails
+        request.log.warn({ error: error.message }, 'qdrant_search_failed_fallback');
+      }
+    }
+
+    // Generate embedding for query via AI Worker (for pgvector fallback)
     let queryEmbedding: number[];
     try {
       queryEmbedding = await embeddingClient.embed(query);
@@ -41,6 +66,7 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
 
       return reply.send({
         mode: 'hybrid',
+        provider: 'pgvector',
         alpha,
         results: hybridResults.map(r => ({
           content: r.content,
@@ -85,6 +111,7 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
 
     return reply.send({
       mode: 'semantic',
+      provider: 'pgvector',
       results: results.map(r => ({
         content: r.content,
         score: Math.max(0, r.similarity),  // Ensure non-negative scores
@@ -100,3 +127,4 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
     });
   });
 }
+
