@@ -1,0 +1,648 @@
+# Phase 5 Detailed Implementation Plan
+
+**Qdrant Hybrid Search + AES-256 Security** | **TDD Approach**
+
+---
+
+## Overview
+
+| Part | Name | Description | Status |
+|------|------|-------------|--------|
+| **5A** | AES-256-GCM Encryption | Encrypt/decrypt Drive OAuth tokens | ⬜ Planned |
+| **5B** | Neural Sparse Embeddings | Add SPLADE sparse vectors to AI Worker | ⬜ Planned |
+| **5C** | Qdrant Integration | Collection setup, upsert, hybrid search | ⬜ Planned |
+| **5D** | Outbox Pattern | Sync queue, cleanup, retry logic | ⬜ Planned |
+| **5E** | Search Migration | Replace pgvector/tsvector with Qdrant | ⬜ Planned |
+
+---
+
+## Architecture (Phase 5)
+
+### Current → Target
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                          CURRENT (Phase 4)                          │
+├─────────────────────────────────────────────────────────────────────┤
+│  AI Worker → Dense Vector (384d)                                    │
+│  Backend   → Store in PostgreSQL (pgvector)                         │
+│  Search    → pgvector + tsvector (BM25)                             │
+│  Drive     → Plain text refresh_token                               │
+└─────────────────────────────────────────────────────────────────────┘
+                                ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                          TARGET (Phase 5)                           │
+├─────────────────────────────────────────────────────────────────────┤
+│  AI Worker → Dense (384d) + Sparse (SPLADE indices/values)          │
+│  Backend   → Stage in PostgreSQL → Sync to Qdrant → Cleanup         │
+│  Search    → Qdrant Hybrid (RRF fusion)                             │
+│  Drive     → AES-256-GCM encrypted refresh_token                    │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow
+
+```mermaid
+graph TB
+    subgraph "Ingestion Path"
+        Worker[AI Worker] -->|Dense + Sparse| Backend
+        Backend -->|Insert PENDING| Postgres[(PostgreSQL)]
+        Postgres -->|Poll| SyncJob[Qdrant Sync Job]
+        SyncJob -->|Upsert| Qdrant[(Qdrant)]
+        SyncJob -->|Update SYNCED + NULL vectors| Postgres
+    end
+    
+    subgraph "Query Path"
+        User -->|Query| Backend2[Backend]
+        Backend2 -->|Embed| Worker2[AI Worker]
+        Worker2 -->|Dense + Sparse| Backend2
+        Backend2 -->|Hybrid Search| Qdrant2[(Qdrant)]
+        Qdrant2 -->|Chunk IDs| Backend2
+        Backend2 -->|Fetch content| Postgres2[(PostgreSQL)]
+        Backend2 -->|Results| User
+    end
+```
+
+---
+
+## Part 5A: AES-256-GCM Encryption
+
+### 5A.1 EncryptionService Spec
+
+**File:** `apps/backend/src/services/encryption.service.ts`
+
+```typescript
+interface EncryptedPayload {
+  ciphertext: string;  // Base64 encoded
+  iv: string;          // Base64 encoded (12 bytes)
+  authTag: string;     // Base64 encoded (16 bytes)
+}
+
+class EncryptionService {
+  constructor(keyHex: string);  // 32-byte hex (64 chars)
+  
+  encrypt(plaintext: string): EncryptedPayload;
+  decrypt(payload: EncryptedPayload): string;
+}
+```
+
+**Algorithm:**
+- Cipher: AES-256-GCM (AEAD)
+- Key: 32 bytes from `APP_ENCRYPTION_KEY` env
+- IV: 12 bytes, random per encryption
+- Auth Tag: 16 bytes (GCM default)
+
+### 5A.2 Schema Changes
+
+```prisma
+model DriveConfig {
+  // ... existing fields ...
+  
+  // NEW: Encrypted OAuth tokens
+  encryptedRefreshToken  String?  @map("encrypted_refresh_token")
+  tokenIv                String?  @map("token_iv")
+  tokenAuthTag           String?  @map("token_auth_tag")
+  
+  // DEPRECATED (keep for migration)
+  refreshToken           String?  @map("refresh_token")
+}
+```
+
+### 5A.3 TDD Test Cases
+
+```typescript
+// apps/backend/tests/unit/encryption.service.test.ts
+
+describe('EncryptionService', () => {
+  test('should encrypt and decrypt plaintext correctly');
+  test('should produce different ciphertext for same plaintext (random IV)');
+  test('should fail with invalid auth tag (tamper detection)');
+  test('should fail with invalid key length');
+  test('should handle empty string');
+  test('should handle unicode characters');
+});
+```
+
+---
+
+## Part 5B: Neural Sparse Embeddings
+
+### 5B.1 Embedder Updates
+
+**File:** `apps/ai-worker/src/embedder.py`
+
+```python
+from fastembed import TextEmbedding, SparseTextEmbedding
+
+class HybridEmbedder:
+    def __init__(self):
+        self.dense_model = TextEmbedding("BAAI/bge-small-en-v1.5")
+        self.sparse_model = SparseTextEmbedding("Qdrant/bm25")
+    
+    def embed(self, texts: List[str]) -> List[HybridVector]:
+        """Return combined dense + sparse vectors."""
+        dense = list(self.dense_model.embed(texts))
+        sparse = list(self.sparse_model.embed(texts))
+        
+        return [
+            HybridVector(
+                dense=d.tolist(),
+                sparse=SparseVector(
+                    indices=s.indices.tolist(),
+                    values=s.values.tolist()
+                )
+            )
+            for d, s in zip(dense, sparse)
+        ]
+```
+
+### 5B.2 Models Update
+
+```python
+# apps/ai-worker/src/models.py
+
+@dataclass
+class SparseVector:
+    indices: List[int]
+    values: List[float]
+
+@dataclass
+class HybridVector:
+    dense: List[float]       # 384 floats
+    sparse: SparseVector     # Variable length
+
+@dataclass
+class ChunkOutput:
+    content: str
+    metadata: Dict[str, Any]
+    vector: HybridVector     # Updated from List[float]
+```
+
+### 5B.3 API Response Schema
+
+```python
+# POST /callback response body
+{
+  "documentId": "uuid",
+  "processedContent": "...",
+  "chunks": [
+    {
+      "content": "...",
+      "metadata": {...},
+      "vector": {
+        "dense": [0.1, 0.2, ...],  # 384 floats
+        "sparse": {
+          "indices": [123, 456, ...],
+          "values": [0.8, 0.5, ...]
+        }
+      }
+    }
+  ]
+}
+```
+
+### 5B.4 TDD Test Cases
+
+```python
+# apps/ai-worker/tests/test_hybrid_embedder.py
+
+def test_embed_returns_dense_384_dimensions():
+    pass
+
+def test_embed_returns_sparse_indices_and_values():
+    pass
+
+def test_sparse_indices_are_sorted():
+    pass
+
+def test_embed_batch_returns_correct_count():
+    pass
+
+def test_empty_text_returns_valid_vectors():
+    pass
+```
+
+---
+
+## Part 5C: Qdrant Integration
+
+### 5C.1 QdrantService Spec
+
+**File:** `apps/backend/src/services/qdrant.service.ts`
+
+```typescript
+interface QdrantPoint {
+  id: string;           // Chunk UUID
+  vector: {
+    dense: number[];    // 384 floats
+    sparse: {
+      indices: number[];
+      values: number[];
+    };
+  };
+  payload: {
+    documentId: string;
+    content: string;
+    metadata: Record<string, unknown>;
+  };
+}
+
+interface HybridSearchParams {
+  dense: number[];
+  sparse: { indices: number[]; values: number[] };
+  topK: number;
+  filter?: QdrantFilter;
+}
+
+class QdrantService {
+  // Collection management
+  async ensureCollection(): Promise<void>;
+  
+  // CRUD
+  async upsertPoints(points: QdrantPoint[]): Promise<void>;
+  async deletePoints(ids: string[]): Promise<void>;
+  async deleteByDocumentId(documentId: string): Promise<void>;
+  
+  // Search
+  async hybridSearch(params: HybridSearchParams): Promise<SearchResult[]>;
+}
+```
+
+### 5C.2 Collection Schema
+
+```javascript
+// Qdrant collection configuration
+{
+  "collection_name": "ragbase_hybrid",
+  "vectors": {
+    "dense": {
+      "size": 384,
+      "distance": "Cosine"
+    }
+  },
+  "sparse_vectors": {
+    "sparse": {
+      "index": {
+        "on_disk": true
+      }
+    }
+  }
+}
+```
+
+### 5C.3 Environment Variables
+
+```bash
+# .env
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=           # Optional for local dev
+QDRANT_COLLECTION=ragbase_hybrid
+VECTOR_DB_PROVIDER=qdrant  # Feature flag: "pgvector" | "qdrant"
+```
+
+### 5C.4 TDD Test Cases
+
+```typescript
+// apps/backend/tests/integration/qdrant.service.test.ts
+
+describe('QdrantService', () => {
+  test('ensureCollection creates collection if not exists');
+  test('upsertPoints inserts new points');
+  test('upsertPoints updates existing points');
+  test('deletePoints removes points by ID');
+  test('deleteByDocumentId removes all chunks for document');
+  test('hybridSearch returns results sorted by RRF score');
+  test('hybridSearch with filter returns filtered results');
+});
+```
+
+---
+
+## Part 5D: Outbox Pattern (Sync Queue)
+
+### 5D.1 Schema Changes
+
+```prisma
+model Chunk {
+  // ... existing fields ...
+  
+  // NEW: Qdrant sync status
+  syncStatus     SyncStatus  @default(PENDING) @map("sync_status")
+  qdrantId       String?     @map("qdrant_id")
+  
+  // NEW: Vectors (nullable after sync)
+  denseVector    Float[]?    @map("dense_vector")
+  sparseIndices  Int[]?      @map("sparse_indices")
+  sparseValues   Float[]?    @map("sparse_values")
+  
+  // DEPRECATED: Will be removed after migration
+  embedding      Unsupported("vector(384)")
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+}
+```
+
+### 5D.2 Sync Job Processor
+
+**File:** `apps/backend/src/queue/qdrant-sync.processor.ts`
+
+```typescript
+// Job: qdrant-sync
+// Triggered: After document processing callback
+// Batch size: 100 chunks
+
+async function processQdrantSync(job: Job) {
+  // 1. Fetch PENDING chunks (limit 100)
+  const chunks = await prisma.chunk.findMany({
+    where: { syncStatus: 'PENDING' },
+    take: 100,
+    include: { document: true }
+  });
+  
+  // 2. Build Qdrant points
+  const points = chunks.map(c => ({
+    id: c.id,
+    vector: {
+      dense: c.denseVector,
+      sparse: { indices: c.sparseIndices, values: c.sparseValues }
+    },
+    payload: { documentId: c.documentId, content: c.content, ... }
+  }));
+  
+  // 3. Upsert to Qdrant
+  await qdrantService.upsertPoints(points);
+  
+  // 4. Update status + nullify vectors
+  await prisma.chunk.updateMany({
+    where: { id: { in: chunks.map(c => c.id) } },
+    data: {
+      syncStatus: 'SYNCED',
+      denseVector: null,
+      sparseIndices: null,
+      sparseValues: null
+    }
+  });
+}
+```
+
+### 5D.3 Retry Logic
+
+```typescript
+// BullMQ job options
+{
+  attempts: 3,
+  backoff: {
+    type: 'exponential',
+    delay: 5000  // 5s, 10s, 20s
+  }
+}
+
+// On max retries exceeded
+// Mark chunks as FAILED, log error
+```
+
+### 5D.4 TDD Test Cases
+
+```typescript
+// apps/backend/tests/integration/qdrant-sync.test.ts
+
+describe('QdrantSyncProcessor', () => {
+  test('syncs PENDING chunks to Qdrant');
+  test('updates syncStatus to SYNCED after success');
+  test('nullifies vectors in PostgreSQL after sync');
+  test('marks syncStatus as FAILED after max retries');
+  test('handles partial batch failure');
+  test('skips already SYNCED chunks');
+});
+```
+
+---
+
+## Part 5E: Search Migration
+
+### 5E.1 HybridSearchService Refactor
+
+**File:** `apps/backend/src/services/hybrid-search.ts`
+
+```typescript
+// Before: pgvector + tsvector
+// After: Qdrant hybrid
+
+class HybridSearchService {
+  async search(params: HybridSearchParams): Promise<SearchResult[]> {
+    // 1. Get query embeddings from AI Worker
+    const queryVectors = await aiWorkerClient.embed(params.queryText);
+    
+    // 2. Qdrant hybrid search
+    const qdrantResults = await qdrantService.hybridSearch({
+      dense: queryVectors.dense,
+      sparse: queryVectors.sparse,
+      topK: params.topK
+    });
+    
+    // 3. Fetch content from PostgreSQL
+    const chunkIds = qdrantResults.map(r => r.id);
+    const chunks = await prisma.chunk.findMany({
+      where: { id: { in: chunkIds } },
+      include: { document: true }
+    });
+    
+    // 4. Merge scores with content
+    return qdrantResults.map(r => {
+      const chunk = chunks.find(c => c.id === r.id);
+      return {
+        id: r.id,
+        content: chunk.content,
+        documentId: chunk.documentId,
+        score: r.score,
+        metadata: { ... }
+      };
+    });
+  }
+}
+```
+
+### 5E.2 Query Embedding Endpoint
+
+**File:** `apps/ai-worker/src/main.py`
+
+```python
+@app.post("/embed")
+async def embed_query(request: EmbedRequest) -> EmbedResponse:
+    """Embed query text for search (returns dense + sparse)."""
+    vectors = embedder.embed([request.text])
+    return EmbedResponse(
+        dense=vectors[0].dense,
+        sparse=vectors[0].sparse
+    )
+```
+
+### 5E.3 Feature Flag Migration
+
+```typescript
+// config.ts
+const VECTOR_DB_PROVIDER = process.env.VECTOR_DB_PROVIDER || 'pgvector';
+
+// hybrid-search.ts
+if (VECTOR_DB_PROVIDER === 'qdrant') {
+  return qdrantSearchService.search(params);
+} else {
+  return pgvectorSearchService.search(params);  // Legacy
+}
+```
+
+### 5E.4 TDD Test Cases
+
+```typescript
+// apps/backend/tests/e2e/hybrid-search-qdrant.test.ts
+
+describe('Hybrid Search (Qdrant)', () => {
+  test('returns results for semantic query');
+  test('returns results for keyword query');
+  test('combines semantic and keyword (RRF fusion)');
+  test('respects topK limit');
+  test('includes document metadata');
+  test('handles empty results gracefully');
+});
+```
+
+---
+
+## Database Migration Plan
+
+### Migration 1: Add Chunk sync columns
+
+```sql
+-- 20250101_add_chunk_sync_status.sql
+ALTER TABLE chunks ADD COLUMN sync_status VARCHAR(20) DEFAULT 'PENDING';
+ALTER TABLE chunks ADD COLUMN qdrant_id VARCHAR(255);
+ALTER TABLE chunks ADD COLUMN dense_vector FLOAT[];
+ALTER TABLE chunks ADD COLUMN sparse_indices INTEGER[];
+ALTER TABLE chunks ADD COLUMN sparse_values FLOAT[];
+
+CREATE INDEX idx_chunks_sync_status ON chunks(sync_status);
+```
+
+### Migration 2: Add DriveConfig encryption columns
+
+```sql
+-- 20250102_add_drive_config_encryption.sql
+ALTER TABLE drive_configs ADD COLUMN encrypted_refresh_token TEXT;
+ALTER TABLE drive_configs ADD COLUMN token_iv VARCHAR(32);
+ALTER TABLE drive_configs ADD COLUMN token_auth_tag VARCHAR(32);
+```
+
+### Migration 3: Backfill existing data
+
+```sql
+-- Run via script, not migration
+-- 1. Generate vectors for existing chunks (via AI Worker)
+-- 2. Sync to Qdrant
+-- 3. Mark as SYNCED, nullify vectors
+```
+
+---
+
+## Configuration Summary
+
+### Environment Variables (New)
+
+```bash
+# Security
+APP_ENCRYPTION_KEY=<64-char-hex>  # openssl rand -hex 32
+
+# Qdrant
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=
+QDRANT_COLLECTION=ragbase_hybrid
+
+# Feature Flags
+VECTOR_DB_PROVIDER=qdrant  # "pgvector" | "qdrant"
+```
+
+### Dependencies (New)
+
+**AI Worker:**
+```txt
+# requirements.txt
+fastembed>=0.3.0
+```
+
+**Backend:**
+```json
+// package.json
+{
+  "@qdrant/js-client-rest": "^1.12.0"
+}
+```
+
+---
+
+## Implementation Order (TDD)
+
+### Week 1: Security Layer
+1. Write `EncryptionService` tests
+2. Implement `EncryptionService`
+3. Add DriveConfig schema columns
+4. Update OAuth callback to encrypt
+5. Update SyncService to decrypt
+
+### Week 2: AI Worker Updates
+1. Write `HybridEmbedder` tests
+2. Add `fastembed` dependency
+3. Implement `HybridEmbedder`
+4. Update callback response schema
+5. Add `/embed` endpoint
+
+### Week 3: Qdrant Integration
+1. Write `QdrantService` tests
+2. Add Qdrant client dependency
+3. Implement `QdrantService`
+4. Write sync processor tests
+5. Implement sync processor
+
+### Week 4: Search Migration
+1. Update `HybridSearchService` tests
+2. Refactor to use Qdrant
+3. Add feature flag
+4. E2E tests
+5. Backfill existing data
+
+---
+
+## Docker Compose Update
+
+```yaml
+# docker-compose.yml
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.12.0
+    ports:
+      - "6333:6333"
+      - "6334:6334"  # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+
+volumes:
+  qdrant_data:
+```
+
+---
+
+## Success Criteria
+
+| Criteria | Test |
+|----------|------|
+| AES encryption working | Unit tests pass |
+| Dense + Sparse returned | AI Worker tests pass |
+| Qdrant upsert working | Integration tests pass |
+| Outbox pattern working | Sync tests pass |
+| Hybrid search returning results | E2E tests pass |
+| Vectors nullified after sync | DB verification |
+| Zero regression | All Phase 1-4 tests pass |

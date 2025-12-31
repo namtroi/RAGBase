@@ -1,414 +1,200 @@
-# Phase 5: Multi-tenant SaaS + Supabase Auth + Stripe
+# Phase 5: Production-Readiness (Qdrant & Security)
 
-**Goal:** Production SaaS platform with Supabase authentication, Stripe billing, per-user Drive access, API keys, and data export.
-
----
-
-## Scope
-
-| Feature | Details |
-|---------|---------|
-| **User Management** | Supabase Auth (email/password, social OAuth ready) |
-| **Authentication** | JWT tokens (issued by Supabase) |
-| **Authorization** | Single role: **User** (full access to their own data) |
-| **Multi-tenant** | Row-level isolation via `tenantId = Supabase user.id` |
-| **Subscriptions** | Stripe integration (Free/Pro/Enterprise tiers) |
-| **Drive OAuth** | Per-user Google Drive access (not service account) |
-| **Database Access** | API-based only (no direct DB exposure) |
-| **API Keys** | User-generated keys for programmatic access |
-| **Data Export** | JSON archive export (GDPR compliance) |
+**Goal:** Production-grade security with per-user Drive OAuth (AES encrypted) and scalable Hybrid Search using Qdrant (Dense + Sparse).
 
 ---
 
-## Architecture
+## 1. Google Drive OAuth (Per-User & Secured)
 
-### **Auth Flow**
+Move from shared Service Account to user-centric OAuth 2.0 flow, with military-grade encryption for stored credentials.
 
-1. User registers/logs in via Supabase Auth
-2. Supabase issues JWT token
-3. Frontend sends JWT in `Authorization: Bearer {token}` header
-4. Backend verifies JWT with Supabase SDK
-5. Extract `user.id` → becomes `tenantId`
-6. All database queries filtered by `tenantId`
+### 1.1 Authentication Flow
+1.  **Initiate**: User clicks "Connect Drive" -> Redirect to Google.
+2.  **Callback**: Exchange code for `access_token` + `refresh_token`.
+3.  **Encryption**:
+    -   Algorithm: **AES-256-GCM**
+    -   Key: `APP_ENCRYPTION_KEY` (32-byte hex from `.env`)
+    -   Payload: Encrypt `refresh_token` before database insertion.
+4.  **Storage**: Save encrypted token in `DriveConfig`.
 
-**Security:** Backend never stores passwords; Supabase handles all auth.
-
-### **Data Access Pattern**
-
-**API-based access only:**
-- User Frontend → Backend REST API → PostgreSQL + pgvector
-- JWT verification middleware on all routes
-- Quota check before resource-consuming operations
-- Audit logging for analytics
-
-**Why not direct DB access?**
-- Security (no DB credentials exposed)
-- Quota enforcement (impossible with direct access)
-- Audit trail (track all operations)
-- Caching layer (easy to add)
+### 1.2 Synchronization Updates
+- **Decryption**: On Sync Job start, decrypt `refresh_token` using the env key.
+- **Dynamic Client**: Instantiate `DriveService` with the decrypted user credentials.
 
 ---
 
-## Database Scaling Strategy
+## 2. Advanced Qdrant Integration (Hybrid Search)
 
-### **Phase 4A: Single DB (<10K users)**
+Replace `pgvector` and `tsvector` with Qdrant's native Multi-Vector support (Dense + Sparse) for superior retrieval quality and scalability.
 
-**Approach:** Single PostgreSQL instance with tenant filtering
+### 2.1 Search Architecture (Hybrid)
+We will leverage Qdrant's ability to store and search both dense and sparse vectors in a single query using **Reciprocal Rank Fusion (RRF)**.
 
-**Performance (1000 users):**
-- Total data: ~1.3GB (100K docs, 500K chunks)
-- Query latency: <50ms with proper indexes
-- Vector search: 10-50ms
-- Connections: 50-100 concurrent
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **Dense Vector** | `fastembed` (bge-small-en-v1.5) | Semantic understanding (Concept matching) |
+| **Sparse Vector** | `fastembed` (SPLADE/BGE-M3) | Keyword matching (Exact term matching, Neural Sparse) |
+| **Fusion** | Qdrant RRF | Combine scores for best-of-both-worlds results |
 
-**Specs:**
-- Instance: Supabase Pro or AWS RDS db.t4g.medium
-- RAM: 4GB, Storage: 50GB SSD
-- Cost: $50-100/month
+### 2.2 Data Sync Strategy: The "Outbox Pattern"
 
-**Required indexes:**
-- `tenant_id` on all tables
-- Composite: `(tenant_id, status)` for filtering
-- HNSW vector index for similarity search
+To prevent "Dual Write" issues and keep PostgreSQL lightweight (removing heavy vectors after sync).
 
-**Upgrade trigger:** Users >10K OR DB >100GB OR latency >200ms
+**Workflow:**
 
----
-
-### **Phase 4B: Sharding (10K-100K+ users)**
-
-**Approach:** Hash-based horizontal sharding
-
-**Strategy:**
-- 10 shards initially (add more as needed)
-- Shard selection: `hash(user.id) % shard_count`
-- Each shard: ~10K users, ~10GB data
-- Deterministic routing (same user always hits same shard)
-
-**Benefits:**
-- Query latency stays <50ms regardless of total users
-- Horizontal scaling (add shards)
-- Isolated performance between shards
-
-**Cost (100K users):**
-
-| Architecture | Instances | Cost/month |
-|--------------|-----------|------------|
-| Single DB | 1 | $500+ (degrading) |
-| **Sharding (10)** | **10** | **$2K-5K** |
-| DB per tenant | 100K | $500K+ ❌ |
+1.  **Staging (Write)**:
+    -   AI Worker returns `Dense` + `Sparse` vectors.
+    -   Backend saves to PostgreSQL `Chunk` table.
+    -   **Status**: `PENDING`
+    -   **Data**: `content`, `metadata`, `vectors` (temporarily stored).
+2.  **Sync (Job Queue)**:
+    -   BullMQ Job (`qdrant-sync`) polls for `PENDING` chunks.
+    -   Batch pushes to Qdrant Collection.
+3.  **Cleanup (Update)**:
+    -   On Qdrant success -> Update `Chunk` status to `SYNCED`.
+    -   **CRITICAL**: Set `vector` columns in PostgreSQL to `NULL` to free up storage.
 
 ---
 
-## Pricing Tiers
+## 3. Data Flow Diagrams
 
-### **Free Tier**
-- Documents: 50/month, Storage: 500MB
-- Drive: 1 folder, Formats: PDF/TXT/JSON/MD
-- Queries: 100/day, Rate limit: 50 req/hour
+### 3.1 Ingestion (Write Path)
+```mermaid
+graph LR
+    Worker[AI Worker] -->|Dense + Sparse| Backend
+    Backend -->|Insert (State: PENDING)| Postgres[(PostgreSQL)]
+    Postgres -->|Poll PENDING| Queue[BullMQ: Qdrant Sync]
+    Queue -->|Push Vectors| Qdrant[(Qdrant)]
+    Qdrant -->|Example Success| Backend
+    Backend -->|Update SYNCED + Nullify Vectors| Postgres
+```
 
-### **Pro Tier ($19-29/month)**
-- Documents: 1,000/month, Storage: 10GB
-- Drive: 10 folders, Formats: All
-- Queries: Unlimited, Rate limit: 500 req/hour
-- Priority processing: 2x faster
-
-### **Enterprise ($99-199/month)**
-- Documents: Unlimited, Storage: 100GB+
-- Drive: Unlimited, Formats: All + custom
-- Queries: Unlimited, Rate limit: 5,000 req/hour
-- Dedicated workers, SLA: 99.9%, Priority support
-
----
-
-## Supabase Integration
-
-### **User Metadata Storage**
-
-Store subscription info in Supabase `user_metadata`:
-- `subscription`: free/pro/enterprise
-- `stripeCustomerId`: Stripe customer ID
-- `stripeSubscriptionId`: Active subscription
-- `subscriptionStatus`: active/canceled/past_due
-- `quotas`: Object with limits (documents, storage, queries, folders)
-
-**Benefits:** No user table in backend, single source of truth.
-
-### **JWT Verification**
-
-Backend verifies JWT using Supabase SDK:
-- Extract token from `Authorization` header
-- Call `supabase.auth.getUser(token)`
-- Get user ID, email, and metadata
-- Attach to request context for downstream use
+### 3.2 Retrieval (Read Path)
+```mermaid
+graph LR
+    User -->|Query| Backend
+    Backend -->|Embed (Dense + Sparse)| Worker
+    Worker -->|Vectors| Backend
+    Backend -->|Hybrid Search (RRF)| Qdrant
+    Qdrant -->|Top K IDs| Backend
+    Backend -->|Fetch Content| Postgres
+    Postgres -->|Full Text| Backend
+    Backend -->|Results| User
+```
 
 ---
 
-## Stripe Subscription Integration
+## 4. Configuration
 
-### **Upgrade Flow**
+### 4.1 Environment Variables
+```bash
+# Security
+APP_ENCRYPTION_KEY=... # 32-byte hex string
 
-1. User clicks "Upgrade" in frontend
-2. Backend creates Stripe Checkout Session
-3. User redirects to Stripe payment page
-4. User completes payment
-5. Stripe sends webhook to Supabase Edge Function
-6. Edge Function updates user metadata with new subscription
+# Qdrant
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=...
+QDRANT_COLLECTION=ragbase_hybrid
 
-### **Webhook Handling**
-
-**Events to handle:**
-- `customer.subscription.created` → Set subscription tier
-- `customer.subscription.updated` → Update tier/status
-- `customer.subscription.deleted` → Downgrade to free
-- `invoice.payment_failed` → Mark past_due
-
-**Implementation:** Supabase Edge Function (Deno runtime)
-- Verify Stripe webhook signature
-- Update Supabase user metadata
-- No backend involvement (serverless)
-
-### **Customer Portal**
-
-Stripe pre-built portal for:
-- View invoices
-- Update payment method
-- Cancel subscription
-- View billing history
-
-**Backend creates portal link:** `stripe.billingPortal.sessions.create()`
+# Feature Flags
+VECTOR_DB_PROVIDER=qdrant
+```
 
 ---
 
-## Quota Enforcement
+## 5. Database Schema Changes
 
-### **Strategy:** Middleware check before every request
+### 5.1 Chunk Model Updates
 
-**Quotas tracked:**
-- Documents uploaded this month
-- Storage used (bytes)
-- Queries today
-- Drive folders synced
+```prisma
+model Chunk {
+  // ... existing fields ...
 
-### **Enforcement points:**
-- Upload: Check document count + storage
-- Query: Check daily query count
-- Drive sync: Check folder limit
+  // Qdrant Sync (NEW)
+  syncStatus    SyncStatus @default(PENDING) @map("sync_status")
+  denseVector   Float[]?   @map("dense_vector")   // Nullable after sync
+  sparseIndices Int[]?     @map("sparse_indices") // Nullable after sync
+  sparseValues  Float[]?   @map("sparse_values")  // Nullable after sync
+  qdrantId      String?    @map("qdrant_id")      // Qdrant point ID
+}
 
-### **Query logging:**
-- Store query in `QueryLog` table
-- Track per-user daily count
-- Use for quota + analytics
+enum SyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+}
+```
 
----
+### 5.2 DriveConfig Updates
 
-## Database Schema (High-Level)
-
-### **Existing models (add tenantId):**
-- `Document`: Add `tenantId` index
-- `Chunk`: Add `tenantId` (denormalized for fast filtering)
-- `DriveConfig`: Add `tenantId`, `refreshToken` (per-user OAuth)
-
-### **New models:**
-- `ApiKey`: User-generated API keys (hashed)
-- `QueryLog`: Query history for quota tracking
-
-### **Indexing strategy:**
-- Primary: `tenantId` on all tables
-- Composite: `(tenantId, status)`, `(tenantId, createdAt)`
-- Vector: HNSW on embedding column
+```prisma
+model DriveConfig {
+  // ... existing fields ...
+  
+  // Store encrypted tokens (AES-256-GCM)
+  encryptedRefreshToken String? @map("encrypted_refresh_token")
+  tokenIv               String? @map("token_iv")       // Initialization Vector
+  tokenAuthTag          String? @map("token_auth_tag") // Auth tag for GCM
+}
+```
 
 ---
 
-## API Endpoints
+## 6. Implementation Checklist
 
-### **Documents**
-- `POST /api/documents` - Upload (quota check)
-- `GET /api/documents` - List (filtered by tenant)
-- `GET /api/documents/:id` - Detail
-- `DELETE /api/documents/:id` - Delete
-- `GET /api/documents/:id/content` - Download processed
+### Security (AES-256-GCM)
+- [ ] Create `EncryptionService` (encrypt, decrypt).
+- [ ] Update `DriveConfig` model to hold encrypted credentials.
+- [ ] Update OAuth Callback to encrypt before save.
+- [ ] Update SyncService to decrypt before use.
 
-### **Drive Sync**
-- `POST /api/drive/authorize` - Start OAuth flow
-- `GET /api/drive/callback` - OAuth callback
-- `POST /api/drive/configs` - Add folder
-- `GET /api/drive/configs` - List folders
-- `POST /api/drive/sync/:id/trigger` - Manual sync
+### AI Worker (Neural Sparse Vectors)
+- [ ] Add `fastembed` library (supports SPLADE).
+- [ ] Update `Embedder` to return `{ dense: [...], sparse: { indices: [...], values: [...] } }`.
+- [ ] Update job response schema for dual vectors.
 
-### **Search**
-- `POST /api/query` - Semantic search (quota check)
+### Backend - Outbox Pattern
+- [ ] Update `Chunk` model: Add `syncStatus` (PENDING/SYNCED/FAILED), make vectors nullable.
+- [ ] Create `QdrantSyncQueue` and Processor.
+- [ ] Implement `QdrantService` (upsert, hybrid search, delete).
+- [ ] Implement Cleanup Logic (Nullify local vectors after sync).
+- [ ] Add retry logic for failed syncs.
 
-### **Billing**
-- `POST /api/billing/checkout` - Create Stripe session
-- `GET /api/billing/portal` - Customer portal link
-- `GET /api/billing/usage` - Usage stats
+### Search
+- [ ] Refactor `SearchService` to call `QdrantService.search`.
+- [ ] Implement hybrid query with RRF fusion.
+- [ ] Remove `pgvector` search logic (eventually).
+- [ ] Update search API response format.
 
-### **API Keys**
-- `POST /api/keys` - Generate new key
-- `GET /api/keys` - List user's keys
-- `DELETE /api/keys/:id` - Revoke key
-
-### **Export**
-- `POST /api/export` - Request data export
-- `GET /api/export/:id` - Check export status
+### Testing
+- [ ] Unit tests for encryption/decryption.
+- [ ] Integration tests for Qdrant sync flow.
+- [ ] E2E tests for hybrid search.
 
 ---
 
-## Google Drive OAuth
-
-### **Per-User OAuth (not Service Account)**
-
-**Why per-user:**
-- Each user authorizes their own Drive
-- Users control what folders to share
-- Better security (no shared credentials)
-- No credential rotation needed
-
-**Flow:**
-1. User clicks "Connect Google Drive"
-2. Backend generates OAuth URL with `state=userId`
-3. User authorizes on Google
-4. Google redirects to callback with code
-5. Backend exchanges code for tokens
-6. Store `refresh_token` in DriveConfig
-
-**Scope:** `https://www.googleapis.com/auth/drive.readonly`
-
----
-
-## API Key Management
-
-### **Purpose**
-Allow programmatic access from external apps (chatbots, mobile apps).
-
-### **Features:**
-- User creates keys from dashboard
-- Each key has friendly name
-- Show plaintext ONCE on creation
-- Store bcrypt hash in DB
-- Track last used timestamp
-- Optional expiration date
-- Revoke anytime
-
-### **Authentication:**
-Backend supports both:
-- `Authorization: Bearer {jwt}` - Frontend/dashboard
-- `Authorization: sk_xxx...` - External apps
-
-### **Rate limiting per API key:**
-- Free: 50 req/hour
-- Pro: 500 req/hour
-- Enterprise: 5000 req/hour
-
----
-
-## Data Export
-
-### **Purpose**
-GDPR compliance, no vendor lock-in, user trust.
-
-### **Export format:**
-
-**JSON Archive (ZIP):**
-- `documents.json` - Metadata + processed content
-- `chunks.json` - All chunks with metadata
-- `embeddings.npy` - NumPy vectors (optional)
-- `drive_configs.json` - Folder settings
-
-### **Frequency limits:**
-- Free: 1/month
-- Pro: 1/week
-- Enterprise: Unlimited
-
-### **Workflow:**
-1. User requests export → Job queued
-2. Backend generates files asynchronously
-3. Upload ZIP to S3 (presigned URL)
-4. Email download link to user
-5. Link expires after 7 days
-
-### **Benefits:**
-- GDPR Article 20 compliance (data portability)
-- No vendor lock-in
-- User backup option
-- Compatible with other RAG systems
-
----
-
-## Configuration
-
-### **Environment Variables:**
-
-**Supabase:**
-- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-
-**Stripe:**
-- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
-- `STRIPE_PRICE_PRO`, `STRIPE_PRICE_ENTERPRISE`
-
-**Google Drive OAuth:**
-- `GOOGLE_OAUTH_CLIENT_ID`
-- `GOOGLE_OAUTH_CLIENT_SECRET`
-- `GOOGLE_OAUTH_REDIRECT_URI`
-
-**Data Export:**
-- `EXPORT_S3_BUCKET`, `EXPORT_LINK_EXPIRY_DAYS`
-
----
-
-## Key Decisions
+## 7. Key Decisions
 
 | Decision | Rationale |
 |----------|-----------|
-| **Supabase Auth** | No password handling, social OAuth ready |
-| **Single User role** | Simplify for Phase 4, RBAC deferred |
-| **Stripe billing** | Industry standard, pre-built portal |
-| **Per-user Drive OAuth** | Better security than service account |
-| **API-based access only** | Security + quota enforcement |
-| **Row-level multi-tenancy** | Simple, scales to 10K users |
-| **Sharding at 10K+** | Horizontal scaling, predictable latency |
-| **bcrypt API keys** | Password-level security |
-| **JSON export format** | Portable, human-readable |
-| **Supabase Edge Functions** | Serverless webhooks, no backend overhead |
+| **AES-256-GCM** | AEAD cipher, industry standard for sensitive data |
+| **Qdrant over pgvector** | Native hybrid search, better scalability |
+| **SPLADE (Neural Sparse)** | Stateless (no corpus needed), works with AI Worker |
+| **Outbox Pattern** | Avoid dual-write issues, keep Postgres lightweight |
+| **Nullify vectors after sync** | Massive storage savings (90%+) |
+| **fastembed** | Lightweight, CPU-friendly, supports both dense + sparse |
 
 ---
 
-## Implementation Order
+## 8. Success Criteria
 
-1. **Supabase setup** - Project, auth config
-2. **JWT middleware** - Backend verification
-3. **TenantId filtering** - Add to all queries
-4. **Stripe integration** - Products, checkout, webhooks
-5. **Quota enforcement** - Middleware
-6. **Drive OAuth** - Replace service account
-7. **API Keys** - Generate, verify, revoke
-8. **Data Export** - Async job, S3 upload
-
----
-
-## Success Criteria
-
-**Phase 4 complete when:**
-- ✅ User registration/login via Supabase
-- ✅ JWT verification on all routes
-- ✅ Multi-tenant isolation (no cross-tenant access)
-- ✅ Stripe subscription working (all 3 tiers)
-- ✅ Quota enforcement functional
-- ✅ Per-user Drive OAuth replacing service account
-- ✅ API keys working for external apps
-- ✅ Data export functional (GDPR ready)
-- ✅ Zero regression in Phase 1-3 functionality
+**Phase 5 complete when:**
+- ✅ Drive OAuth tokens encrypted with AES-256-GCM
+- ✅ Encryption/decryption working in sync flow
+- ✅ AI Worker returns dense + sparse vectors
+- ✅ Qdrant collection created and accepting upserts
+- ✅ Outbox pattern working (PENDING → SYNCED)
+- ✅ Hybrid search returning results from Qdrant
+- ✅ PostgreSQL vectors nullified after sync
+- ✅ Zero regression in Phase 1-4 functionality
 - ✅ Tests passing (unit + integration + E2E)
-
----
-
-## Migration from Phase 3
-
-**No migration needed** - Phase 1-3 for testing only.
-
-**Production starts fresh:**
-1. Create Supabase project
-2. Configure Stripe products
-3. Deploy backend with new environment
-4. First user registers → first tenant
