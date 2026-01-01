@@ -60,7 +60,7 @@ interface Chunk {
   documentId: string;      // FK → Document
   content: string;         // text content
   chunkIndex: number;      // order in document
-  embedding: number[];     // 384d vector (sentence-transformers)
+  embedding: number[];     // DEPRECATED: Use denseVector (Phase 5)
   
   // Phase 4: Quality & Location
   location?: Json;         // {"page": 1} or {"slide": 3} or {"sheet": "Sales"}
@@ -72,43 +72,55 @@ interface Chunk {
   completeness?: string;   // "complete" | "partial"
   hasTitle?: boolean;      // Has heading/title
   
-  // Phase 5: Qdrant Sync
+  // Phase 5: Qdrant Sync (Hybrid Vectors)
   syncStatus: 'PENDING' | 'SYNCED' | 'FAILED';
+  denseVector?: number[];         // 384d (nullable after sync)
+  sparseIndices?: number[];       // SPLADE indices (nullable after sync)
+  sparseValues?: number[];        // SPLADE values (nullable after sync)
+  qdrantId?: string;              // Qdrant point ID
   
   createdAt: Date;
 }
 ```
 
-### DriveFolder
+### DriveConfig (Phase 5 - Per-User OAuth)
 
 ```typescript
-interface DriveFolder {
+interface DriveConfig {
   id: string;
-  folderId: string;        // Google Drive folder ID
-  folderName: string;
-  syncCron: string;        // Default: "0 */6 * * *"
-  recursive: boolean;      // Default: true
-  enabled: boolean;        // Default: true
+  userId: string;                // User identifier ("system" for demo)
+  
+  // OAuth 2.0 Credentials (AES-256-GCM encrypted)
+  encryptedRefreshToken?: string; // Encrypted refresh token
+  tokenIv?: string;               // Initialization vector
+  tokenAuthTag?: string;          // Auth tag for GCM
+  
+  userEmail?: string;            // Connected Google account
+  isConnected: boolean;          // OAuth status
   lastSyncedAt?: Date;
-  pageToken?: string;      // Changes API token
-  syncStatus: 'IDLE' | 'SYNCING' | 'ERROR';
-  syncError?: string;
-  processingProfileId?: string;  // FK → ProcessingProfile
+  pageToken?: string;            // Changes API token
+  
   createdAt: Date;
   updatedAt: Date;
 }
 ```
 
-### DriveOAuth
+### DriveFolderMapping
 
 ```typescript
-interface DriveOAuth {
-  id: string;                    // "system" (singleton)
-  encryptedRefreshToken: string; // AES-256-GCM encrypted
-  tokenIv: string;               // Initialization vector
-  tokenAuthTag: string;          // Auth tag for GCM
-  userEmail?: string;            // Connected Google account
-  connectedAt?: Date;
+interface DriveFolderMapping {
+  id: string;
+  driveConfigId: string;        // FK → DriveConfig
+  folderId: string;             // Google Drive folder ID
+  folderName: string;
+  syncCron: string;             // Default: "0 */6 * * *"
+  recursive: boolean;           // Default: true
+  enabled: boolean;             // Default: true
+  syncStatus: 'IDLE' | 'SYNCING' | 'ERROR';
+  syncError?: string;
+  processingProfileId?: string; // FK → ProcessingProfile
+  createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
@@ -145,10 +157,11 @@ interface ProcessingProfile {
   autoFixEnabled: boolean;       // Default: true
   autoFixMaxPasses: number;      // Default: 2
   
-  // Stage 4: Embedding (display-only)
+  // Stage 4: Embedding (display-only, Phase 5 - Hybrid)
   embeddingModel: string;        // Fixed: 'BAAI/bge-small-en-v1.5'
-  embeddingDimension: number;    // Fixed: 384
+  embeddingDimension: number;    // Fixed: 384 (dense)
   embeddingMaxTokens: number;    // Fixed: 512
+  sparseModel: string;           // Fixed: 'SPLADE' (neural sparse)
   
   createdAt: Date;
 }
@@ -264,7 +277,10 @@ interface ProcessingResult {
 interface ChunkData {
   content: string;
   index: number;
-  embedding: number[];         // 384d vector (computed in Python)
+  embedding: number[];         // DEPRECATED: dense vector (384d)
+  denseVector: number[];       // Phase 5: 384d dense vector
+  sparseIndices?: number[];    // Phase 5: SPLADE sparse indices
+  sparseValues?: number[];     // Phase 5: SPLADE sparse values
   metadata: {
     charStart: number;
     charEnd: number;
@@ -361,8 +377,8 @@ interface QueryResponse {
 interface QueryResult {
   content: string;
   score: number;           // Combined score (RRF for hybrid)
-  vectorScore?: number;    // Hybrid mode: vector component
-  keywordScore?: number;   // Hybrid mode: BM25 component
+  vectorScore?: number;    // Hybrid mode: dense vector component
+  keywordScore?: number;   // Hybrid mode: SPLADE sparse component
   documentId: string;
   metadata: {
     page?: number;
@@ -373,7 +389,8 @@ interface QueryResult {
 }
 
 // Note: Query automatically excludes documents with isActive=false
-// Hybrid mode uses RRF (Reciprocal Rank Fusion) for score combination
+// Hybrid mode uses Qdrant RRF (Reciprocal Rank Fusion) for score combination
+// Phase 5: Uses SPLADE neural sparse vectors (not BM25)
 ```
 
 // GET /api/documents?status=COMPLETED&limit=20&offset=0&driveConfigId=xxx
@@ -479,23 +496,50 @@ interface SSEEvent {
 // - bulk:completed: Bulk operation finished
 ```
 
-### Drive Sync (NEW)
+### Drive Sync (Phase 5 - OAuth)
 
 ```typescript
-// POST /api/drive/configs
+// GET /api/oauth/google/url
+// Initiate OAuth 2.0 flow
+interface OAuthUrlResponse {
+  authUrl: string;         // Google OAuth consent URL
+}
+
+// GET /api/oauth/google/callback?code=xxx
+// OAuth callback (exchange code for tokens)
+// Redirects to frontend with success/error
+
+// GET /api/oauth/google/status
+interface OAuthStatusResponse {
+  isConnected: boolean;
+  userEmail?: string;
+  connectedAt?: string;    // ISO
+}
+
+// POST /api/oauth/google/disconnect
+// Revoke OAuth connection
+// Returns 200 OK
+
+// GET /api/oauth/google/access-token
+// Get short-lived access token for Google Picker API (frontend)
+interface AccessTokenResponse {
+  accessToken: string;     // 1-hour token
+}
+
+// POST /api/drive/folders
 interface AddFolderRequest {
   folderId: string;
-  folderName: string;
+  folderName?: string;     // Optional, fetched from Drive if missing
   syncCron?: string;       // Default: "0 */6 * * *"
   recursive?: boolean;     // Default: true
 }
 
-// GET /api/drive/configs
-interface DriveConfigListResponse {
-  configs: DriveConfig[];
+// GET /api/drive/folders
+interface DriveFolderListResponse {
+  folders: DriveFolderMapping[];
 }
 
-// PATCH /api/drive/configs/:id
+// PATCH /api/drive/folders/:id
 interface UpdateFolderRequest {
   folderName?: string;
   syncCron?: string;
@@ -503,10 +547,11 @@ interface UpdateFolderRequest {
   enabled?: boolean;
 }
 
-// DELETE /api/drive/configs/:id
+// DELETE /api/drive/folders/:id
 // Returns 204 No Content
 
-// POST /api/drive/sync/:configId/trigger
+// POST /api/drive/folders/:id/sync
+// Trigger manual sync for folder
 // Returns 202 Accepted (sync started)
 ```
 
@@ -691,19 +736,28 @@ interface DeleteConfirmationResponse {
 
 ---
 
-## 4. Embedding Contract
+## 4. Embedding Contract (Phase 5 - Hybrid)
 
 ```typescript
-type EmbeddingProvider = 'sentence-transformers';  // Python
+type EmbeddingProvider = 'fastembed';  // Python FastEmbed library
 
 interface EmbeddingConfig {
   provider: EmbeddingProvider;
-  model: string;           // 'BAAI/bge-small-en-v1.5'
-  dimensions: number;      // 384
+  denseModel: string;      // 'BAAI/bge-small-en-v1.5'
+  sparseModel: string;     // 'SPLADE' (neural sparse)
+  denseDimensions: number; // 384
+}
+
+interface HybridEmbedding {
+  dense: number[];         // 384d dense vector
+  sparse: {
+    indices: number[];     // Sparse vector indices
+    values: number[];      // Sparse vector values
+  };
 }
 
 // Embeddings computed in Python AI Worker
-// Sent via callback with chunks
+// Sent via callback with chunks as denseVector + sparseIndices + sparseValues
 ```
 
 ---
@@ -782,11 +836,12 @@ type QualityFlag =
 
 ---
 
-**Phase 5 Status:** ✅ COMPLETE (Dec 31, 2025)
+**Phase 5 Status:** ✅ COMPLETE (Jan 1, 2026)
 
 - Phase 4: Format Converters, Chunking, Quality ✅
 - Analytics Dashboard ✅
-- Hybrid Search (Qdrant) ✅  
+- Hybrid Search (Qdrant + SPLADE) ✅  
 - Processing Profiles ✅
-- OAuth + AES-256-GCM Encryption ✅
-- Qdrant Outbox Pattern ✅
+- Per-User OAuth 2.0 + AES-256-GCM Encryption ✅
+- Qdrant Outbox Pattern (90%+ storage savings) ✅
+- Dense + Sparse Vectors (fastembed) ✅

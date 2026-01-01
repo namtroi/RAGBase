@@ -3,7 +3,7 @@
 **Slogan:** _The "Set & Forget" Data Pipeline for Enterprise RAG._  
 **(Open Source | Self-Hosted | Structure-Aware | Production-Ready)**
 
-**Status:** Phase 4 Complete (2025-12-27)
+**Status:** Phase 5 Complete (2026-01-01)
 
 ---
 
@@ -60,7 +60,7 @@
 - **Runtime:** Python 3.11+
 - **Framework:** FastAPI 0.126
 - **Converters:** Docling (PDF/DOCX/PPTX), BeautifulSoup (HTML), EbookLib (EPUB), OpenPyXL (XLSX), Pandas (CSV)
-- **Embedding:** sentence-transformers (bge-small-en-v1.5, 384d)
+- **Embedding:** fastembed (bge-small-en-v1.5, 384d dense + SPLADE sparse)
 - **Chunking:** LangChain 0.3 (category-aware: document/presentation/tabular)
 - **Quality:** Analyzer + Auto-fix (TOO_SHORT, TOO_LONG, NO_CONTEXT, FRAGMENT)
 - **HTTP Client:** httpx 0.28
@@ -72,9 +72,10 @@
 - **Data Fetching:** React Query + SSE (real-time updates)
 
 ### Storage
-- **Database:** PostgreSQL 16+ with pgvector
-- **Vector Search:** Cosine similarity (384d embeddings)
+- **Database:** PostgreSQL 16+ (document metadata, chunks)
+- **Vector Search:** Qdrant Cloud (hybrid: dense 384d + sparse neural)
 - **Cache/Queue:** Redis 7+
+- **Security:** AES-256-GCM encryption for OAuth tokens
 
 ---
 
@@ -94,9 +95,10 @@
    - Quality analysis + auto-fix
    - Embedding + HTTP callback to backend
    
-3. **`postgres` + `redis`** - Data layer
-   - PostgreSQL: documents + chunks + vectors + DriveConfig
-   - Redis: BullMQ job queue
+3. **`postgres` + `redis` + `qdrant`** - Data layer
+   - PostgreSQL: documents + chunks metadata + DriveConfig (encrypted tokens)
+   - Redis: BullMQ job queue (processing + Qdrant sync)
+   - Qdrant: dense + sparse vectors (hybrid search)
 
 **Key Architecture: Unified Processing Pipeline (Phase 2)**
 - All formats go through queue → AI Worker
@@ -163,7 +165,7 @@ Upload (any format) → Queue → Job Processor
 - ✅ **Enhanced Filtering** - Search, sort, filter by state
 - ✅ **Drive Re-link** - Auto-reconnect when re-adding folder
 
-### Phase 4 (Current)
+### Phase 4
 - ✅ **10 Format Converters** - PDF, DOCX, PPTX, HTML, EPUB, XLSX, CSV, TXT, MD, JSON
 - ✅ **Pre-processing Layer** - Input sanitizer (null bytes, BOM, mojibake) + Markdown normalizer
 - ✅ **Category-Based Chunking** - Document (header-aware), Presentation (slide-based), Tabular (row-based)
@@ -171,6 +173,15 @@ Upload (any format) → Queue → Job Processor
 - ✅ **Auto-Fix Rules** - Merge short, split long, inject context
 - ✅ **Token Count** - Accurate token counts via model tokenizer
 - ✅ **Strategy Pattern** - Unified pipeline with router → converter → pipeline flow
+
+### Phase 5 (Current)
+- ✅ **Per-User Drive OAuth** - User-centric OAuth 2.0 flow (replaced Service Account)
+- ✅ **AES-256-GCM Encryption** - Military-grade encryption for refresh tokens
+- ✅ **Qdrant Integration** - Production-grade vector database (replaced pgvector)
+- ✅ **Hybrid Search** - Dense (semantic) + Sparse (keyword) with RRF fusion
+- ✅ **Neural Sparse Vectors** - SPLADE via fastembed (stateless, no corpus)
+- ✅ **Outbox Pattern** - Reliable Qdrant sync with vector cleanup (90%+ storage savings)
+- ✅ **Dual Vector Pipeline** - AI Worker returns dense + sparse, Backend syncs to Qdrant
 
 ### Production Features
 - ✅ Structured logging (Pino/structlog)
@@ -181,7 +192,7 @@ Upload (any format) → Queue → Job Processor
 
 ---
 
-## 7. Google Drive Sync (Phase 2)
+## 7. Google Drive Sync (Phase 2 + Phase 5)
 
 **Features:**
 - Multi-folder support (DriveConfig model)
@@ -189,7 +200,7 @@ Upload (any format) → Queue → Job Processor
 - MD5 deduplication before download
 - Cron-based auto-sync (configurable per folder)
 - Soft delete for removed files
-- Service Account auth (no user OAuth)
+- **Per-user OAuth 2.0** - AES-256-GCM encrypted refresh tokens (Phase 5)
 
 **Sync Behavior:**
 - New files → Download + Process + Store
@@ -246,8 +257,9 @@ Upload (any format) → Queue → Job Processor
 - **[detailed-plan-phase4-part1.md](./detailed-plan-phase4-part1.md)** - Format converters + pre-processing
 - **[detailed-plan-phase4-part2.md](./detailed-plan-phase4-part2.md)** - Chunking + quality + schema
 - **[processing-settings.md](./processing-settings.md)** - Processing configuration reference
+- **[roadmap-phase5.md](./roadmap-phase5.md)** - Phase 5 implementation (Qdrant + Security)
 - **[roadmap.md](./roadmap.md)** - Product roadmap & future features
 
 ---
 
-**Phase 4 Status:** ✅ **COMPLETE** (2025-12-27)
+**Phase 5 Status:** ✅ **COMPLETE** (2026-01-01)

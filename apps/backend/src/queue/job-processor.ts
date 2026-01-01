@@ -129,7 +129,6 @@ export function createJobProcessor(connection: Redis): Worker<ProcessingJob> {
     }
   });
 
-  // Thêm error handler cho worker
   worker.on('error', (err) => {
     logger.error({ err }, 'worker_error');
   });

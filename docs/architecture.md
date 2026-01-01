@@ -1,6 +1,6 @@
 # RAGBase Architecture
 
-**Phase 5 Complete** | **Last Updated:** 2025-12-31
+**Phase 5 Complete** | **Last Updated:** 2026-01-01
 
 High-level system design & key architectural decisions.
 
@@ -14,11 +14,12 @@ High-level system design & key architectural decisions.
 graph TB
     Client[Client/Browser] -->|HTTP| Backend
     Client -->|SSE| Backend
-    Backend[Backend<br/>Node.js/Fastify] -->|HTTP Dispatch| AIWorker[AI Worker<br/>Python/FastAPI]
-    AIWorker -->|HTTP Callback| Backend
-    Backend -->|Prisma ORM| Postgres[(PostgreSQL<br/>+ pgvector)]
-    Backend -->|BullMQ| Redis[(Redis)]
-    Backend -->|Drive API| GDrive[Google Drive]
+    Backend[Backend<br/>Node.js/Fastify] --> |HTTP Dispatch| AIWorker[AI Worker<br/>Python/FastAPI]
+    AIWorker --> |HTTP Callback| Backend
+    Backend --> |Prisma ORM| Postgres[(PostgreSQL<br/>Metadata)]
+    Backend --> |BullMQ| Redis[(Redis)]
+    Backend --> |Hybrid Search| Qdrant[(Qdrant<br/>Vectors)]
+    Backend --> |OAuth 2.0| GDrive[Google Drive]
     
     style Backend fill:#4CAF50
     style AIWorker fill:#2196F3
@@ -31,11 +32,11 @@ graph TB
 
 | Container | Technology | Purpose |
 |-----------|------------|---------|
-| **backend** | Node.js 20 + Fastify 4.29 | API server, queue consumer, SSE events, Drive sync |
-| **ai-worker** | Python 3.11 + FastAPI 0.126 | 10 format converters, chunking, quality, hybrid embedding |
-| **postgres** | PostgreSQL 16 + pgvector | Documents, chunks, staging vectors, quality metadata |
-| **redis** | Redis 7 | BullMQ job queue |
-| **qdrant** | Qdrant Cloud | Hybrid vector search (dense + sparse) |
+| **backend** | Node.js 20 + Fastify 4.29 | API server, queue consumer, SSE events, Drive OAuth, Qdrant sync |
+| **ai-worker** | Python 3.11 + FastAPI 0.126 | 10 format converters, chunking, quality, hybrid embedding (dense + sparse) |
+| **postgres** | PostgreSQL 16 | Documents, chunks metadata, encrypted OAuth tokens, quality metrics |
+| **redis** | Redis 7 | BullMQ job queue (processing + Qdrant sync) |
+| **qdrant** | Qdrant Cloud | Hybrid vector search (dense 384d + sparse neural) |
 
 ---
 
@@ -110,7 +111,7 @@ graph LR
     RowChunk --> Quality
     
     Quality --> AutoFix[Auto-Fix Rules]
-    AutoFix --> Embed[Embedder bge-small-en-v1.5]
+    AutoFix --> Embed[Hybrid Embedder<br/>fastembed: dense + sparse]
     Embed --> Callback[HTTP Callback]
     
     style Router fill:#2196F3
@@ -133,10 +134,11 @@ graph LR
 | **Auto-Fix** | Merge short, split long, inject context, skip empty |
 | **Scoring** | Base 1.0, -0.15 per flag |
 
-**Embedding Model:**
-- **Library:** sentence-transformers 2.3+
-- **Model:** BAAI/bge-small-en-v1.5
-- **Dimensions:** 384
+**Embedding Model (Phase 5 - Hybrid):**
+- **Library:** fastembed
+- **Dense Model:** BAAI/bge-small-en-v1.5 (384d)
+- **Sparse Model:** SPLADE (neural sparse, stateless)
+- **Output:** `{dense: float[], sparse: {indices: int[], values: float[]}}`
 
 ---
 
@@ -195,12 +197,13 @@ graph LR
 ```
 
 **Key Features:**
-- Multi-folder support (DriveFolder model)
+- Multi-folder support (DriveConfig model)
 - Incremental sync with Changes API + pageToken
 - MD5 deduplication before download
 - Cron-based scheduling (configurable per folder)
 - Soft delete for removed files (status: ARCHIVED)
-- OAuth 2.0 with AES-256-GCM encrypted tokens
+- **Per-user OAuth 2.0** (Phase 5): AES-256-GCM encrypted refresh tokens
+- **EncryptionService**: 32-byte key, unique IV per token, auth tag validation
 
 ---
 
@@ -217,9 +220,9 @@ graph LR
 - Phase 4: `qualityScore`, `qualityFlags[]`, `chunkType`, `breadcrumbs[]`, `tokenCount`, `location`
 - Phase 5: `syncStatus` (PENDING/SYNCED/FAILED), `denseVector`, `sparseIndices`, `sparseValues`
 
-**DriveOAuth:** OAuth credentials (AES-256-GCM encrypted)
+**DriveConfig:** OAuth credentials (AES-256-GCM encrypted refresh tokens + IV + auth tag)
 
-**DriveFolder:** Folder sync configuration + `processingProfileId`
+**DriveFolderMapping:** Folder sync configuration + `processingProfileId` (links DriveConfig to folders)
 
 **ProcessingProfile:** Configurable pipeline settings
 - Conversion: `pdfConverter`, `pdfOcrMode`, `conversionTableRows/Cols`
@@ -231,12 +234,16 @@ graph LR
 - Timing: `conversionTimeMs`, `chunkingTimeMs`, `embeddingTimeMs`, `queueTimeMs`
 - Quality: `avgQualityScore`, aggregated `qualityFlags`
 
-### 6.2 Vector Storage (Qdrant Hybrid)
+### 6.2 Vector Storage (Qdrant Hybrid - Phase 5)
 
-- **Dense Vector:** 384d via `bge-small-en-v1.5`
-- **Sparse Vector:** BM25 via `fastembed`
-- **Hybrid Search:** Qdrant RRF fusion (prefetch sparse → fuse with dense)
-- **Outbox Pattern:** PostgreSQL staging → Qdrant → nullify local vectors
+- **Dense Vector:** 384d via `bge-small-en-v1.5` (fastembed)
+- **Sparse Vector:** SPLADE neural sparse via `fastembed` (stateless, no corpus needed)
+- **Hybrid Search:** Qdrant RRF fusion (prefetch sparse k → fuse with dense → top k results)
+- **Outbox Pattern:** 
+  1. AI Worker → Backend: dense + sparse vectors
+  2. Backend → PostgreSQL: Store with `syncStatus: PENDING`
+  3. BullMQ `qdrant-sync` → Qdrant: Batch upsert vectors
+  4. On success → Update `syncStatus: SYNCED` + **nullify vectors** (90%+ storage savings)
 
 ---
 
@@ -348,16 +355,21 @@ Manual uploads use active profile. Drive sync uses per-folder profile.
 **Backend:**
 - `DATABASE_URL`, `REDIS_HOST`, `REDIS_PORT`
 - `UPLOAD_DIR`, `AI_WORKER_URL`, `CALLBACK_URL`
-- `DRIVE_SERVICE_ACCOUNT_KEY`, `DRIVE_SYNC_CRON`
 - `PDF_CONCURRENCY` - Controls BullMQ + AI worker concurrency
+- **Phase 5 - Security:**
+  - `APP_ENCRYPTION_KEY` - 32-byte hex for AES-256-GCM (OAuth tokens)
+  - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - OAuth 2.0 credentials
+- **Phase 5 - Qdrant:**
+  - `QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION`
+  - `VECTOR_DB_PROVIDER=qdrant` - Feature flag
 
 **AI Worker:**
 - `PORT`, `CALLBACK_URL`
-- `EMBEDDING_MODEL` - Fixed: BAAI/bge-small-en-v1.5
+- `EMBEDDING_MODEL` - Fixed: BAAI/bge-small-en-v1.5 (dense + sparse via fastembed)
 
 ---
 
-**Phase 5 Status:** ✅ COMPLETE (2025-12-31)
+**Phase 5 Status:** ✅ COMPLETE (2026-01-01)
 
 **Documentation:**
 - [product.md](./product.md) - Product overview
