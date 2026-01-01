@@ -1,6 +1,6 @@
 # RAGBase Testing Strategy
 
-**Phase 4 + Extensions Complete** | **TDD Methodology**
+**Phase 5 Complete** | **TDD Methodology**
 
 ---
 
@@ -26,8 +26,8 @@ graph LR
 - Refactor confidence - change without fear
 
 **Current Test Suite:**
-- **Backend:** 45 test files (unit + integration + e2e)
-- **AI Worker:** 24 test files (pytest)
+- **Backend:** 52+ test files (unit + integration + e2e)
+- **AI Worker:** 26+ test files (pytest)
 - **Coverage target:** 70-90% depending on module
 
 ---
@@ -60,7 +60,7 @@ graph TB
 
 ## 3. Test Organization
 
-### Backend (44 files)
+### Backend (52+ files)
 
 ```
 apps/backend/tests/
@@ -73,23 +73,26 @@ apps/backend/tests/
 │   │   ├── query-validator.test.ts      # Hybrid search mode/alpha
 │   │   └── upload-validator.test.ts
 │   ├── services/
+│   │   ├── encryption-service.test.ts    # AES-256-GCM (Phase 5)
 │   │   ├── event-bus.test.ts
 │   │   ├── hash-service.test.ts
 │   │   ├── hybrid-search.test.ts        # RRF algorithm
 │   │   ├── quality-gate-service.test.ts
+│   │   ├── qdrant-service.test.ts       # Hybrid search (Phase 5)
 │   │   └── sync-service-relink.test.ts
 │   ├── models/
 │   │   └── profile-model.test.ts        # ProcessingProfile
 │   └── queue/
 │       └── concurrency-config.test.ts
 ├── integration/
-│   ├── routes/
+│   │   ├── routes/
 │   │   ├── analytics-api.test.ts        # Analytics endpoints
 │   │   ├── analytics-e2e.test.ts        # Analytics E2E
 │   │   ├── callback-metrics.test.ts     # ProcessingMetrics
 │   │   ├── callback-route.test.ts
 │   │   ├── chunks-api.test.ts           # Chunks Explorer
 │   │   ├── content-route.test.ts
+│   │   ├── drive-oauth-routes.test.ts   # OAuth flow (Phase 5)
 │   │   ├── list-route.test.ts
 │   │   ├── profile-routes.test.ts       # ProcessingProfile CRUD
 │   │   ├── search-route.test.ts         # Hybrid search integration
@@ -100,8 +103,9 @@ apps/backend/tests/
 │   │       ├── availability-route.test.ts
 │   │       ├── delete-route.test.ts
 │   │       └── retry-route.test.ts
-│   ├── queue/
+│   │   ├── queue/
 │   │   ├── processing-queue.test.ts
+│   │   ├── qdrant-sync-queue.test.ts    # Qdrant sync (Phase 5)
 │   │   └── retry-handler.test.ts
 │   ├── middleware/
 │   │   └── auth-middleware.test.ts
@@ -153,7 +157,7 @@ apps/ai-worker/tests/
 ├── test_normalizer.py                   # Markdown normalization
 │
 ├── # Core
-├── test_embedder.py
+├── test_embedder.py                     # Hybrid: dense + sparse (Phase 5)
 ├── test_callback.py
 ├── test_main.py
 │
@@ -205,18 +209,30 @@ apps/ai-worker/tests/
 | **Processing Profiles** | `profile-routes.test.ts`, `profile-model.test.ts`, `test_profile_config.py` |
 | **Chunks Explorer** | `chunks-api.test.ts` |
 
+### Phase 5 (Production Security + Qdrant)
+
+| Feature | Test Files |
+|---------|-----------|
+| **OAuth 2.0 Flow** | `drive-oauth-routes.test.ts` |
+| **AES-256-GCM Encryption** | `encryption-service.test.ts` |
+| **Qdrant Sync Queue** | `qdrant-sync-queue.test.ts` |
+| **Qdrant Service** | `qdrant-service.test.ts` |
+| **Hybrid Embeddings** | `test_embedder.py` (dense + sparse) |
+| **Vector Cleanup** | `qdrant-sync-queue.test.ts` (nullify after sync) |
+
 ---
 
 ## 5. Test Gaps (TODO)
 
 > [!NOTE]
-> Gaps reviewed Dec 29, 2025. Most Backend gaps addressed.
+> Gaps reviewed Jan 1, 2026. Most gaps addressed in Phase 5.
 
 ### Backend
 
 | Gap | Priority | Status |
 |-----|----------|--------|
-| Drive sync with ProcessingProfile | Medium | Phase 5 |
+| ~~Drive OAuth with encryption~~ | ~~High~~ | ✅ Covered in Phase 5 |
+| ~~Qdrant sync flow~~ | ~~High~~ | ✅ Added qdrant-sync-queue.test.ts |
 | ~~Profile cascade delete~~ | ~~High~~ | ✅ Covered in profile-model.test.ts |
 | ~~Analytics period filtering~~ | ~~Medium~~ | ✅ Added 24h/7d/30d/all tests |
 | ~~Chunks multi-filter~~ | ~~Medium~~ | ✅ Added quality+type+search tests |
@@ -230,6 +246,7 @@ apps/ai-worker/tests/
 | ~~Docling PDF converter~~ | ~~Medium~~ | ✅ Added test_pdf_converter.py |
 | ~~OCR mode variations~~ | ~~Medium~~ | ✅ Covered in test_pdf_converter.py |
 | ~~Error boundary tests~~ | ~~Medium~~ | ✅ Added test_error_handling.py |
+| ~~Hybrid embeddings~~ | ~~High~~ | ✅ Updated test_embedder.py (Phase 5) |
 | Large file handling | Low | Future (streaming) |
 
 ---
@@ -274,9 +291,10 @@ pnpm test                           # Runs test-all.sh
 
 | Mock | Location | Purpose |
 |------|----------|---------|
-| `python-worker-mock.ts` | Backend | Fake AI worker responses |
-| `embedding-mock.ts` | Backend | 384d zero vectors |
+| `python-worker-mock.ts` | Backend | Fake AI worker responses (Phase 5: hybrid vectors) |
+| `embedding-mock.ts` | Backend | 384d dense + SPLADE sparse zero vectors |
 | `bullmq-mock.ts` | Backend | Queue without Redis |
+| `qdrant-mock.ts` | Backend | Fake Qdrant responses (Phase 5) |
 
 ---
 
@@ -296,17 +314,19 @@ pnpm test                           # Runs test-all.sh
 
 | Decision | Rationale |
 |----------|-----------|
-| Testcontainers | Real PostgreSQL + pgvector + Redis |
+| Testcontainers | Real PostgreSQL + Redis (not Qdrant in tests) |
 | Vitest | Fast, native ESM, Jest-compatible |
 | Mock AI worker | Fast, deterministic integration tests |
+| Mock Qdrant | Avoid external dependency in CI |
 | Pytest | Python standard, good fixtures |
 | 70-90% coverage | Balance speed vs quality |
 
 ---
 
-**Latest Test Run:** All tests passed (Dec 29, 2025)
+**Latest Test Run:** All tests passed (Jan 1, 2026)
 - Backend: Unit ✅, Integration ✅, E2E ✅
-- AI Worker: 24 tests ✅
+- AI Worker: 26+ tests ✅
+- Phase 5: OAuth ✅, Encryption ✅, Qdrant Sync ✅
 
 **Documentation:**
 - [architecture.md](./architecture.md) - System design
