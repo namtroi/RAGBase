@@ -23,11 +23,8 @@ COPY apps/backend/package.json ./apps/backend/
 # Install dependencies (cached unless lockfile changes)
 RUN pnpm install --frozen-lockfile
 
-# Copy prisma schema for generation
+# Copy prisma schema (needed for build)
 COPY apps/backend/prisma ./apps/backend/prisma
-
-# Generate Prisma client
-RUN pnpm --filter @ragbase/backend db:generate
 
 # Copy source code
 COPY apps/backend/src ./apps/backend/src
