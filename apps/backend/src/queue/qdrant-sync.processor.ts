@@ -19,11 +19,14 @@ export interface QdrantSyncJob {
   batchSize?: number;
 }
 
+// Module-level queue reference for batch continuation
+let syncQueueRef: Queue<QdrantSyncJob> | null = null;
+
 /**
  * Create the Qdrant sync queue
  */
 export function createQdrantSyncQueue(connection: Redis): Queue<QdrantSyncJob> {
-  return new Queue<QdrantSyncJob>(QUEUE_NAME, {
+  syncQueueRef = new Queue<QdrantSyncJob>(QUEUE_NAME, {
     connection,
     defaultJobOptions: {
       attempts: 3,
@@ -35,6 +38,7 @@ export function createQdrantSyncQueue(connection: Redis): Queue<QdrantSyncJob> {
       removeOnFail: 1000,
     },
   });
+  return syncQueueRef;
 }
 
 /**
@@ -181,14 +185,23 @@ async function processQdrantSync(job: Job<QdrantSyncJob>): Promise<void> {
 
   logger.info({ synced: validChunks.length }, 'qdrant_sync_success');
 
-  // 6. Check if more chunks to process
+  // 6. Check if more chunks to process and enqueue follow-up job
   const remaining = await prisma.chunk.count({
     where: whereClause,
   });
 
   if (remaining > 0) {
-    // Add another job to continue processing
-    job.log(`${remaining} chunks remaining, will continue in next job`);
+    // Use module-level queue reference to add follow-up job
+    if (syncQueueRef) {
+      await syncQueueRef.add('sync-continue', {
+        documentId: job.data.documentId,
+        batchSize
+      }, {
+        jobId: `sync-continue-${job.data.documentId || 'all'}-${Date.now()}`,
+        delay: 100,  // Small delay to avoid overwhelming Qdrant
+      });
+      logger.info({ remaining, documentId: job.data.documentId }, 'qdrant_sync_continuing');
+    }
   }
 }
 

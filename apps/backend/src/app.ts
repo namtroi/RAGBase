@@ -30,6 +30,8 @@ import { profileRoutes } from './routes/profiles/index.js';
 import { initializeHybridSearch } from './services/hybrid-search-init.js';
 // Default Profile
 import { ensureDefaultProfile } from './services/default-profile.js';
+// Phase 5F: OAuth
+import { oauthRoutes } from './routes/oauth/google.route.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -68,11 +70,14 @@ export async function createApp(): Promise<FastifyInstance> {
   // Internal routes (no auth)
   await callbackRoute(app);
 
+  // OAuth routes (no auth required - handles its own redirect flow)
+  await oauthRoutes(app);
+
   // Initialize BullMQ worker and cron jobs (if not in test mode)
   if (process.env.NODE_ENV !== 'test') {
     // Ensure default profile exists
     await ensureDefaultProfile();
-    
+
     initWorker();
     // Initialize Drive sync cron jobs
     initializeCronJobs().catch(err => {

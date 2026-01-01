@@ -26,10 +26,11 @@ export async function searchRoute(fastify: FastifyInstance): Promise<void> {
         const qdrantResults = await qdrantHybridSearchService.search({
           queryText: query,
           topK,
+          mode: mode as 'semantic' | 'hybrid',  // Pass user's mode selection
         });
 
         return reply.send({
-          mode: 'qdrant_hybrid',
+          mode: mode === 'hybrid' ? 'qdrant_hybrid' : 'qdrant_semantic',
           provider: 'qdrant',
           results: qdrantResults.map(r => ({
             content: r.content,

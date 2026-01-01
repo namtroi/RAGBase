@@ -6,6 +6,7 @@ import { SearchForm } from '@/components/query/search-form';
 import { AnalyticsPage } from '@/components/analytics/AnalyticsPage';
 import { ChunksExplorerPage } from '@/components/chunks/ChunksExplorerPage';
 import { ProfilePage } from '@/components/profiles/ProfilePage';
+import { SettingsPage } from '@/components/settings/SettingsPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { FileText, FolderSync, Search, Settings, BarChart3, Layers, Sliders } from 'lucide-react';
 import { useState } from 'react';
@@ -133,20 +134,7 @@ function AppContent() {
         )}
 
         {activeTab === 'settings' && (
-          <div className="max-w-md mx-auto">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Settings
-            </h2>
-            <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
-              <Settings className="w-8 h-8 text-gray-300 mx-auto mb-3" />
-              <p className="text-sm text-gray-500">
-                No settings configured yet.
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                More options coming in Phase 5.
-              </p>
-            </div>
-          </div>
+          <SettingsPage />
         )}
       </main>
     </div>

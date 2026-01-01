@@ -7,7 +7,7 @@
 
 import { getProcessingQueue } from '@/queue/processing-queue.js';
 import { getPrismaClient } from '@/services/database.js';
-import { DriveService, getDriveService } from '@/services/drive-service.js';
+import { UserDriveService } from '@/services/user-drive-service.js';
 import { eventBus } from '@/services/event-bus.js';
 import { HashService } from '@/services/hash-service.js';
 import { detectFormat } from '@/validators/file-format-detector.js';
@@ -25,12 +25,18 @@ interface SyncResult {
 }
 
 export class SyncService {
-    private driveService: DriveService;
+    private driveService: UserDriveService | null = null;
     private prisma: ReturnType<typeof getPrismaClient>;
 
     constructor() {
-        this.driveService = getDriveService();
         this.prisma = getPrismaClient();
+    }
+
+    private async getDrive(): Promise<UserDriveService> {
+        if (!this.driveService) {
+            this.driveService = await UserDriveService.create();
+        }
+        return this.driveService;
     }
 
     /**
@@ -138,9 +144,10 @@ export class SyncService {
         profileConfig?: Record<string, unknown>
     ): Promise<void> {
         // Get all files from Drive
+        const drive = await this.getDrive();
         const driveFiles = recursive
-            ? await this.driveService.listAllFiles(folderId)
-            : (await this.driveService.listFiles(folderId, undefined, false)).files;
+            ? await drive.listAllFiles(folderId)
+            : await drive.listAllFiles(folderId); // Use listAllFiles for both cases
 
         // Get existing documents for this config
         const existingDocs = await this.prisma.document.findMany({
@@ -183,7 +190,7 @@ export class SyncService {
         }
 
         // Get page token for future incremental syncs
-        const pageToken = await this.driveService.getStartPageToken();
+        const pageToken = await (await this.getDrive()).getStartPageToken();
         await this.prisma.driveConfig.update({
             where: { id: configId },
             data: { pageToken },
@@ -211,9 +218,10 @@ export class SyncService {
         const existingMap = new Map(existingDocs.map(d => [d.driveFileId, d]));
 
         // Process all changes
+        const drive = await this.getDrive();
         let hasMore = true;
         while (hasMore) {
-            const changes = await this.driveService.getChanges(currentToken);
+            const changes = await drive.getChanges(currentToken);
 
             for (const change of changes.changes) {
                 try {
@@ -307,7 +315,7 @@ export class SyncService {
         // Download file
         const filePath = path.join(UPLOAD_DIR, `drive_${file.id}`);
         await mkdir(UPLOAD_DIR, { recursive: true });
-        await this.driveService.downloadFile(file.id, filePath);
+        await (await this.getDrive()).downloadFile(file.id, filePath);
 
         // Calculate MD5 if not provided
         const fileBuffer = await readFile(filePath);
@@ -383,7 +391,7 @@ export class SyncService {
     ): Promise<void> {
         // Download new version
         const filePath = path.join(UPLOAD_DIR, `drive_${file.id}`);
-        await this.driveService.downloadFile(file.id, filePath);
+        await (await this.getDrive()).downloadFile(file.id, filePath);
 
         // Calculate MD5
         const fileBuffer = await readFile(filePath);

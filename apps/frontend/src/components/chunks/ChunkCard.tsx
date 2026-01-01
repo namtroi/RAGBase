@@ -112,6 +112,19 @@ export function ChunkCard({ chunk }: ChunkCardProps) {
 
             {/* Footer: Extra metadata */}
             <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+                {/* Sync Status Badge - Phase 5H */}
+                {chunk.syncStatus && (
+                    <span className={clsx(
+                        'flex items-center gap-1 px-1.5 py-0.5 rounded',
+                        chunk.syncStatus === 'SYNCED' && 'bg-green-100 text-green-700',
+                        chunk.syncStatus === 'PENDING' && 'bg-yellow-100 text-yellow-700',
+                        chunk.syncStatus === 'FAILED' && 'bg-red-100 text-red-700'
+                    )}>
+                        {chunk.syncStatus === 'SYNCED' && '✓ Synced'}
+                        {chunk.syncStatus === 'PENDING' && '⏳ Pending'}
+                        {chunk.syncStatus === 'FAILED' && '✗ Failed'}
+                    </span>
+                )}
                 {chunk.completeness && (
                     <span>
                         <span className="text-gray-400">Completeness:</span> {chunk.completeness}

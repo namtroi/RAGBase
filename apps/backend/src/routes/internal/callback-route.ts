@@ -3,6 +3,8 @@ import { getPrisma } from '../../services/database.js';
 import { eventBus } from '../../services/event-bus.js';
 import { QualityGateService } from '../../services/quality-gate-service.js';
 import { CallbackSchema } from '../../validators/callback-validator.js';
+import { getQdrantSyncQueue } from '../../queue/worker-init.js';
+import { isQdrantConfigured } from '../../services/qdrant.service.js';
 import { logger } from '@/logging/logger.js';
 
 const qualityGate = new QualityGateService();
@@ -139,6 +141,17 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
               ${sparseValues}
             )
           `;
+        }
+
+        // Phase 5D: Trigger Qdrant sync job for this document's chunks
+        if (isQdrantConfigured()) {
+          const syncQueue = getQdrantSyncQueue();
+          if (syncQueue) {
+            await syncQueue.add('sync', { documentId }, {
+              jobId: `sync-${documentId}-${Date.now()}`,
+            });
+            logger.info({ documentId, chunkCount: result.chunks.length }, 'qdrant_sync_job_enqueued');
+          }
         }
 
         // Update document status & metadata

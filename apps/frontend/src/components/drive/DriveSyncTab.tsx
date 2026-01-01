@@ -4,6 +4,7 @@ import { Plus, FolderSync } from 'lucide-react';
 import { useState } from 'react';
 import { AddFolderModal } from './AddFolderModal';
 import { DriveConfigList } from './DriveConfigList';
+import { GoogleOAuthSection } from './GoogleOAuthSection';
 
 export function DriveSyncTab() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -24,9 +25,10 @@ export function DriveSyncTab() {
         },
     });
 
-    const handleCreate = async (data: { folderId: string; syncCron: string; recursive: boolean }) => {
+    const handleCreate = async (data: { folderId: string; folderName: string; syncCron: string; recursive: boolean }) => {
         await createMutation.mutateAsync({
             folderId: data.folderId,
+            folderName: data.folderName, // Pass folder name from picker
             syncCron: data.syncCron || undefined, // Allow empty to use default
             recursive: data.recursive,
             enabled: true,
@@ -45,6 +47,9 @@ export function DriveSyncTab() {
 
     return (
         <div className="space-y-6">
+            {/* Google OAuth Section */}
+            <GoogleOAuthSection />
+
             {/* Header + Actions */}
             <div className="flex items-center justify-between">
                 <div>

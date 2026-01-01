@@ -1,9 +1,13 @@
-import { Worker } from 'bullmq';
+import { Worker, Queue } from 'bullmq';
 import { Redis } from 'ioredis';
 import { createJobProcessor } from './job-processor.js';
+import { createQdrantSyncWorker, createQdrantSyncQueue, QdrantSyncJob } from './qdrant-sync.processor.js';
+import { isQdrantConfigured } from '../services/qdrant.service.js';
 import { logger } from '@/logging/logger.js';
 
 let worker: Worker | null = null;
+let qdrantWorker: Worker | null = null;
+let qdrantQueue: Queue<QdrantSyncJob> | null = null;
 let connection: Redis | null = null;
 
 export function initWorker(): Worker {
@@ -16,12 +20,31 @@ export function initWorker(): Worker {
 
   worker = createJobProcessor(connection);
 
+  // Initialize Qdrant sync worker if configured
+  if (isQdrantConfigured()) {
+    qdrantQueue = createQdrantSyncQueue(connection);
+    qdrantWorker = createQdrantSyncWorker(connection);
+    logger.info('qdrant_sync_worker_initialized');
+  }
+
   logger.info('worker_initialized');
 
   return worker;
 }
 
+export function getQdrantSyncQueue(): Queue<QdrantSyncJob> | null {
+  return qdrantQueue;
+}
+
 export async function shutdownWorker(): Promise<void> {
+  if (qdrantWorker) {
+    await qdrantWorker.close();
+    qdrantWorker = null;
+  }
+  if (qdrantQueue) {
+    await qdrantQueue.close();
+    qdrantQueue = null;
+  }
   if (worker) {
     await worker.close();
     worker = null;

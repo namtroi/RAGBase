@@ -141,6 +141,7 @@ export function SearchForm() {
         <ResultsList
           results={searchMutation.data.results}
           mode={searchMutation.data.mode}
+          provider={searchMutation.data.provider}
           alpha={searchMutation.data.alpha}
         />
       )}

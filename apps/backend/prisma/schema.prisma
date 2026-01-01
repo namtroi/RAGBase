@@ -170,6 +170,20 @@ model DriveConfig {
   @@map("drive_configs")
 }
 
+// Phase 5F: OAuth Credentials (encrypted refresh tokens)
+model DriveOAuth {
+  id                     String    @id @default("system")
+  encryptedRefreshToken  String    @map("encrypted_refresh_token")
+  tokenIv                String    @map("token_iv")
+  tokenAuthTag           String    @map("token_auth_tag")
+  userEmail              String?   @map("user_email")
+  connectedAt            DateTime? @map("connected_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  @@map("drive_oauth")
+}
+
 // Phase 5: Analytics Dashboard - Processing Metrics
 model ProcessingMetrics {
   id                String   @id @default(cuid())

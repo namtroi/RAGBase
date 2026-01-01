@@ -96,6 +96,7 @@ export async function chunksRoute(fastify: FastifyInstance): Promise<void> {
           hasTitle: true,
           tokenCount: true,
           breadcrumbs: true,
+          syncStatus: true,
           document: {
             select: {
               filename: true,
@@ -127,6 +128,7 @@ export async function chunksRoute(fastify: FastifyInstance): Promise<void> {
         hasTitle: c.hasTitle,
         tokenCount: c.tokenCount,
         breadcrumbs: c.breadcrumbs,
+        syncStatus: c.syncStatus,
       })),
       pagination: {
         page,

@@ -46,6 +46,7 @@ export interface QdrantHybridSearchParams {
     queryText: string;
     topK: number;
     documentId?: string;  // Optional filter by document
+    mode?: 'semantic' | 'hybrid';  // semantic = dense-only, hybrid = dense+sparse (default)
 }
 
 /**
@@ -75,21 +76,33 @@ export class QdrantHybridSearchService {
      * Perform hybrid search using Qdrant
      */
     async search(params: QdrantHybridSearchParams): Promise<QdrantSearchResult[]> {
-        const { queryText, topK, documentId } = params;
+        const { queryText, topK, documentId, mode = 'hybrid' } = params;
 
-        logger.info({ queryText: queryText.slice(0, 50), topK }, 'qdrant_search_start');
+        logger.info({ queryText: queryText.slice(0, 50), topK, mode }, 'qdrant_search_start');
 
         // 1. Get query embeddings from AI Worker
         const queryVectors = await this.embedQuery(queryText);
 
-        // 2. Qdrant hybrid search (RRF fusion on server)
+        // 2. Qdrant search based on mode
         const qdrant = getQdrantService();
-        const results = await qdrant.hybridSearch({
-            dense: queryVectors.dense,
-            sparse: queryVectors.sparse,
-            topK,
-            filter: documentId ? { documentId } : undefined,
-        });
+        let results;
+
+        if (mode === 'semantic') {
+            // Semantic mode: use only dense vector (cosine similarity)
+            results = await qdrant.denseSearch({
+                dense: queryVectors.dense,
+                topK,
+                filter: documentId ? { documentId } : undefined,
+            });
+        } else {
+            // Hybrid mode: use dense + sparse with RRF fusion
+            results = await qdrant.hybridSearch({
+                dense: queryVectors.dense,
+                sparse: queryVectors.sparse,
+                topK,
+                filter: documentId ? { documentId } : undefined,
+            });
+        }
 
         // 3. Map results
         const searchResults: QdrantSearchResult[] = results.map((r) => ({

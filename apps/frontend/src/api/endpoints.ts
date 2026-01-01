@@ -59,7 +59,8 @@ export interface SearchParams {
 }
 
 export interface SearchResponse {
-  mode: 'semantic' | 'hybrid';
+  mode: 'semantic' | 'hybrid' | 'qdrant_hybrid';
+  provider?: 'qdrant' | 'pgvector';  // Phase 5G: Indicate which backend powered the search
   alpha?: number; // Only present in hybrid mode
   results: QueryResult[];
 }
@@ -147,7 +148,7 @@ export const documentsApi = {
 export const driveApi = {
   listConfigs: () => api.get<{ configs: DriveConfig[] }>('/drive/configs'),
 
-  createConfig: (data: { folderId: string; syncCron?: string; recursive?: boolean; enabled?: boolean }) =>
+  createConfig: (data: { folderId: string; folderName?: string; syncCron?: string; recursive?: boolean; enabled?: boolean }) =>
     api.post<DriveConfig>('/drive/configs', data),
 
   updateConfig: (id: string, data: Partial<Omit<DriveConfig, 'id' | 'folderId' | 'folderName' | 'createdAt' | 'updatedAt'>>) =>
@@ -186,6 +187,12 @@ export interface AnalyticsOverview {
   successRate: number;
   formatDistribution: Record<string, number>;
   avgUserWaitTimeMs: number;
+  // Phase 5J: Sync queue stats
+  syncQueue?: {
+    PENDING: number;
+    SYNCED: number;
+    FAILED: number;
+  };
 }
 
 export interface AnalyticsProcessing {
@@ -259,6 +266,7 @@ export interface ChunkListItem {
   qualityFlags: string[];
   tokenCount: number | null;
   breadcrumbs: string | null;
+  syncStatus?: 'PENDING' | 'SYNCED' | 'FAILED';  // Phase 5H: Qdrant sync status
 }
 
 export interface ChunkDetail {

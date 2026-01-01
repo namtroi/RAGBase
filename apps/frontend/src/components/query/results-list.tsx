@@ -1,13 +1,14 @@
 import { QueryResult } from '@/api/endpoints';
-import { FileText, Search, Star, Sparkles, Zap, BookOpen, Navigation } from 'lucide-react';
+import { FileText, Search, Star, Sparkles, Zap, BookOpen, Navigation, Rocket } from 'lucide-react';
 
 interface ResultsListProps {
   results: QueryResult[];
-  mode?: 'semantic' | 'hybrid';
+  mode?: 'semantic' | 'hybrid' | 'qdrant_hybrid';
+  provider?: 'qdrant' | 'pgvector';
   alpha?: number;
 }
 
-export function ResultsList({ results, mode, alpha }: ResultsListProps) {
+export function ResultsList({ results, mode, provider, alpha }: ResultsListProps) {
   if (results.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
@@ -17,7 +18,8 @@ export function ResultsList({ results, mode, alpha }: ResultsListProps) {
     );
   }
 
-  const isHybrid = mode === 'hybrid';
+  const isHybrid = mode === 'hybrid' || mode === 'qdrant_hybrid';
+  const isQdrant = provider === 'qdrant';
 
   return (
     <div className="space-y-4">
@@ -25,21 +27,31 @@ export function ResultsList({ results, mode, alpha }: ResultsListProps) {
         <h3 className="text-lg font-medium text-gray-900">
           Results ({results.length})
         </h3>
-        {mode && (
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            {isHybrid ? (
-              <>
-                <Zap className="w-3.5 h-3.5 text-amber-500" />
-                <span>Hybrid ({alpha !== undefined ? `${(alpha * 100).toFixed(0)}% semantic` : ''})</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-3.5 h-3.5 text-primary-500" />
-                <span>Semantic</span>
-              </>
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {/* Qdrant Provider Badge */}
+          {isQdrant && (
+            <span className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+              <Rocket className="w-3 h-3" />
+              Powered by Qdrant
+            </span>
+          )}
+          {/* Search Mode Badge */}
+          {mode && (
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              {isHybrid ? (
+                <>
+                  <Zap className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Hybrid{alpha !== undefined ? ` (${(alpha * 100).toFixed(0)}% semantic)` : ''}</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 text-primary-500" />
+                  <span>Semantic</span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -69,13 +81,13 @@ export function ResultsList({ results, mode, alpha }: ResultsListProps) {
                     {result.vectorScore !== undefined && (
                       <span className="flex items-center gap-0.5" title="Vector similarity score">
                         <Sparkles className="w-3 h-3" />
-                        {(result.vectorScore * 1000).toFixed(1)}
+                        {(result.vectorScore * 100).toFixed(1)}
                       </span>
                     )}
                     {result.keywordScore !== undefined && (
                       <span className="flex items-center gap-0.5" title="Keyword match score">
                         <Zap className="w-3 h-3" />
-                        {(result.keywordScore * 1000).toFixed(1)}
+                        {(result.keywordScore * 100).toFixed(1)}
                       </span>
                     )}
                   </div>
@@ -83,10 +95,7 @@ export function ResultsList({ results, mode, alpha }: ResultsListProps) {
                 <div className="flex items-center gap-1 text-amber-500">
                   <Star className="w-4 h-4 fill-current" />
                   <span className="text-sm font-medium">
-                    {isHybrid
-                      ? (result.score * 1000).toFixed(1)
-                      : `${(result.score * 100).toFixed(1)}%`
-                    }
+                    {(result.score * 100).toFixed(1)}
                   </span>
                 </div>
               </div>

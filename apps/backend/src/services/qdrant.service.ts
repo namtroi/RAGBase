@@ -38,6 +38,14 @@ export interface HybridSearchParams {
   };
 }
 
+export interface DenseSearchParams {
+  dense: number[];
+  topK: number;
+  filter?: {
+    documentId?: string;
+  };
+}
+
 export interface SearchResult {
   id: string;
   score: number;
@@ -215,13 +223,13 @@ export class QdrantService {
       // Build filter if documentId specified
       const filter = params.filter?.documentId
         ? {
-            must: [
-              {
-                key: 'documentId',
-                match: { value: params.filter.documentId },
-              },
-            ],
-          }
+          must: [
+            {
+              key: 'documentId',
+              match: { value: params.filter.documentId },
+            },
+          ],
+        }
         : undefined;
 
       // Use Query API with prefetch for hybrid search
@@ -260,6 +268,50 @@ export class QdrantService {
   }
 
   /**
+   * Dense-only search (semantic/cosine similarity)
+   * Uses only dense vectors, no sparse/keyword matching
+   */
+  async denseSearch(params: DenseSearchParams): Promise<SearchResult[]> {
+    await this.ensureCollection();
+
+    try {
+      // Build filter if documentId specified
+      const filter = params.filter?.documentId
+        ? {
+          must: [
+            {
+              key: 'documentId',
+              match: { value: params.filter.documentId },
+            },
+          ],
+        }
+        : undefined;
+
+      // Use simple query with dense vector only
+      const response = await this.client.query(this.collectionName, {
+        query: params.dense,
+        using: 'dense',
+        limit: params.topK,
+        with_payload: true,
+        filter,
+      });
+
+      return response.points.map((p) => ({
+        id: p.id as string,
+        score: p.score ?? 0,
+        payload: {
+          documentId: (p.payload?.documentId as string) || '',
+          content: (p.payload?.content as string) || '',
+          metadata: p.payload as Record<string, unknown>,
+        },
+      }));
+    } catch (error) {
+      logger.error({ error, topK: params.topK }, 'Dense search failed');
+      throw error;
+    }
+  }
+
+  /**
    * Get collection info (for monitoring)
    */
   async getCollectionInfo(): Promise<{
@@ -289,7 +341,11 @@ let qdrantServiceInstance: QdrantService | null = null;
  */
 export function getQdrantService(): QdrantService {
   if (!qdrantServiceInstance) {
-    qdrantServiceInstance = new QdrantService();
+    // Read env vars at runtime, not module load time
+    const url = process.env.QDRANT_URL || '';
+    const apiKey = process.env.QDRANT_API_KEY || '';
+    const collection = process.env.QDRANT_COLLECTION || 'ragbase_hybrid';
+    qdrantServiceInstance = new QdrantService(url, apiKey, collection);
   }
   return qdrantServiceInstance;
 }
@@ -298,5 +354,5 @@ export function getQdrantService(): QdrantService {
  * Check if Qdrant is configured
  */
 export function isQdrantConfigured(): boolean {
-  return !!QDRANT_URL && process.env.VECTOR_DB_PROVIDER === 'qdrant';
+  return !!process.env.QDRANT_URL && process.env.VECTOR_DB_PROVIDER === 'qdrant';
 }

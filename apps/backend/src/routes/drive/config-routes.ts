@@ -5,7 +5,7 @@
  */
 
 import { getPrismaClient } from '@/services/database.js';
-import { getDriveService } from '@/services/drive-service.js';
+import { UserDriveService } from '@/services/user-drive-service.js';
 import { eventBus } from '@/services/event-bus.js';
 import { getSyncService } from '@/services/sync-service.js';
 import { logger } from '@/logging/logger.js';
@@ -14,6 +14,7 @@ import { z } from 'zod';
 
 const CreateConfigSchema = z.object({
     folderId: z.string().min(1),
+    folderName: z.string().optional(), // Optional: provided by Google Picker, otherwise fetched from Drive
     syncCron: z.string().default('0 */6 * * *'),
     recursive: z.boolean().default(true),
     enabled: z.boolean().default(true),
@@ -44,7 +45,7 @@ export async function driveConfigRoutes(fastify: FastifyInstance): Promise<void>
             });
         }
 
-        const { folderId, syncCron, recursive, enabled } = input.data;
+        const { folderId, folderName: providedFolderName, syncCron, recursive, enabled } = input.data;
 
         // Check if folder already configured
         const existing = await prisma.driveConfig.findUnique({
@@ -59,23 +60,28 @@ export async function driveConfigRoutes(fastify: FastifyInstance): Promise<void>
             });
         }
 
-        // Validate folder exists and get name
+        // Use provided name (from Picker) or fetch from Drive API
         let folderName: string;
-        try {
-            const driveService = getDriveService();
-            const folder = await driveService.getFolder(folderId);
-            if (!folder) {
+        if (providedFolderName) {
+            folderName = providedFolderName;
+        } else {
+            try {
+                const driveService = await UserDriveService.create();
+                const folder = await driveService.getFolder(folderId);
+                if (!folder) {
+                    return reply.status(400).send({
+                        error: 'INVALID_FOLDER',
+                        message: 'Folder not found or is not a folder',
+                    });
+                }
+                folderName = folder.name;
+            } catch (error: any) {
+                logger.error({ error: error.message }, 'drive_folder_validation_failed');
                 return reply.status(400).send({
-                    error: 'INVALID_FOLDER',
-                    message: 'Folder not found or is not a folder',
+                    error: 'DRIVE_ERROR',
+                    message: `Failed to access folder: ${error.message}`,
                 });
             }
-            folderName = folder.name;
-        } catch (error: any) {
-            return reply.status(400).send({
-                error: 'DRIVE_ERROR',
-                message: `Failed to access folder: ${error.message}`,
-            });
         }
 
         // Create config
