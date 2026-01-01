@@ -375,7 +375,7 @@ Manual uploads use active profile. Drive sync uses per-folder profile.
 - [product.md](./product.md) - Product overview
 - [api.md](./api.md) - API contracts
 - [processing-settings.md](./processing-settings.md) - Configuration reference
-- [extension-processing-profile.md](./extension-processing-profile.md) - Processing profiles
-- [extension-analytics-dashboard.md](./extension-analytics-dashboard.md) - Analytics
-- [roadmap-phase5.md](./roadmap-phase5.md) - Qdrant + OAuth implementation
-- [detailed-plan-phase5.md](./detailed-plan-phase5.md) - Phase 5 detailed plan
+- [processing-profiles.md](./processing-profiles.md) - Processing profiles
+- [analytics-dashboard.md](./analytics-dashboard.md) - Analytics
+- [roadmap-phase5.md](./archive/roadmap-phase5.md) - Qdrant + OAuth implementation
+- [detailed-plan-phase5.md](./archive/detailed-plan-phase5.md) - Phase 5 detailed plan
