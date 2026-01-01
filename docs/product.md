@@ -244,9 +244,9 @@ Upload (any format) → Queue → Job Processor
 
 ## 10. Extensions
 
-- ✅ **Analytics Dashboard** - Pipeline metrics, quality scores, Chunks Explorer ([extension-analytics-dashboard.md](./extension-analytics-dashboard.md))
+- ✅ **Analytics Dashboard** - Pipeline metrics, quality scores, Chunks Explorer ([analytics-dashboard.md](./analytics-dashboard.md))
 - ✅ **Hybrid Search** - Vector + BM25 full-text with RRF reranking ([extension-hybrid-search.md](./extension-hybrid-search.md))
-- ✅ **Processing Profiles** - Configurable conversion/chunking/quality parameters ([extension-processing-profile.md](./extension-processing-profile.md))
+- ✅ **Processing Profiles** - Configurable conversion/chunking/quality parameters ([processing-profiles.md](./processing-profiles.md))
 
 ---
 
@@ -254,10 +254,10 @@ Upload (any format) → Queue → Job Processor
 
 - **[architecture.md](./architecture.md)** - System design & data flow
 - **[api.md](./api.md)** - API specifications
-- **[detailed-plan-phase4-part1.md](./detailed-plan-phase4-part1.md)** - Format converters + pre-processing
-- **[detailed-plan-phase4-part2.md](./detailed-plan-phase4-part2.md)** - Chunking + quality + schema
+- **[detailed-plan-phase4-part1.md](./archive/detailed-plan-phase4-part1.md)** - Format converters + pre-processing
+- **[detailed-plan-phase4-part2.md](./archive/detailed-plan-phase4-part2.md)** - Chunking + quality + schema
 - **[processing-settings.md](./processing-settings.md)** - Processing configuration reference
-- **[roadmap-phase5.md](./roadmap-phase5.md)** - Phase 5 implementation (Qdrant + Security)
+- **[roadmap-phase5.md](./archive/roadmap-phase5.md)** - Phase 5 implementation (Qdrant + Security)
 - **[roadmap.md](./roadmap.md)** - Product roadmap & future features
 
 ---
