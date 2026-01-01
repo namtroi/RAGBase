@@ -210,7 +210,13 @@ async def process_document(request: ProcessRequest):
 
             metrics_collector.start_stage()
             chunks, embedding_time_ms = pipeline.run(output.markdown, category)
-            metrics_collector.end_chunking()
+            total_pipeline_ms = metrics_collector.end_chunking()
+
+            # Fix: Chunking time currently includes embedding time because pipeline.run does both.
+            # Subtract embedding time to get actual chunking/quality time.
+            chunking_ms = max(0, total_pipeline_ms - embedding_time_ms)
+            metrics_collector._metrics.timing.chunking_time_ms = chunking_ms
+
             metrics_collector.set_embedding_time(embedding_time_ms)
 
             if not chunks:
