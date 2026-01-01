@@ -44,7 +44,7 @@ export function DocumentList() {
     search: filters.search || undefined,
     sortBy: filters.sortBy,
     sortOrder: filters.sortOrder,
-    driveConfigId: folderFilter === 'all' ? undefined : folderFilter,
+    driveFolderId: folderFilter === 'all' ? undefined : folderFilter,
     limit: pageSize,
     offset: (page - 1) * pageSize,
   };

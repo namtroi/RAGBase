@@ -1,6 +1,6 @@
 # RAGBase Architecture
 
-**Phase 4 + Extensions Complete** | **Last Updated:** 2025-12-29
+**Phase 5 Complete** | **Last Updated:** 2025-12-31
 
 High-level system design & key architectural decisions.
 
@@ -32,9 +32,10 @@ graph TB
 | Container | Technology | Purpose |
 |-----------|------------|---------|
 | **backend** | Node.js 20 + Fastify 4.29 | API server, queue consumer, SSE events, Drive sync |
-| **ai-worker** | Python 3.11 + FastAPI 0.126 | 10 format converters, chunking, quality, embedding |
-| **postgres** | PostgreSQL 16 + pgvector | Documents, chunks, vectors, quality metadata |
+| **ai-worker** | Python 3.11 + FastAPI 0.126 | 10 format converters, chunking, quality, hybrid embedding |
+| **postgres** | PostgreSQL 16 + pgvector | Documents, chunks, staging vectors, quality metadata |
 | **redis** | Redis 7 | BullMQ job queue |
+| **qdrant** | Qdrant Cloud | Hybrid vector search (dense + sparse) |
 
 ---
 
@@ -183,7 +184,7 @@ sequenceDiagram
 
 ```mermaid
 graph LR
-    Drive[Google Drive] -->|Service Account| Sync[Sync Service]
+    Drive[Google Drive] -->|OAuth 2.0| Sync[Sync Service]
     Sync -->|Changes API| Detect[Detect Changes]
     Detect --> Fetch[Fetch New Files]
     Fetch --> Queue[BullMQ Queue]
@@ -194,12 +195,12 @@ graph LR
 ```
 
 **Key Features:**
-- Multi-folder support (DriveConfig model)
+- Multi-folder support (DriveFolder model)
 - Incremental sync with Changes API + pageToken
 - MD5 deduplication before download
 - Cron-based scheduling (configurable per folder)
 - Soft delete for removed files (status: ARCHIVED)
-- Service Account auth (no user OAuth)
+- OAuth 2.0 with AES-256-GCM encrypted tokens
 
 ---
 
@@ -214,9 +215,11 @@ graph LR
 
 **Chunk:** Text content + 384d vector + quality metadata
 - Phase 4: `qualityScore`, `qualityFlags[]`, `chunkType`, `breadcrumbs[]`, `tokenCount`, `location`
-- Hybrid Search: `searchVector` (tsvector for BM25)
+- Phase 5: `syncStatus` (PENDING/SYNCED/FAILED), `denseVector`, `sparseIndices`, `sparseValues`
 
-**DriveConfig:** Folder sync configuration + `processingProfileId`
+**DriveOAuth:** OAuth credentials (AES-256-GCM encrypted)
+
+**DriveFolder:** Folder sync configuration + `processingProfileId`
 
 **ProcessingProfile:** Configurable pipeline settings
 - Conversion: `pdfConverter`, `pdfOcrMode`, `conversionTableRows/Cols`
@@ -228,11 +231,12 @@ graph LR
 - Timing: `conversionTimeMs`, `chunkingTimeMs`, `embeddingTimeMs`, `queueTimeMs`
 - Quality: `avgQualityScore`, aggregated `qualityFlags`
 
-### 6.2 Vector Storage (pgvector + tsvector)
+### 6.2 Vector Storage (Qdrant Hybrid)
 
-- **Vector Search:** Cosine distance (`<=>`) with HNSW index
-- **Keyword Search:** PostgreSQL tsvector with GIN index
-- **Hybrid Search:** RRF (Reciprocal Rank Fusion) combines both
+- **Dense Vector:** 384d via `bge-small-en-v1.5`
+- **Sparse Vector:** BM25 via `fastembed`
+- **Hybrid Search:** Qdrant RRF fusion (prefetch sparse → fuse with dense)
+- **Outbox Pattern:** PostgreSQL staging → Qdrant → nullify local vectors
 
 ---
 
@@ -353,7 +357,7 @@ Manual uploads use active profile. Drive sync uses per-folder profile.
 
 ---
 
-**Phase 4 + Extensions Status:** ✅ COMPLETE (2025-12-29)
+**Phase 5 Status:** ✅ COMPLETE (2025-12-31)
 
 **Documentation:**
 - [product.md](./product.md) - Product overview
@@ -361,4 +365,5 @@ Manual uploads use active profile. Drive sync uses per-folder profile.
 - [processing-settings.md](./processing-settings.md) - Configuration reference
 - [extension-processing-profile.md](./extension-processing-profile.md) - Processing profiles
 - [extension-analytics-dashboard.md](./extension-analytics-dashboard.md) - Analytics
-- [extension-hybrid-search.md](./extension-hybrid-search.md) - Hybrid search
+- [roadmap-phase5.md](./roadmap-phase5.md) - Qdrant + OAuth implementation
+- [detailed-plan-phase5.md](./detailed-plan-phase5.md) - Phase 5 detailed plan

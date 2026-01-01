@@ -5,10 +5,9 @@ interface ResultsListProps {
   results: QueryResult[];
   mode?: 'semantic' | 'hybrid' | 'qdrant_hybrid';
   provider?: 'qdrant' | 'pgvector';
-  alpha?: number;
 }
 
-export function ResultsList({ results, mode, provider, alpha }: ResultsListProps) {
+export function ResultsList({ results, mode, provider }: ResultsListProps) {
   if (results.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
@@ -41,7 +40,7 @@ export function ResultsList({ results, mode, provider, alpha }: ResultsListProps
               {isHybrid ? (
                 <>
                   <Zap className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Hybrid{alpha !== undefined ? ` (${(alpha * 100).toFixed(0)}% semantic)` : ''}</span>
+                  <span>Hybrid</span>
                 </>
               ) : (
                 <>

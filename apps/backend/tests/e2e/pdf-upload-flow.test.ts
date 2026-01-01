@@ -4,6 +4,12 @@ import { FIXTURES, readFixture } from '@tests/helpers/fixtures.js';
 import { successCallback } from '@tests/mocks/python-worker-mock.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+/**
+ * E2E: PDF Upload Flow
+ *
+ * Tests document upload, processing, and completion.
+ * NOTE: Query tests removed - search requires Qdrant (Phase 5).
+ */
 describe('E2E: PDF Upload Flow', () => {
   beforeAll(async () => {
     await setupE2E();
@@ -18,7 +24,7 @@ describe('E2E: PDF Upload Flow', () => {
     await ensureDefaultProfile();
   });
 
-  it('should process PDF: Upload → Queue → Callback → Chunks → Query', async () => {
+  it('should process PDF: Upload → Queue → Callback → Chunks', async () => {
     const app = getTestApp();
     const pdfBuffer = await readFixture(FIXTURES.pdf.digital);
 
@@ -73,7 +79,7 @@ This concludes the test document content.`,
 
     expect(callbackResponse.statusCode).toBe(200);
 
-    // Step 4: Verify document is COMPLETED
+    // Step 4: Verify document is COMPLETED with chunks
     statusResponse = await app.inject({
       method: 'GET',
       url: `/api/documents/${documentId}`,
@@ -82,26 +88,7 @@ This concludes the test document content.`,
     const statusBody = statusResponse.json();
     expect(statusBody.status).toBe('COMPLETED');
     expect(statusBody.chunkCount).toBeGreaterThan(0);
-
-    // Step 5: Query for content
-    const queryResponse = await app.inject({
-      method: 'POST',
-      url: '/api/query',
-      payload: {
-        query: 'test document content',
-        topK: 5,
-      },
-    });
-
-    expect(queryResponse.statusCode).toBe(200);
-
-    const results = queryResponse.json().results;
-    expect(results.length).toBeGreaterThan(0);
-    expect(results[0].documentId).toBe(documentId);
-    expect(results[0].score).toBeGreaterThan(0);
   }, 60000);
-
-
 });
 
 function createMultipartPayload(filename: string, buffer: Buffer, mimeType: string): Buffer {

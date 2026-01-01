@@ -29,7 +29,7 @@ export async function driveSyncRoutes(fastify: FastifyInstance): Promise<void> {
         }
 
         // Check if config exists
-        const config = await prisma.driveConfig.findUnique({
+        const config = await prisma.driveFolder.findUnique({
             where: { id: params.data.configId },
         });
 
@@ -75,7 +75,7 @@ export async function driveSyncRoutes(fastify: FastifyInstance): Promise<void> {
             });
         }
 
-        const config = await prisma.driveConfig.findUnique({
+        const config = await prisma.driveFolder.findUnique({
             where: { id: params.data.configId },
             select: {
                 id: true,

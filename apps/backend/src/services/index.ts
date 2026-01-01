@@ -7,11 +7,6 @@ export { HashService } from './hash-service.js';
 
 export { EmbeddingClient } from './embedding-client.js';
 
-export { initializeHybridSearch, isHybridSearchAvailable } from './hybrid-search-init.js';
-
-export { HybridSearchService, hybridSearchService } from './hybrid-search.js';
-export type { HybridSearchParams, SearchResult } from './hybrid-search.js';
-
 export { EncryptionService, getEncryptionService } from './encryption.service.js';
 export type { EncryptedPayload } from './encryption.service.js';
 

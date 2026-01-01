@@ -1,13 +1,13 @@
 import { getProcessingQueue } from '@/queue/processing-queue.js';
 import { getPrismaClient } from '@/services/database.js';
-import { getDriveService } from '@/services/drive-service.js';
+import { UserDriveService } from '@/services/user-drive-service.js';
 import { SyncService } from '@/services/sync-service.js';
 import { mkdir, readFile, rm } from 'fs/promises';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock dependencies
 vi.mock('@/services/database.js');
-vi.mock('@/services/drive-service.js');
+vi.mock('@/services/user-drive-service.js');
 vi.mock('@/queue/processing-queue.js');
 vi.mock('fs/promises');
 
@@ -33,12 +33,12 @@ describe('SyncService Re-link Logic', () => {
         };
         (getPrismaClient as any).mockReturnValue(mockPrisma);
 
-        // Setup mock DriveService
+        // Setup mock UserDriveService
         mockDriveService = {
             downloadFile: vi.fn().mockResolvedValue(undefined),
             getStartPageToken: vi.fn().mockResolvedValue('token123'),
         };
-        (getDriveService as any).mockReturnValue(mockDriveService);
+        (UserDriveService.create as any) = vi.fn().mockResolvedValue(mockDriveService);
 
         // Setup mock Queue
         mockQueue = {
@@ -85,7 +85,7 @@ describe('SyncService Re-link Logic', () => {
             expect(mockPrisma.document.update).toHaveBeenCalledWith({
                 where: { id: 'doc-123' },
                 data: expect.objectContaining({
-                    driveConfigId: configId,
+                    driveFolderId: configId,
                     connectionState: 'LINKED',
                 }),
             });
@@ -112,7 +112,7 @@ describe('SyncService Re-link Logic', () => {
                 data: expect.objectContaining({
                     status: 'PENDING',
                     connectionState: 'LINKED',
-                    driveConfigId: configId,
+                    driveFolderId: configId,
                 }),
             });
         });
@@ -138,7 +138,7 @@ describe('SyncService Re-link Logic', () => {
                 where: { id: 'doc-123' },
                 data: expect.objectContaining({
                     driveFileId: file.id,
-                    driveConfigId: configId,
+                    driveFolderId: configId,
                     connectionState: 'LINKED',
                     sourceType: 'DRIVE',
                 }),

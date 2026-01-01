@@ -1,6 +1,6 @@
 # RAGBase API Contracts
 
-**Phase 4 + Extensions Complete** | **TDD Reference & Integration Spec**
+**Phase 5 Complete** | **TDD Reference & Integration Spec**
 
 ---
 
@@ -37,7 +37,7 @@ interface Document {
   processingMetadata?: Json;    // Processing stats
   sourceType: SourceType;       // MANUAL or DRIVE
   driveFileId?: string;         // Google Drive file ID
-  driveConfigId?: string;       // FK → DriveConfig
+  driveFolderId?: string;       // FK → DriveFolder
   lastSyncedAt?: Date;
   
   // Phase 3: Data Management
@@ -72,14 +72,17 @@ interface Chunk {
   completeness?: string;   // "complete" | "partial"
   hasTitle?: boolean;      // Has heading/title
   
+  // Phase 5: Qdrant Sync
+  syncStatus: 'PENDING' | 'SYNCED' | 'FAILED';
+  
   createdAt: Date;
 }
 ```
 
-### DriveConfig
+### DriveFolder
 
 ```typescript
-interface DriveConfig {
+interface DriveFolder {
   id: string;
   folderId: string;        // Google Drive folder ID
   folderName: string;
@@ -90,9 +93,22 @@ interface DriveConfig {
   pageToken?: string;      // Changes API token
   syncStatus: 'IDLE' | 'SYNCING' | 'ERROR';
   syncError?: string;
-  processingProfileId: string;  // FK → ProcessingProfile
+  processingProfileId?: string;  // FK → ProcessingProfile
   createdAt: Date;
   updatedAt: Date;
+}
+```
+
+### DriveOAuth
+
+```typescript
+interface DriveOAuth {
+  id: string;                    // "system" (singleton)
+  encryptedRefreshToken: string; // AES-256-GCM encrypted
+  tokenIv: string;               // Initialization vector
+  tokenAuthTag: string;          // Auth tag for GCM
+  userEmail?: string;            // Connected Google account
+  connectedAt?: Date;
 }
 ```
 
@@ -766,9 +782,11 @@ type QualityFlag =
 
 ---
 
-**Phase 4 + Extensions Status:** ✅ COMPLETE (Dec 29, 2025)
+**Phase 5 Status:** ✅ COMPLETE (Dec 31, 2025)
 
 - Phase 4: Format Converters, Chunking, Quality ✅
 - Analytics Dashboard ✅
-- Hybrid Search ✅  
+- Hybrid Search (Qdrant) ✅  
 - Processing Profiles ✅
+- OAuth + AES-256-GCM Encryption ✅
+- Qdrant Outbox Pattern ✅

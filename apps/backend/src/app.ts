@@ -26,8 +26,6 @@ import { disconnectPrisma } from './services/database.js';
 import { overviewRoute, processingRoute, qualityRoute, documentsRoute } from './routes/analytics/index.js';
 import { chunksRoute } from './routes/chunks/index.js';
 import { profileRoutes } from './routes/profiles/index.js';
-// Hybrid Search Infrastructure
-import { initializeHybridSearch } from './services/hybrid-search-init.js';
 // Default Profile
 import { ensureDefaultProfile } from './services/default-profile.js';
 // Phase 5F: OAuth
@@ -82,10 +80,6 @@ export async function createApp(): Promise<FastifyInstance> {
     // Initialize Drive sync cron jobs
     initializeCronJobs().catch(err => {
       console.error('Failed to initialize cron jobs:', err);
-    });
-    // Initialize hybrid search (tsvector trigger)
-    initializeHybridSearch().catch(err => {
-      console.error('Failed to initialize hybrid search:', err);
     });
   }
 

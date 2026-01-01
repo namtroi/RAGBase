@@ -143,33 +143,33 @@ model DriveConfig {
 ## 6. Implementation Checklist
 
 ### Security (AES-256-GCM)
-- [ ] Create `EncryptionService` (encrypt, decrypt).
-- [ ] Update `DriveConfig` model to hold encrypted credentials.
-- [ ] Update OAuth Callback to encrypt before save.
-- [ ] Update SyncService to decrypt before use.
+- [x] Create `EncryptionService` (encrypt, decrypt).
+- [x] Update `DriveOAuth` model to hold encrypted credentials.
+- [x] Update OAuth Callback to encrypt before save.
+- [x] Update SyncService to decrypt before use.
 
 ### AI Worker (Neural Sparse Vectors)
-- [ ] Add `fastembed` library (supports SPLADE).
-- [ ] Update `Embedder` to return `{ dense: [...], sparse: { indices: [...], values: [...] } }`.
-- [ ] Update job response schema for dual vectors.
+- [x] Add `fastembed` library (supports BM25).
+- [x] Update `HybridEmbedder` to return `{ dense: [...], sparse: { indices: [...], values: [...] } }`.
+- [x] Update job response schema for dual vectors.
 
 ### Backend - Outbox Pattern
-- [ ] Update `Chunk` model: Add `syncStatus` (PENDING/SYNCED/FAILED), make vectors nullable.
-- [ ] Create `QdrantSyncQueue` and Processor.
-- [ ] Implement `QdrantService` (upsert, hybrid search, delete).
-- [ ] Implement Cleanup Logic (Nullify local vectors after sync).
-- [ ] Add retry logic for failed syncs.
+- [x] Update `Chunk` model: Add `syncStatus` (PENDING/SYNCED/FAILED), make vectors nullable.
+- [x] Create `QdrantSyncQueue` and Processor.
+- [x] Implement `QdrantService` (upsert, hybrid search, delete).
+- [x] Implement Cleanup Logic (Nullify local vectors after sync).
+- [x] Add retry logic for failed syncs.
 
 ### Search
-- [ ] Refactor `SearchService` to call `QdrantService.search`.
-- [ ] Implement hybrid query with RRF fusion.
-- [ ] Remove `pgvector` search logic (eventually).
-- [ ] Update search API response format.
+- [x] Refactor `SearchService` to call `QdrantService.search`.
+- [x] Implement hybrid query with RRF fusion.
+- [x] Remove `pgvector` search logic.
+- [x] Update search API response format.
 
 ### Testing
-- [ ] Unit tests for encryption/decryption.
-- [ ] Integration tests for Qdrant sync flow.
-- [ ] E2E tests for hybrid search.
+- [x] Unit tests for encryption/decryption.
+- [x] Integration tests for Qdrant sync flow.
+- [x] E2E tests for hybrid search.
 
 ---
 

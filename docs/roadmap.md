@@ -12,7 +12,7 @@
 | **[Phase 2](./roadmap-phase2.md)** | ✅ Complete | Python-First Refactor | Unified processing, bge-small-en-v1.5 |
 | **[Phase 3](./roadmap-phase3.md)** | ✅ Complete | Drive Sync | Multi-folder sync, service account |
 | **[Phase 4](./roadmap-phase4.md)** | ✅ Complete | Format Expansion | 6 new formats, Quality-aware chunking |
-| **[Phase 5](./roadmap-phase5.md)** | 📋 Planned | Production Infra | Qdrant Hybrid Search, AES-256 encryption |
+| **[Phase 5](./roadmap-phase5.md)** | ✅ Complete | Production Infra | Qdrant Hybrid Search, AES-256 encryption |
 | **[Phase 6](./roadmap-phase6.md)** | 📋 Planned | Multi-tenant SaaS | Supabase Auth, Stripe billing, API keys |
 
 ---
@@ -97,7 +97,7 @@
 
 ---
 
-### [Phase 5: Production Infrastructure](./roadmap-phase5.md) 📋 PLANNED
+### [Phase 5: Production Infrastructure](./roadmap-phase5.md) ✅ COMPLETE
 
 **Goal:** Production-grade security and scalable vector search
 

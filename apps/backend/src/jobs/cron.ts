@@ -13,13 +13,13 @@ import cron, { ScheduledTask } from 'node-cron';
 const scheduledTasks: Map<string, ScheduledTask> = new Map();
 
 /**
- * Initialize cron jobs for all enabled DriveConfigs
+ * Initialize cron jobs for all enabled DriveFolders
  */
 export async function initializeCronJobs(): Promise<void> {
     const prisma = getPrismaClient();
 
     // Get all enabled configs
-    const configs = await prisma.driveConfig.findMany({
+    const configs = await prisma.driveFolder.findMany({
         where: { enabled: true },
         select: { id: true, syncCron: true },
     });

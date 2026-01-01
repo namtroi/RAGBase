@@ -17,6 +17,7 @@ from fastapi import FastAPI, HTTPException
 
 from .callback import send_callback
 from .config import settings
+from .hybrid_embedder import HybridEmbedder
 from .logging_config import configure_logging, get_logger
 from .metrics import MetricsCollector
 from .models import (
@@ -71,7 +72,6 @@ async def readiness_check():
 @app.post("/embed", response_model=EmbedResponse)
 async def embed_texts(request: EmbedRequest):
     """Generate dense-only embeddings for a list of texts (backward compatibility)."""
-    from .hybrid_embedder import HybridEmbedder
 
     if not request.texts:
         return EmbedResponse(embeddings=[])
@@ -92,7 +92,6 @@ async def embed_query(request: dict):
 
     Returns both dense (384d) and sparse (BM25) vectors for Qdrant hybrid search.
     """
-    from .hybrid_embedder import HybridEmbedder
     from .models import HybridEmbedResponse, SparseVectorModel
 
     text = request.get("text", "")

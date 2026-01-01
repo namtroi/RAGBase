@@ -55,13 +55,11 @@ export interface SearchParams {
   query: string;
   topK?: number;
   mode?: 'semantic' | 'hybrid';
-  alpha?: number; // 0.0-1.0, weight for vector vs keyword
 }
 
 export interface SearchResponse {
   mode: 'semantic' | 'hybrid' | 'qdrant_hybrid';
   provider?: 'qdrant' | 'pgvector';  // Phase 5G: Indicate which backend powered the search
-  alpha?: number; // Only present in hybrid mode
   results: QueryResult[];
 }
 
@@ -170,7 +168,6 @@ export const queryApi = {
       query: params.query,
       topK: params.topK ?? 5,
       mode: params.mode ?? 'semantic',
-      alpha: params.alpha ?? 0.7,
     }),
 };
 

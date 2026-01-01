@@ -64,7 +64,7 @@ model Document {
   // Phase 2E: Drive Sync
   sourceType          SourceType    @default(MANUAL) @map("source_type")
   driveFileId         String?       @unique @map("drive_file_id")
-  driveConfigId       String?       @map("drive_config_id")
+  driveFolderId       String?       @map("drive_folder_id")
   driveWebViewLink    String?       @map("drive_web_view_link")
   driveModifiedTime   DateTime?     @map("drive_modified_time")
   lastSyncedAt        DateTime?     @map("last_synced_at")
@@ -77,7 +77,7 @@ model Document {
   formatCategory  String?       @map("format_category")
 
   chunks              Chunk[]
-  driveConfig         DriveConfig?  @relation(fields: [driveConfigId], references: [id], onDelete: SetNull)
+  driveFolder         DriveFolder?  @relation(fields: [driveFolderId], references: [id], onDelete: SetNull)
   processingMetrics   ProcessingMetrics?
   
   // Phase 5: Processing Profile
@@ -85,7 +85,7 @@ model Document {
   processingProfile    ProcessingProfile? @relation(fields: [processingProfileId], references: [id], onDelete: SetNull)
 
   @@index([sourceType])
-  @@index([driveConfigId])
+  @@index([driveFolderId])
   @@index([isActive])
   @@index([connectionState])
   @@index([formatCategory])
@@ -114,9 +114,6 @@ model Chunk {
   breadcrumbs    String[]  @default([])
   tokenCount     Int?      @map("token_count")
 
-  // Hybrid Search: BM25 full-text search vector
-  searchVector   Unsupported("tsvector")?  @map("search_vector")
-
   // Phase 5D: Qdrant Sync (Outbox Pattern)
   syncStatus     ChunkSyncStatus  @default(PENDING) @map("sync_status")
   denseVector    Float[]          @default([]) @map("dense_vector")
@@ -128,7 +125,6 @@ model Chunk {
   @@unique([documentId, chunkIndex])
   @@index([qualityScore])
   @@index([chunkType])
-  @@index([searchVector], type: Gin)
   @@index([syncStatus])
   @@map("chunks")
 }
@@ -140,7 +136,7 @@ enum ChunkSyncStatus {
   FAILED
 }
 
-model DriveConfig {
+model DriveFolder {
   id            String      @id @default(uuid())
   folderId      String      @unique @map("folder_id")
   folderName    String      @map("folder_name")
@@ -154,11 +150,6 @@ model DriveConfig {
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
-  // Phase 5A: AES-256-GCM Encrypted OAuth Tokens
-  encryptedRefreshToken  String?  @map("encrypted_refresh_token")
-  tokenIv                String?  @map("token_iv")
-  tokenAuthTag           String?  @map("token_auth_tag")
-
   documents     Document[]
 
   // Phase 5: Processing Profile
@@ -167,7 +158,7 @@ model DriveConfig {
 
   @@index([enabled])
   @@index([processingProfileId])
-  @@map("drive_configs")
+  @@map("drive_folders")
 }
 
 // Phase 5F: OAuth Credentials (encrypted refresh tokens)
@@ -264,8 +255,8 @@ model ProcessingProfile {
   embeddingDimension      Int     @default(384) @map("embedding_dimension")
   embeddingMaxTokens      Int     @default(512) @map("embedding_max_tokens")
   
-  documents     Document[]
-  driveConfigs  DriveConfig[]
+  documents      Document[]
+  driveFolders   DriveFolder[]
   
   @@map("processing_profiles")
 }
