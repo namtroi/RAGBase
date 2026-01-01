@@ -13,11 +13,6 @@ export const QuerySchema = z.object({
   // Hybrid Search: search mode
   mode: z.enum(['semantic', 'hybrid'])
     .default('semantic'),
-  // Hybrid Search: weight for vector vs keyword (0.0 = pure keyword, 1.0 = pure vector)
-  alpha: z.number()
-    .min(0, 'alpha must be at least 0')
-    .max(1, 'alpha cannot exceed 1')
-    .default(0.7),
 });
 
 export type QueryInput = z.infer<typeof QuerySchema>;

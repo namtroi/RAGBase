@@ -188,9 +188,10 @@ class TestEmbedEndpoint:
         from fastapi.testclient import TestClient
         from src.main import app
 
-        with patch("src.embedder.Embedder") as MockEmbedder:
+        # HybridEmbedder is now imported at top of main.py, so mock works
+        with patch("src.main.HybridEmbedder") as MockEmbedder:
             mock_instance = MockEmbedder.return_value
-            mock_instance.embed.return_value = [[0.1] * 384, [0.2] * 384]
+            mock_instance.embed_dense_only.return_value = [[0.1] * 384, [0.2] * 384]
 
             with TestClient(app) as client:
                 response = client.post(

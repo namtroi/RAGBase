@@ -201,6 +201,36 @@ export function AnalyticsPage() {
                                 color="teal"
                             />
                         </div>
+
+                        {/* Phase 5J: Qdrant Sync Queue */}
+                        {overview?.syncQueue && (
+                            <div className="mt-4">
+                                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                    <Layers className="w-4 h-4 text-emerald-500" />
+                                    Qdrant Sync Queue
+                                </h4>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="bg-white rounded-lg border border-gray-200 p-3">
+                                        <p className="text-xs text-gray-500">Pending</p>
+                                        <p className="text-xl font-bold text-yellow-600">
+                                            {formatNumber(overview.syncQueue.PENDING)}
+                                        </p>
+                                    </div>
+                                    <div className="bg-white rounded-lg border border-gray-200 p-3">
+                                        <p className="text-xs text-gray-500">Synced</p>
+                                        <p className="text-xl font-bold text-green-600">
+                                            {formatNumber(overview.syncQueue.SYNCED)}
+                                        </p>
+                                    </div>
+                                    <div className="bg-white rounded-lg border border-gray-200 p-3">
+                                        <p className="text-xs text-gray-500">Failed</p>
+                                        <p className="text-xl font-bold text-red-600">
+                                            {formatNumber(overview.syncQueue.FAILED)}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Pipeline Section (with filters) */}

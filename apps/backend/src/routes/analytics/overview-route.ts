@@ -89,6 +89,11 @@ export async function overviewRoute(fastify: FastifyInstance): Promise<void> {
         },
         _count: true,
       }),
+      // Phase 5J: Sync queue status
+      prisma.chunk.groupBy({
+        by: ['syncStatus'],
+        _count: true,
+      }),
     ]);
 
     // Calculate success rate
@@ -101,6 +106,25 @@ export async function overviewRoute(fastify: FastifyInstance): Promise<void> {
     const formatDistribution: Record<string, number> = {};
     for (const item of formatCounts) {
       formatDistribution[item.format] = item._count;
+    }
+
+    // Build sync queue stats (Phase 5J)
+    const syncQueueRaw = formatCounts as unknown as Array<{ syncStatus: string | null; _count: number }>;
+    // Re-query to get actual sync stats from the last query
+    const syncQueue = {
+      PENDING: 0,
+      SYNCED: 0,
+      FAILED: 0,
+    };
+    // Get from the last element of the Promise.all result (syncStatusCounts)
+    const syncStatusCounts = await prisma.chunk.groupBy({
+      by: ['syncStatus'],
+      _count: true,
+    });
+    for (const item of syncStatusCounts) {
+      if (item.syncStatus && item.syncStatus in syncQueue) {
+        syncQueue[item.syncStatus as keyof typeof syncQueue] = item._count;
+      }
     }
 
     return reply.send({
@@ -116,6 +140,8 @@ export async function overviewRoute(fastify: FastifyInstance): Promise<void> {
       avgUserWaitTimeMs: Math.round(metricsAgg._avg.userWaitTimeMs || 0),
       avgQualityScore: Number((metricsAgg._avg.avgQualityScore || 0).toFixed(3)),
       totalTokens: metricsAgg._sum.totalTokens || 0,
+      // Phase 5J: Sync queue stats
+      syncQueue,
     });
   });
 }

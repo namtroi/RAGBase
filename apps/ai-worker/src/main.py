@@ -17,6 +17,7 @@ from fastapi import FastAPI, HTTPException
 
 from .callback import send_callback
 from .config import settings
+from .hybrid_embedder import HybridEmbedder
 from .logging_config import configure_logging, get_logger
 from .metrics import MetricsCollector
 from .models import (
@@ -70,18 +71,49 @@ async def readiness_check():
 
 @app.post("/embed", response_model=EmbedResponse)
 async def embed_texts(request: EmbedRequest):
-    """Generate embeddings for a list of texts."""
-    from .embedder import Embedder
+    """Generate dense-only embeddings for a list of texts (backward compatibility)."""
 
     if not request.texts:
         return EmbedResponse(embeddings=[])
 
     try:
-        embedder = Embedder()
-        embeddings = embedder.embed(request.texts)
+        embedder = HybridEmbedder()
+        embeddings = embedder.embed_dense_only(request.texts)
         return EmbedResponse(embeddings=embeddings)
     except Exception as e:
         logger.exception("embed_error", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/embed/query")
+async def embed_query(request: dict):
+    """
+    Generate hybrid embeddings for a search query.
+
+    Returns both dense (384d) and sparse (BM25) vectors for Qdrant hybrid search.
+    """
+    from .models import HybridEmbedResponse, SparseVectorModel
+
+    text = request.get("text", "")
+    if not text:
+        raise HTTPException(status_code=400, detail="text is required")
+
+    try:
+        embedder = HybridEmbedder()
+        vectors = embedder.embed([text])
+
+        if not vectors:
+            raise HTTPException(status_code=500, detail="Failed to generate embeddings")
+
+        return HybridEmbedResponse(
+            dense=vectors[0].dense,
+            sparse=SparseVectorModel(
+                indices=vectors[0].sparse.indices,
+                values=vectors[0].sparse.values,
+            ),
+        )
+    except Exception as e:
+        logger.exception("embed_query_error", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 

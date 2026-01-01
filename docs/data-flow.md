@@ -309,29 +309,33 @@ sequenceDiagram
 
 ## 5. Retrieval
 
-### 5.1 Semantic Search (Default)
+### 5.1 Qdrant Hybrid Search
 
-**Endpoint:** `POST /api/query` with `mode=semantic`
+**Endpoint:** `POST /api/query`
 
-```sql
-SELECT c.*, d.filename
-FROM chunks c JOIN documents d ON c.document_id = d.id
-WHERE d.status = 'COMPLETED' AND d.is_active = true
-ORDER BY c.embedding <=> $queryVector
-LIMIT $topK
+**Flow:**
+1. Embed query via AI Worker (dense + sparse vectors)
+2. Qdrant hybrid search with RRF fusion:
+   - Prefetch sparse results (BM25 keyword matching)
+   - Fuse with dense results (semantic similarity)
+3. Return chunk IDs + scores
+4. Fetch content from PostgreSQL
+
+```typescript
+// Qdrant query structure
+{
+  prefetch: [{ query: sparseVector, using: 'sparse', limit: topK * 2 }],
+  query: denseVector,
+  using: 'dense',
+  limit: topK,
+  with_payload: true
+}
 ```
 
-### 5.2 Hybrid Search
-
-**Endpoint:** `POST /api/query` with `mode=hybrid`
-
-**Algorithm (RRF):**
-1. Get top-N vector results (cosine similarity)
-2. Get top-N keyword results (BM25 via `ts_rank`)
-3. Combine using RRF: `score = α*(1/(60+vector_rank)) + (1-α)*(1/(60+keyword_rank))`
-4. Return top-K merged results
-
-**Alpha:** 0.0 = pure keyword, 1.0 = pure vector, 0.7 = default
+**Response includes:**
+- `provider: 'qdrant'` - indicates search backend
+- `score` - RRF combined score
+- `vectorScore` / `keywordScore` - component breakdown
 
 ---
 

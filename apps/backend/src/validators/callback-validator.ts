@@ -31,12 +31,26 @@ const MetricsSchema = z.object({
   totalTokens: z.number().int().nonnegative().optional(),
 }).passthrough();
 
+// Phase 5B: Sparse vector for hybrid search
+const SparseVectorSchema = z.object({
+  indices: z.array(z.number().int()),
+  values: z.array(z.number()),
+});
+
+// Phase 5B: Hybrid vector (dense + sparse)
+const HybridVectorSchema = z.object({
+  dense: z.array(z.number()),
+  sparse: SparseVectorSchema,
+});
+
 const ProcessingResultSchema = z.object({
   processedContent: z.string().optional(),
   chunks: z.array(z.object({
     content: z.string(),
     index: z.number(),
-    embedding: z.array(z.number()), // Expect 384d
+    // Support both Phase 4 (embedding) and Phase 5 (vector) formats
+    embedding: z.array(z.number()).optional(), // Legacy: 384d dense only
+    vector: HybridVectorSchema.optional(),    // Phase 5: dense + sparse
     metadata: ChunkMetadataSchema.optional()
   })).optional(),
   pageCount: z.number().int().nonnegative(),

@@ -96,13 +96,15 @@ class TestEmbeddingDimensions:
     """Regression tests for embedding dimensions."""
 
     def test_embedding_dimensions_unchanged(self):
-        """Embeddings should still be 384 dimensions."""
-        from src.embedder import Embedder
+        """HybridEmbedder should return 384 dense dimensions."""
+        from src.hybrid_embedder import HybridEmbedder
 
-        embedder = Embedder()
-        embedding = embedder.embed("Test text")
+        embedder = HybridEmbedder()
+        result = embedder.embed(["Test text"])
 
-        assert len(embedding) == 384
+        # HybridEmbedder returns list of HybridVector
+        assert len(result) == 1
+        assert len(result[0].dense) == 384
 
 
 class TestChunkStructure:

@@ -1,32 +1,57 @@
-import { Loader2, X } from 'lucide-react';
+/**
+ * Add Folder Modal
+ * 
+ * Opens Google Drive Picker for folder selection.
+ * Uses friendly sync frequency dropdown instead of cron input.
+ */
+
+import { Loader2, X, FolderOpen, CheckCircle, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
+import { useDrivePicker, PickerResult } from '@/hooks/useDrivePicker';
+import { SyncFrequencySelect } from './SyncFrequencySelect';
 
 interface AddFolderModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (data: { folderId: string; syncCron: string; recursive: boolean }) => Promise<void>;
+    onSubmit: (data: { folderId: string; folderName: string; syncCron: string; recursive: boolean }) => Promise<void>;
     isLoading?: boolean;
 }
 
 export function AddFolderModal({ isOpen, onClose, onSubmit, isLoading = false }: AddFolderModalProps) {
-    const [folderId, setFolderId] = useState('');
+    const [selectedFolder, setSelectedFolder] = useState<PickerResult | null>(null);
     const [syncCron, setSyncCron] = useState('0 */6 * * *');
     const [recursive, setRecursive] = useState(true);
+    const { openPicker, isLoading: pickerLoading, error: pickerError } = useDrivePicker();
 
     if (!isOpen) return null;
 
+    const handleOpenPicker = async () => {
+        const result = await openPicker();
+        if (result) {
+            setSelectedFolder(result);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!folderId.trim()) return;
+        if (!selectedFolder) return;
 
         await onSubmit({
-            folderId: folderId.trim(),
+            folderId: selectedFolder.folderId,
+            folderName: selectedFolder.folderName,
             syncCron,
             recursive,
         });
 
-        // Reset form on success (onSubmit should handle errors)
-        setFolderId('');
+        // Reset form on success
+        setSelectedFolder(null);
+        setSyncCron('0 */6 * * *');
+    };
+
+    const handleClose = () => {
+        setSelectedFolder(null);
+        setSyncCron('0 */6 * * *');
+        onClose();
     };
 
     return (
@@ -35,7 +60,7 @@ export function AddFolderModal({ isOpen, onClose, onSubmit, isLoading = false }:
                 <div className="flex items-center justify-between p-4 border-b border-gray-200">
                     <h3 className="text-lg font-semibold text-gray-900">Add Google Drive Folder</h3>
                     <button
-                        onClick={onClose}
+                        onClick={handleClose}
                         disabled={isLoading}
                         className="text-gray-400 hover:text-gray-500 transition-colors"
                     >
@@ -44,43 +69,66 @@ export function AddFolderModal({ isOpen, onClose, onSubmit, isLoading = false }:
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    {/* Folder Selection */}
                     <div>
-                        <label htmlFor="folderId" className="block text-sm font-medium text-gray-700 mb-1">
-                            Folder ID <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Folder <span className="text-red-500">*</span>
                         </label>
-                        <input
-                            id="folderId"
-                            type="text"
-                            value={folderId}
-                            onChange={(e) => setFolderId(e.target.value)}
-                            placeholder="e.g., 1A2B3C..."
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-shadow"
-                            required
-                            disabled={isLoading}
-                        />
-                        <p className="mt-1 text-xs text-gray-500">
-                            The ID from the Google Drive URL: drive.google.com/drive/folders/<b>ID</b>
-                        </p>
+
+                        {selectedFolder ? (
+                            <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-gray-900 truncate">
+                                        {selectedFolder.folderName}
+                                    </p>
+                                    <p className="text-xs text-gray-500 font-mono truncate">
+                                        {selectedFolder.folderId}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedFolder(null)}
+                                    disabled={isLoading}
+                                    className="text-sm text-gray-500 hover:text-gray-700"
+                                >
+                                    Change
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={handleOpenPicker}
+                                disabled={pickerLoading || isLoading}
+                                className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-400 hover:bg-primary-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {pickerLoading ? (
+                                    <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                                ) : (
+                                    <FolderOpen className="w-5 h-5 text-gray-400" />
+                                )}
+                                <span className="text-sm font-medium text-gray-600">
+                                    {pickerLoading ? 'Opening...' : 'Select Folder from Drive'}
+                                </span>
+                            </button>
+                        )}
+
+                        {pickerError && (
+                            <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
+                                <AlertCircle className="w-4 h-4" />
+                                {pickerError}
+                            </div>
+                        )}
                     </div>
 
-                    <div>
-                        <label htmlFor="syncCron" className="block text-sm font-medium text-gray-700 mb-1">
-                            Sync Schedule (Cron)
-                        </label>
-                        <input
-                            id="syncCron"
-                            type="text"
-                            value={syncCron}
-                            onChange={(e) => setSyncCron(e.target.value)}
-                            placeholder="0 */6 * * *"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-shadow"
-                            disabled={isLoading}
-                        />
-                        <p className="mt-1 text-xs text-gray-500">
-                            Default: Every 6 hours (0 */6 * * *)
-                        </p>
-                    </div>
+                    {/* Sync Frequency */}
+                    <SyncFrequencySelect
+                        value={syncCron}
+                        onChange={setSyncCron}
+                        disabled={isLoading}
+                    />
 
+                    {/* Recursive */}
                     <div className="flex items-center gap-2">
                         <input
                             id="recursive"
@@ -95,10 +143,11 @@ export function AddFolderModal({ isOpen, onClose, onSubmit, isLoading = false }:
                         </label>
                     </div>
 
+                    {/* Actions */}
                     <div className="flex justify-end gap-3 pt-2">
                         <button
                             type="button"
-                            onClick={onClose}
+                            onClick={handleClose}
                             disabled={isLoading}
                             className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                         >
@@ -106,7 +155,7 @@ export function AddFolderModal({ isOpen, onClose, onSubmit, isLoading = false }:
                         </button>
                         <button
                             type="submit"
-                            disabled={isLoading || !folderId.trim()}
+                            disabled={isLoading || !selectedFolder}
                             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}

@@ -5,7 +5,7 @@
  */
 
 import { getPrismaClient } from '@/services/database.js';
-import { getDriveService } from '@/services/drive-service.js';
+import { UserDriveService } from '@/services/user-drive-service.js';
 import { eventBus } from '@/services/event-bus.js';
 import { getSyncService } from '@/services/sync-service.js';
 import { logger } from '@/logging/logger.js';
@@ -14,6 +14,7 @@ import { z } from 'zod';
 
 const CreateConfigSchema = z.object({
     folderId: z.string().min(1),
+    folderName: z.string().optional(), // Optional: provided by Google Picker, otherwise fetched from Drive
     syncCron: z.string().default('0 */6 * * *'),
     recursive: z.boolean().default(true),
     enabled: z.boolean().default(true),
@@ -44,10 +45,10 @@ export async function driveConfigRoutes(fastify: FastifyInstance): Promise<void>
             });
         }
 
-        const { folderId, syncCron, recursive, enabled } = input.data;
+        const { folderId, folderName: providedFolderName, syncCron, recursive, enabled } = input.data;
 
         // Check if folder already configured
-        const existing = await prisma.driveConfig.findUnique({
+        const existing = await prisma.driveFolder.findUnique({
             where: { folderId },
         });
 
@@ -59,27 +60,32 @@ export async function driveConfigRoutes(fastify: FastifyInstance): Promise<void>
             });
         }
 
-        // Validate folder exists and get name
+        // Use provided name (from Picker) or fetch from Drive API
         let folderName: string;
-        try {
-            const driveService = getDriveService();
-            const folder = await driveService.getFolder(folderId);
-            if (!folder) {
+        if (providedFolderName) {
+            folderName = providedFolderName;
+        } else {
+            try {
+                const driveService = await UserDriveService.create();
+                const folder = await driveService.getFolder(folderId);
+                if (!folder) {
+                    return reply.status(400).send({
+                        error: 'INVALID_FOLDER',
+                        message: 'Folder not found or is not a folder',
+                    });
+                }
+                folderName = folder.name;
+            } catch (error: any) {
+                logger.error({ error: error.message }, 'drive_folder_validation_failed');
                 return reply.status(400).send({
-                    error: 'INVALID_FOLDER',
-                    message: 'Folder not found or is not a folder',
+                    error: 'DRIVE_ERROR',
+                    message: `Failed to access folder: ${error.message}`,
                 });
             }
-            folderName = folder.name;
-        } catch (error: any) {
-            return reply.status(400).send({
-                error: 'DRIVE_ERROR',
-                message: `Failed to access folder: ${error.message}`,
-            });
         }
 
         // Create config
-        const config = await prisma.driveConfig.create({
+        const config = await prisma.driveFolder.create({
             data: {
                 folderId,
                 folderName,
@@ -103,7 +109,7 @@ export async function driveConfigRoutes(fastify: FastifyInstance): Promise<void>
      * GET /api/drive/configs - List all Drive folder configs
      */
     fastify.get('/api/drive/configs', async (request, reply) => {
-        const configs = await prisma.driveConfig.findMany({
+        const configs = await prisma.driveFolder.findMany({
             orderBy: { createdAt: 'desc' },
             include: {
                 _count: {
@@ -142,7 +148,7 @@ export async function driveConfigRoutes(fastify: FastifyInstance): Promise<void>
             });
         }
 
-        const config = await prisma.driveConfig.findUnique({
+        const config = await prisma.driveFolder.findUnique({
             where: { id: params.data.id },
             include: {
                 _count: {
@@ -195,7 +201,7 @@ export async function driveConfigRoutes(fastify: FastifyInstance): Promise<void>
         }
 
         // Check if config exists
-        const existing = await prisma.driveConfig.findUnique({
+        const existing = await prisma.driveFolder.findUnique({
             where: { id: params.data.id },
         });
 
@@ -207,7 +213,7 @@ export async function driveConfigRoutes(fastify: FastifyInstance): Promise<void>
         }
 
         // Update config
-        const config = await prisma.driveConfig.update({
+        const config = await prisma.driveFolder.update({
             where: { id: params.data.id },
             data: input.data,
         });
@@ -238,7 +244,7 @@ export async function driveConfigRoutes(fastify: FastifyInstance): Promise<void>
         }
 
         // Check if config exists
-        const existing = await prisma.driveConfig.findUnique({
+        const existing = await prisma.driveFolder.findUnique({
             where: { id: params.data.id },
         });
 
@@ -249,19 +255,19 @@ export async function driveConfigRoutes(fastify: FastifyInstance): Promise<void>
             });
         }
 
-        // Delete config (documents will have driveConfigId set to null due to onDelete: SetNull)
+        // Delete folder (documents will have driveFolderId set to null due to onDelete: SetNull)
         // First, update connectionState to STANDALONE for all linked documents
         await prisma.document.updateMany({
-            where: { driveConfigId: params.data.id },
+            where: { driveFolderId: params.data.id },
             data: { connectionState: 'STANDALONE' },
         });
 
-        await prisma.driveConfig.delete({
+        await prisma.driveFolder.delete({
             where: { id: params.data.id },
         });
 
         // Emit SSE event for frontend update
-        eventBus.emit('driveConfig:deleted', { configId: params.data.id });
+        eventBus.emit('driveFolder:deleted', { configId: params.data.id });
 
         return reply.status(204).send();
     });

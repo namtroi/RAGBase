@@ -3,6 +3,8 @@ import { getPrisma } from '../../services/database.js';
 import { eventBus } from '../../services/event-bus.js';
 import { QualityGateService } from '../../services/quality-gate-service.js';
 import { CallbackSchema } from '../../validators/callback-validator.js';
+import { getQdrantSyncQueue } from '../../queue/worker-init.js';
+import { isQdrantConfigured } from '../../services/qdrant.service.js';
 import { logger } from '@/logging/logger.js';
 
 const qualityGate = new QualityGateService();
@@ -84,41 +86,89 @@ export async function callbackRoute(fastify: FastifyInstance): Promise<void> {
           where: { documentId }
         });
 
-        for (const chunk of result.chunks) {
-          // Convert embedding array to PostgreSQL vector string format
-          const embeddingStr = `[${chunk.embedding.join(',')}]`;
+        // Phase 5 Performance Fix: Insert in batches to avoid serial DB latency
+        // Sequential inserts for large docs (500+ chunks) caused 5-10x slowdown
+        const startInsert = Date.now();
+        const BATCH_SIZE = 20; // 20 concurrent inserts is safe for connection pool
+        const chunks = result.chunks;
 
-          // Phase 4: Extract quality metadata
-          const meta = chunk.metadata || {};
-          const locationJson = meta.location ? JSON.stringify(meta.location) : null;
-          const breadcrumbsArr = meta.breadcrumbs || [];
-          const qualityFlagsArr = meta.qualityFlags || [];
+        for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+          const batch = chunks.slice(i, i + BATCH_SIZE);
+          
+          await Promise.all(batch.map(async (chunk) => {
+            // Phase 5: Support both old (embedding) and new (vector) formats
+            let denseVector: number[] = [];
+            let sparseIndices: number[] = [];
+            let sparseValues: number[] = [];
+            let embeddingStr = '[' + Array(384).fill(0).join(',') + ']';  // Default zero vector
 
-          await prisma.$executeRaw`
-            INSERT INTO chunks (
-              id, document_id, content, chunk_index, embedding, 
-              heading, created_at,
-              location, quality_score, quality_flags, chunk_type, 
-              completeness, has_title, breadcrumbs, token_count
-            )
-            VALUES (
-              gen_random_uuid(),
-              ${documentId},
-              ${chunk.content},
-              ${chunk.index},
-              ${embeddingStr}::vector,
-              null, 
-              NOW(),
-              ${locationJson}::jsonb,
-              ${meta.qualityScore || null},
-              ${qualityFlagsArr},
-              ${meta.chunkType || null},
-              ${meta.completeness || null},
-              ${meta.hasTitle || null},
-              ${breadcrumbsArr},
-              ${meta.tokenCount || null}
-            )
-          `;
+            if (chunk.vector) {
+              // New Phase 5 format: hybrid vector
+              denseVector = chunk.vector.dense;
+              sparseIndices = chunk.vector.sparse.indices;
+              sparseValues = chunk.vector.sparse.values;
+              embeddingStr = `[${denseVector.join(',')}]`;
+            } else if (chunk.embedding) {
+              // Legacy Phase 4 format: dense only
+              denseVector = chunk.embedding;
+              embeddingStr = `[${chunk.embedding.join(',')}]`;
+            }
+
+            // Phase 4: Extract quality metadata
+            const meta = chunk.metadata || {};
+            const locationJson = meta.location ? JSON.stringify(meta.location) : null;
+            const breadcrumbsArr = meta.breadcrumbs || [];
+            const qualityFlagsArr = meta.qualityFlags || [];
+
+            await prisma.$executeRaw`
+              INSERT INTO chunks (
+                id, document_id, content, chunk_index, embedding, 
+                heading, created_at,
+                location, quality_score, quality_flags, chunk_type, 
+                completeness, has_title, breadcrumbs, token_count,
+                sync_status, dense_vector, sparse_indices, sparse_values
+              )
+              VALUES (
+                gen_random_uuid(),
+                ${documentId},
+                ${chunk.content},
+                ${chunk.index},
+                ${embeddingStr}::vector,
+                null, 
+                NOW(),
+                ${locationJson}::jsonb,
+                ${meta.qualityScore || null},
+                ${qualityFlagsArr},
+                ${meta.chunkType || null},
+                ${meta.completeness || null},
+                ${meta.hasTitle || null},
+                ${breadcrumbsArr},
+                ${meta.tokenCount || null},
+                'PENDING',
+                ${denseVector},
+                ${sparseIndices},
+                ${sparseValues}
+              )
+            `;
+          }));
+        }
+        
+        const insertTimeMs = Date.now() - startInsert;
+        logger.info({ 
+          documentId, 
+          chunkCount: chunks.length, 
+          insertTimeMs 
+        }, 'chunks_inserted_batch');
+
+        // Phase 5D: Trigger Qdrant sync job for this document's chunks
+        if (isQdrantConfigured()) {
+          const syncQueue = getQdrantSyncQueue();
+          if (syncQueue) {
+            await syncQueue.add('sync', { documentId }, {
+              jobId: `sync-${documentId}-${Date.now()}`,
+            });
+            logger.info({ documentId, chunkCount: result.chunks.length }, 'qdrant_sync_job_enqueued');
+          }
         }
 
         // Update document status & metadata

@@ -20,7 +20,7 @@ export async function cleanDatabase(): Promise<void> {
   await prisma.$executeRaw`DELETE FROM chunks`;
   await prisma.processingMetrics.deleteMany();
   await prisma.document.deleteMany();
-  await prisma.driveConfig.deleteMany();
+  await prisma.driveFolder.deleteMany();
   // Delete non-default profiles only (keep default for tests)
   await prisma.processingProfile.deleteMany({
     where: { isDefault: false }

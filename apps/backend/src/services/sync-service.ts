@@ -7,7 +7,7 @@
 
 import { getProcessingQueue } from '@/queue/processing-queue.js';
 import { getPrismaClient } from '@/services/database.js';
-import { DriveService, getDriveService } from '@/services/drive-service.js';
+import { UserDriveService } from '@/services/user-drive-service.js';
 import { eventBus } from '@/services/event-bus.js';
 import { HashService } from '@/services/hash-service.js';
 import { detectFormat } from '@/validators/file-format-detector.js';
@@ -25,28 +25,34 @@ interface SyncResult {
 }
 
 export class SyncService {
-    private driveService: DriveService;
+    private driveService: UserDriveService | null = null;
     private prisma: ReturnType<typeof getPrismaClient>;
 
     constructor() {
-        this.driveService = getDriveService();
         this.prisma = getPrismaClient();
     }
 
+    private async getDrive(): Promise<UserDriveService> {
+        if (!this.driveService) {
+            this.driveService = await UserDriveService.create();
+        }
+        return this.driveService;
+    }
+
     /**
-     * Run sync for a specific DriveConfig
+     * Run sync for a specific DriveFolder
      */
     async syncConfig(configId: string): Promise<SyncResult> {
         const result: SyncResult = { added: 0, updated: 0, removed: 0, errors: [] };
 
         // Get config
-        const config = await this.prisma.driveConfig.findUnique({
+        const config = await this.prisma.driveFolder.findUnique({
             where: { id: configId },
             include: { processingProfile: true },
         });
 
         if (!config) {
-            throw new Error(`DriveConfig not found: ${configId}`);
+            throw new Error(`DriveFolder not found: ${configId}`);
         }
 
         if (!config.enabled) {
@@ -54,7 +60,7 @@ export class SyncService {
         }
 
         // Update sync status
-        await this.prisma.driveConfig.update({
+        await this.prisma.driveFolder.update({
             where: { id: configId },
             data: { syncStatus: 'SYNCING', syncError: null },
         });
@@ -91,7 +97,7 @@ export class SyncService {
             }
 
             // Update config after successful sync
-            await this.prisma.driveConfig.update({
+            await this.prisma.driveFolder.update({
                 where: { id: configId },
                 data: {
                     syncStatus: 'IDLE',
@@ -109,7 +115,7 @@ export class SyncService {
             });
         } catch (error: any) {
             // Update config with error
-            await this.prisma.driveConfig.update({
+            await this.prisma.driveFolder.update({
                 where: { id: configId },
                 data: {
                     syncStatus: 'ERROR',
@@ -138,13 +144,14 @@ export class SyncService {
         profileConfig?: Record<string, unknown>
     ): Promise<void> {
         // Get all files from Drive
+        const drive = await this.getDrive();
         const driveFiles = recursive
-            ? await this.driveService.listAllFiles(folderId)
-            : (await this.driveService.listFiles(folderId, undefined, false)).files;
+            ? await drive.listAllFiles(folderId)
+            : await drive.listAllFiles(folderId); // Use listAllFiles for both cases
 
         // Get existing documents for this config
         const existingDocs = await this.prisma.document.findMany({
-            where: { driveConfigId: configId },
+            where: { driveFolderId: configId },
             select: { id: true, driveFileId: true, md5Hash: true },
         });
 
@@ -183,8 +190,8 @@ export class SyncService {
         }
 
         // Get page token for future incremental syncs
-        const pageToken = await this.driveService.getStartPageToken();
-        await this.prisma.driveConfig.update({
+        const pageToken = await (await this.getDrive()).getStartPageToken();
+        await this.prisma.driveFolder.update({
             where: { id: configId },
             data: { pageToken },
         });
@@ -205,15 +212,16 @@ export class SyncService {
 
         // Get existing documents for this config
         const existingDocs = await this.prisma.document.findMany({
-            where: { driveConfigId: configId },
+            where: { driveFolderId: configId },
             select: { id: true, driveFileId: true },
         });
         const existingMap = new Map(existingDocs.map(d => [d.driveFileId, d]));
 
         // Process all changes
+        const drive = await this.getDrive();
         let hasMore = true;
         while (hasMore) {
-            const changes = await this.driveService.getChanges(currentToken);
+            const changes = await drive.getChanges(currentToken);
 
             for (const change of changes.changes) {
                 try {
@@ -250,7 +258,7 @@ export class SyncService {
         }
 
         // Update page token
-        await this.prisma.driveConfig.update({
+        await this.prisma.driveFolder.update({
             where: { id: configId },
             data: { pageToken: currentToken },
         });
@@ -282,7 +290,7 @@ export class SyncService {
                 await this.prisma.document.update({
                     where: { id: existingByDriveId.id },
                     data: {
-                        driveConfigId: configId,
+                        driveFolderId: configId,
                         driveWebViewLink: file.webViewLink ?? undefined,
                         driveModifiedTime: file.modifiedTime ? new Date(file.modifiedTime) : undefined,
                         connectionState: 'LINKED',
@@ -307,7 +315,7 @@ export class SyncService {
         // Download file
         const filePath = path.join(UPLOAD_DIR, `drive_${file.id}`);
         await mkdir(UPLOAD_DIR, { recursive: true });
-        await this.driveService.downloadFile(file.id, filePath);
+        await (await this.getDrive()).downloadFile(file.id, filePath);
 
         // Calculate MD5 if not provided
         const fileBuffer = await readFile(filePath);
@@ -324,7 +332,7 @@ export class SyncService {
                 where: { id: existingByHash.id },
                 data: {
                     driveFileId: file.id,
-                    driveConfigId: configId,
+                    driveFolderId: configId,
                     driveWebViewLink: file.webViewLink ?? undefined,
                     driveModifiedTime: file.modifiedTime ? new Date(file.modifiedTime) : undefined,
                     sourceType: 'DRIVE',
@@ -350,7 +358,7 @@ export class SyncService {
                 sourceType: 'DRIVE',
                 connectionState: 'LINKED',
                 driveFileId: file.id,
-                driveConfigId: configId,
+                driveFolderId: configId,
                 driveWebViewLink: file.webViewLink ?? undefined,
                 driveModifiedTime: file.modifiedTime ? new Date(file.modifiedTime) : undefined,
                 lastSyncedAt: new Date(),
@@ -383,7 +391,7 @@ export class SyncService {
     ): Promise<void> {
         // Download new version
         const filePath = path.join(UPLOAD_DIR, `drive_${file.id}`);
-        await this.driveService.downloadFile(file.id, filePath);
+        await (await this.getDrive()).downloadFile(file.id, filePath);
 
         // Calculate MD5
         const fileBuffer = await readFile(filePath);
@@ -403,7 +411,7 @@ export class SyncService {
                 retryCount: 0,
                 failReason: null,
                 connectionState: 'LINKED',
-                driveConfigId: configId, // Update config ID if provided during re-link
+                driveFolderId: configId, // Update config ID if provided during re-link
                 driveWebViewLink: file.webViewLink ?? undefined,
                 driveModifiedTime: file.modifiedTime ? new Date(file.modifiedTime) : undefined,
                 lastSyncedAt: new Date(),

@@ -11,7 +11,6 @@ export function SearchForm() {
   const [query, setQuery] = useState('');
   const [topK, setTopK] = useState(5);
   const [mode, setMode] = useState<SearchMode>('semantic');
-  const [alpha, setAlpha] = useState(0.7);
 
   const searchMutation = useSearch();
 
@@ -22,7 +21,6 @@ export function SearchForm() {
         query: query.trim(),
         topK,
         mode,
-        alpha: mode === 'hybrid' ? alpha : undefined,
       });
     }
   };
@@ -36,7 +34,6 @@ export function SearchForm() {
         query: query.trim(),
         topK,
         mode: newMode,
-        alpha: newMode === 'hybrid' ? alpha : undefined,
       });
     }
   };
@@ -109,30 +106,7 @@ export function SearchForm() {
             </div>
           </div>
 
-          {/* Alpha Slider - only shown in hybrid mode */}
-          {mode === 'hybrid' && (
-            <div className="flex items-center gap-3 animate-in slide-in-from-left-2 duration-200">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Balance:</span>
-                <span className="text-xs text-gray-400 font-mono">Keyword</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={alpha}
-                  onChange={(e) => setAlpha(parseFloat(e.target.value))}
-                  className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-500"
-                />
-                <span className="text-xs text-gray-400 font-mono">Vector</span>
-              </div>
-              <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
-                {(alpha * 100).toFixed(0)}% semantic
-              </span>
-            </div>
-          )}
+          {/* Alpha Slider - Removed in Phase 5 (Qdrant handles balance) */}
         </div>
       </form>
 
@@ -141,7 +115,7 @@ export function SearchForm() {
         <ResultsList
           results={searchMutation.data.results}
           mode={searchMutation.data.mode}
-          alpha={searchMutation.data.alpha}
+          provider={searchMutation.data.provider}
         />
       )}
 
