@@ -299,7 +299,14 @@ export function AnalyticsPage() {
                             stats={[
                                 { label: 'Total Chunks', value: formatNumber(quality?.totalChunks || 0) },
                                 { label: 'Avg Tokens / Chunk', value: formatNumber(quality?.avgTokensPerChunk || 0) },
-                                { label: 'Avg Chunking Time / File', value: formatMs(processing?.breakdown.avgChunkingTimeMs || 0) },
+                                {
+                                    label: 'Avg Chunking Time / Chunk',
+                                    value: formatMs(
+                                        quality?.totalChunks
+                                            ? Math.round(((processing?.breakdown.avgChunkingTimeMs || 0) * (processing?.documentsProcessed || 0)) / quality.totalChunks)
+                                            : 0
+                                    )
+                                },
                                 { label: 'Avg Quality Score', value: `${((quality?.avgQualityScore || 0) * 100).toFixed(0)}%` },
                             ]}
                             footer={
@@ -336,7 +343,14 @@ export function AnalyticsPage() {
                             icon={<Clock className="w-5 h-5 text-violet-500" />}
                             stats={[
                                 { label: 'Vectors Indexed', value: formatNumber(quality?.totalChunks || 0) },
-                                { label: 'Avg Embedding Time / File', value: formatMs(processing?.breakdown.avgEmbeddingTimeMs || 0) },
+                                {
+                                    label: 'Avg Embedding Time / Vector',
+                                    value: formatMs(
+                                        quality?.totalChunks
+                                            ? Math.round(((processing?.breakdown.avgEmbeddingTimeMs || 0) * (processing?.documentsProcessed || 0)) / quality.totalChunks)
+                                            : 0
+                                    )
+                                },
                             ]}
                             showArrow={false}
                         />
