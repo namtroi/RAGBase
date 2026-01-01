@@ -20,14 +20,17 @@ services:
       - API_KEY=${API_KEY}
       - PORT=3000
       - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-50}
-      - MIN_TEXT_LENGTH=${MIN_TEXT_LENGTH:-50}
-      - MAX_NOISE_RATIO=${MAX_NOISE_RATIO:-0.5}
-      - REJECT_NOISE_RATIO=${REJECT_NOISE_RATIO:-0.8}
-      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-self-hosted}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-Xenova/all-MiniLM-L6-v2}
-      - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-50}
       - PDF_CONCURRENCY=${PDF_CONCURRENCY:-1}
       - AI_WORKER_URL=http://ai-worker:8000
+      # Phase 5: Qdrant hybrid search
+      - QDRANT_URL=${QDRANT_URL}
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-ragbase_hybrid}
+      - VECTOR_DB_PROVIDER=${VECTOR_DB_PROVIDER:-qdrant}
+      # Phase 5: OAuth encryption
+      - APP_ENCRYPTION_KEY=${APP_ENCRYPTION_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     networks:
       - internal
     volumes:

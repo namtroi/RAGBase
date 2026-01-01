@@ -17,6 +17,15 @@ services:
       - ALERT_WEBHOOK_URL=${ALERT_WEBHOOK_URL}
       - PDF_CONCURRENCY=${PDF_CONCURRENCY:-1}
       - AI_WORKER_URL=http://ai-worker:8000
+      # Phase 5: Qdrant hybrid search
+      - QDRANT_URL=${QDRANT_URL}
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-ragbase_hybrid}
+      - VECTOR_DB_PROVIDER=${VECTOR_DB_PROVIDER:-qdrant}
+      # Phase 5: OAuth encryption
+      - APP_ENCRYPTION_KEY=${APP_ENCRYPTION_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     depends_on:
       postgres:
         condition: service_healthy
