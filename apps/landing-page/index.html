@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAGBase - Enterprise RAG Pipeline</title>
+    <meta name="description" content="The Set & Forget Data Pipeline for Enterprise RAG. Open Source, Self-Hosted, and Production Ready.">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="#" class="logo">
+                <img src="RAGBase-logo.png" alt="RAGBase Logo" height="40">
+                <span>RAGBase</span>
+            </a>
+            <a href="https://github.com/namtroi/RAGBase" class="cta-button">GitHub</a>
+        </header>
+
+        <section class="hero">
+            <div class="badges">
+                <span class="badge">Open Source</span>
+                <span class="badge">Self-Hosted</span>
+                <span class="badge">Structure-Aware</span>
+                <span class="badge">Production-Ready</span>
+            </div>
+            <h1>The "Set & Forget"<br>Data Pipeline for Enterprise RAG</h1>
+            <p>Convert unstructured data into structured knowledge. Zero data egress. 100% Data Sovereignty.</p>
+            <div class="hero-actions">
+                <a href="https://github.com/namtroi/RAGBase" class="cta-button">Get Started on GitHub</a>
+            </div>
+            
+            <div class="slideshow-container hero-image">
+                <div class="slide fade">
+                    <img src="ragbase.jpg" alt="RAGBase Dashboard 1">
+                </div>
+                <div class="slide fade">
+                    <img src="ragbase2.jpg" alt="RAGBase Dashboard 2">
+                </div>
+                <div class="slide fade">
+                    <img src="ragbase3.jpg" alt="RAGBase Dashboard 3">
+                </div>
+                <div class="slide fade">
+                    <img src="ragbase4.jpg" alt="RAGBase Dashboard 4">
+                </div>
+                
+                <a class="prev" onclick="plusSlides(-1)">&#10094;</a>
+                <a class="next" onclick="plusSlides(1)">&#10095;</a>
+
+                <div class="dots-container">
+                    <span class="dot" onclick="currentSlide(1)"></span> 
+                    <span class="dot" onclick="currentSlide(2)"></span> 
+                    <span class="dot" onclick="currentSlide(3)"></span> 
+                    <span class="dot" onclick="currentSlide(4)"></span> 
+                </div>
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="features-grid">
+                <div class="feature-card">
+                    <span class="feature-icon">🔄</span>
+                    <h3>Unified Pipeline</h3>
+                    <p>Process PDF, DOCX, PPTX, HTML, TXT, JSON and more through a single, robust AI worker pipeline.</p>
+                </div>
+                <div class="feature-card">
+                    <span class="feature-icon">📂</span>
+                    <h3>Drive Sync</h3>
+                    <p>Auto-sync Google Drive folders with incremental updates. Works with OAuth for secure access.</p>
+                </div>
+                <div class="feature-card">
+                    <span class="feature-icon">🔍</span>
+                    <h3>Hybrid Search</h3>
+                    <p>Advanced retrieval using Dense vectors + Sparse SPLADE vectors via Qdrant for superior accuracy.</p>
+                </div>
+                <div class="feature-card">
+                    <span class="feature-icon">🛡️</span>
+                    <h3>Data Sovereignty</h3>
+                    <p>100% self-hosted via Docker. You own your infrastructure. No external API calls for data processing.</p>
+                </div>
+                <div class="feature-card">
+                    <span class="feature-icon">⚡</span>
+                    <h3>Production Ready</h3>
+                    <p>Built with TypeScript and Python. Includes structured logging, Prometheus metrics, and rate limiting.</p>
+                </div>
+                <div class="feature-card">
+                    <span class="feature-icon">✨</span>
+                    <h3>Quality Control</h3>
+                    <p>Automated analysis to flag poor content. Auto-fix pipeline merges short chunks and splits long ones.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="tech-stack">
+            <h2>Built With</h2>
+            <div class="tech-list">
+                <span class="tech-item">Node.js</span>
+                <span class="tech-item">Fastify</span>
+                <span class="tech-item">Python</span>
+                <span class="tech-item">FastAPI</span>
+                <span class="tech-item">React</span>
+                <span class="tech-item">Tailwind</span>
+                <span class="tech-item">Qdrant</span>
+                <span class="tech-item">PostgreSQL</span>
+                <span class="tech-item">Redis</span>
+            </div>
+        </section>
+
+        <footer>
+            <p>&copy; 2026 RAGBase. Released under the <a href="https://github.com/namtroi/RAGBase/blob/main/LICENSE">MIT License</a>.</p>
+            <p class="contact-info">Contact: <a href="mailto:namtroi@gmail.com">namtroi@gmail.com</a></p>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
