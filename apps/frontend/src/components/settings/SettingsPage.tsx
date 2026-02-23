@@ -188,10 +188,7 @@ export function SettingsPage() {
                             <span className="text-gray-500">Algorithm</span>
                             <span className="font-mono text-xs">{status?.encryption.algorithm}</span>
                         </div>
-                        <div className="flex justify-between">
-                            <span className="text-gray-500">OAuth Configured</span>
-                            <StatusBadge status={status?.oauth.configured ?? false} />
-                        </div>
+
                     </div>
                 </div>
 

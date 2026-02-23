@@ -1,15 +1,16 @@
 # =============================================================================
-# STAGE 1: Builder
+# RAGBase Backend — Single-stage with tsx (handles @/ path aliases)
 # =============================================================================
-FROM node:20-slim AS builder
+FROM node:20-slim
 
 WORKDIR /app
 
-# Install build dependencies for native modules
+# Install build dependencies for native modules + curl for health checks
 RUN apt-get update && apt-get install -y \
     python3 \
     make \
     g++ \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install pnpm
@@ -20,51 +21,22 @@ ENV CI=true
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/backend/package.json ./apps/backend/
 
-# Install dependencies (cached unless lockfile changes)
+# Install all dependencies
 RUN pnpm install --frozen-lockfile
 
-# Copy prisma schema for generation
+# Copy prisma schema and generate client
 COPY apps/backend/prisma ./apps/backend/prisma
-
-# Generate Prisma client
 RUN pnpm --filter @ragbase/backend db:generate
 
-# Copy source code
+# Copy source code and config
 COPY apps/backend/src ./apps/backend/src
 COPY apps/backend/tsconfig*.json ./apps/backend/
-
-# Build TypeScript
-RUN pnpm --filter @ragbase/backend build
-
-# =============================================================================
-# STAGE 2: Production
-# =============================================================================
-FROM node:20-slim AS production
-
-WORKDIR /app
-
-# Install pnpm for production
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-# Copy package files
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY apps/backend/package.json ./apps/backend/
-
-# Copy production dependencies
-ENV CI=true
-RUN pnpm install --frozen-lockfile --prod
-
-# Copy prisma schema for generation
-COPY apps/backend/prisma ./apps/backend/prisma
-
-# Generate Prisma client for production environment
-RUN pnpm --filter @ragbase/backend db:generate
-
-# Copy built artifacts from builder
-COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
 
 ENV NODE_ENV=production
 EXPOSE 3000
 
 WORKDIR /app/apps/backend
-CMD ["node", "dist/index.js"]
+
+# Entrypoint: push schema then start
+CMD ["sh", "-c", "npx prisma db push --url \"$DATABASE_URL\" && npx tsx src/index.ts"]
+

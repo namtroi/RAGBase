@@ -7,6 +7,7 @@
 # PDF Processing
 # Requires C++ build tools on Windows
 pymupdf==1.26.0
+pymupdf4llm>=0.0.17
 
 # Document conversion
 # Large download ~500MB

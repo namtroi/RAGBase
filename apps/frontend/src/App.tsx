@@ -1,14 +1,14 @@
 
 import { DocumentList } from '@/components/documents/document-list';
 import { UploadDropzone } from '@/components/documents/upload-dropzone';
-import { DriveSyncTab } from '@/components/drive/DriveSyncTab';
+
 import { SearchForm } from '@/components/query/search-form';
 import { AnalyticsPage } from '@/components/analytics/AnalyticsPage';
 import { ChunksExplorerPage } from '@/components/chunks/ChunksExplorerPage';
 import { ProfilePage } from '@/components/profiles/ProfilePage';
 import { SettingsPage } from '@/components/settings/SettingsPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { FileText, FolderSync, Search, Settings, BarChart3, Layers, Sliders } from 'lucide-react';
+import { FileText, Search, Settings, BarChart3, Layers, Sliders } from 'lucide-react';
 import { useState } from 'react';
 
 const queryClient = new QueryClient({
@@ -26,7 +26,7 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<Tab>('documents');
 
   const tabs = [
-    { id: 'drive' as Tab, label: 'Drive Sync', icon: FolderSync },
+
     { id: 'documents' as Tab, label: 'Documents', icon: FileText },
     { id: 'chunks' as Tab, label: 'Chunks', icon: Layers },
     { id: 'query' as Tab, label: 'Search', icon: Search },
@@ -125,9 +125,7 @@ function AppContent() {
           <ChunksExplorerPage />
         )}
 
-        {activeTab === 'drive' && (
-          <DriveSyncTab />
-        )}
+
 
         {activeTab === 'profiles' && (
           <ProfilePage />
