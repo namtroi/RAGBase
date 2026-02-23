@@ -17,8 +17,8 @@ COPY tsconfig.json ./
 # Build
 RUN pnpm --filter @ragbase/frontend build
 
-# Stage 2: Serve with nginx
-FROM nginx:alpine
+# Stage 2: Serve with unprivileged nginx (non-root)
+FROM nginxinc/nginx-unprivileged:alpine
 
 # Copy custom nginx config
 COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf
@@ -26,5 +26,5 @@ COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built assets
 COPY --from=builder /app/apps/frontend/dist /usr/share/nginx/html
 
-EXPOSE 80
+EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]

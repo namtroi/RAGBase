@@ -1,16 +1,15 @@
 # =============================================================================
-# RAGBase Backend — Single-stage with tsx (handles @/ path aliases)
+# STAGE 1: Builder — install deps + generate Prisma client
 # =============================================================================
-FROM node:20-slim
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Install build dependencies for native modules + curl for health checks
+# Install build dependencies for native modules
 RUN apt-get update && apt-get install -y \
     python3 \
     make \
     g++ \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install pnpm
@@ -32,11 +31,34 @@ RUN pnpm --filter @ragbase/backend db:generate
 COPY apps/backend/src ./apps/backend/src
 COPY apps/backend/tsconfig*.json ./apps/backend/
 
+# =============================================================================
+# STAGE 2: Production — slim image, no build tools
+# =============================================================================
+FROM node:20-slim
+
+WORKDIR /app
+
+# Install only runtime dependency (curl for health checks)
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pnpm (needed for npx prisma / tsx)
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Copy workspace files and installed node_modules from builder
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/backend ./apps/backend
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+
 ENV NODE_ENV=production
 EXPOSE 3000
 
 WORKDIR /app/apps/backend
 
-# Entrypoint: push schema then start
-CMD ["sh", "-c", "npx prisma db push --url \"$DATABASE_URL\" && npx tsx src/index.ts"]
+# Run as non-root user
+USER node
 
+# Safe migration (migrate deploy) then start
+CMD ["sh", "-c", "npx prisma migrate deploy --schema prisma/schema.prisma && npx tsx src/index.ts"]

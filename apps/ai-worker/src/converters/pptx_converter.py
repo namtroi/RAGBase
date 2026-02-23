@@ -107,7 +107,7 @@ class PptxConverter(FormatConverter):
             if hasattr(doc_obj, "name") and doc_obj.name:
                 metadata["title"] = doc_obj.name
         except Exception:
-            pass
+            logger.debug("pptx_metadata_extraction_failed")
         return metadata
 
     def _ensure_slide_markers(self, markdown: str) -> str:

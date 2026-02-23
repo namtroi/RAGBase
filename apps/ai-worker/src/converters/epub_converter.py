@@ -101,7 +101,7 @@ class EpubConverter(FormatConverter):
             if data and len(data) > 0:
                 return data[0][0]
         except Exception:
-            pass
+            logger.debug("epub_metadata_extraction_failed", key=key)
         return None
 
     def _html_to_markdown(self, html_content: str) -> str:

@@ -39,3 +39,6 @@ openpyxl>=3.1.2
 
 # Phase 5: Hybrid Embeddings (dense + sparse)
 fastembed>=0.4.0
+
+# Security: Pin Pillow to fix CVE-2026-25990 (out-of-bounds write in PSD loader)
+Pillow>=12.1.1

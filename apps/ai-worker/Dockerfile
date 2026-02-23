@@ -43,4 +43,8 @@ COPY apps/ai-worker/src ./src
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
+# Run as non-root user
+RUN useradd --create-home appuser
+USER appuser
+
 CMD ["python", "-m", "src.main"]
