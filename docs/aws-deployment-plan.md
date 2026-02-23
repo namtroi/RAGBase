@@ -445,7 +445,7 @@ If budget or timeline is tight, skip managed services entirely:
 ssh ec2-user@<IP>
 git clone <repo>
 cp .env.example .env  # fill in secrets
-docker compose -f docker-compose.prod.yml up -d
+docker compose up -d
 ```
 
 **Pros:** Fast (1-2 hours), cheapest, matches local dev exactly.  

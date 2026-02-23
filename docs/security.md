@@ -35,7 +35,7 @@ Running `pip-audit` revealed **1 vulnerability**:
 **AI-Worker Dockerfile (`apps/ai-worker/Dockerfile`)**:
 1. **Root User Permissions**: Python processes run as root. 
 
-**Docker Compose (`docker-compose.prod.yml`)**:
+**Docker Compose (`docker-compose.yml`)**:
 1. **Unnecessary Port Exposure**: The backend service exposes port `3000:3000` to the host. Usually, only the proxy (Nginx on port `80/443`) should be exposed to the outside, routing traffic internally to the backend. Exposing the backend directly bypasses the Nginx configuration.
 
 **Nginx Configuration (`apps/frontend/nginx.conf`)**:
@@ -60,5 +60,5 @@ Running `bandit` found 3 issues:
 ### Recommended Next Steps for Production:
 1. Fix dependency vulnerabilities (`pnpm update`, bump `pillow` to `12.1.1`).
 2. Update the `backend` Dockerfile to use a multi-stage build, change the user to `node`, and change `prisma db push` to `prisma migrate deploy`.
-3. Modify `docker-compose.prod.yml` to remove the `ports: ["3000:3000"]` mapping from the backend service.
+3. Modify `docker-compose.yml` to remove the `ports: ["3000:3000"]` mapping from the backend service.
 4. Add standard security headers to `nginx.conf`.

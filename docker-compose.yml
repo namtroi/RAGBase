@@ -1,25 +1,20 @@
-# Full-stack Docker Compose
-# Use for: building all services together
-# For dev: use docker-compose.dev.yml instead
-
 services:
   backend:
     build:
       context: .
       dockerfile: apps/backend/Dockerfile
+    restart: unless-stopped
     ports:
       - "3000:3000"
-    depends_on:
-      redis:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ragbase
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/ragbase
       - REDIS_URL=redis://redis:6379
       - API_KEY=${API_KEY}
-      - PORT=3000
-      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-50}
+      - LOG_LEVEL=info
+      - RATE_LIMIT_MAX=100
+      - RATE_LIMIT_WINDOW=1 minute
+      - ALERT_WEBHOOK_URL=${ALERT_WEBHOOK_URL}
       - PDF_CONCURRENCY=${PDF_CONCURRENCY:-1}
       - AI_WORKER_URL=http://ai-worker:8000
       # Phase 5: Qdrant hybrid search
@@ -31,54 +26,123 @@ services:
       - APP_ENCRYPTION_KEY=${APP_ENCRYPTION_KEY}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    volumes:
+      - shared-uploads:/tmp/uploads
     networks:
       - internal
-    volumes:
-      - uploads:/tmp/uploads
 
   ai-worker:
     build:
       context: .
       dockerfile: apps/ai-worker/Dockerfile
+    restart: unless-stopped
     environment:
       - CALLBACK_URL=http://backend:3000/internal/callback
       - OCR_ENABLED=${OCR_ENABLED:-false}
-      - OCR_MODE=${OCR_MODE:-auto}
-      - OCR_LANGUAGES=${OCR_LANGUAGES:-en}
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=json
       - MAX_WORKERS=${MAX_WORKERS:-1}
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    volumes:
+      - shared-uploads:/tmp/uploads
     networks:
       - internal
-    volumes:
-      - uploads:/tmp/uploads
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    networks:
+      - internal
 
   postgres:
     image: pgvector/pgvector:pg16
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=ragbase
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 3s
+      interval: 10s
+      timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
     networks:
       - internal
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
+      interval: 10s
+      timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
     networks:
       - internal
 
@@ -88,4 +152,5 @@ networks:
 
 volumes:
   postgres-data:
-  uploads:
+  redis-data:
+  shared-uploads:

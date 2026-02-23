@@ -26,7 +26,7 @@ Establish production-grade monorepo infrastructure with Docker orchestration, da
 ### Docker Infrastructure
 - `docker-compose.yml`: Full-stack orchestration (4 services)
 - `docker-compose.dev.yml`: Development-only services (Postgres, Redis)
-- `docker-compose.prod.yml`: Production deployment config
+- `docker-compose.yml`: Production deployment config
 - `docker/backend.Dockerfile`: Multi-stage Node.js build
 - `docker/ai-worker.Dockerfile`: Multi-stage Python build
 - `docker/postgres-init.sql`: pgvector extension setup

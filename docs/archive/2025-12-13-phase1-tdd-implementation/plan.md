@@ -153,7 +153,7 @@ pnpm --filter @ragbase/frontend dev  # Frontend dev server
 
 ### Production
 ```bash
-docker-compose -f docker-compose.prod.yml up -d  # Production deployment
+docker-compose -f docker-compose.yml up -d  # Production deployment
 ```
 
 ### Testing

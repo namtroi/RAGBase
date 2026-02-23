@@ -138,13 +138,13 @@ GOOGLE_CLIENT_SECRET=
 
 ```bash
 # Build và chạy tất cả services
-docker compose -f docker-compose.prod.yml up --build -d
+docker compose -f docker-compose.yml up --build -d
 
 # Xem logs real-time
-docker compose -f docker-compose.prod.yml logs -f
+docker compose -f docker-compose.yml logs -f
 
 # Kiểm tra tất cả services đã healthy
-docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.yml ps
 ```
 
 Chờ khoảng 2-5 phút để tất cả services start lên (AI Worker tải model embedding lần đầu sẽ lâu nhất).
@@ -160,7 +160,7 @@ Chờ khoảng 2-5 phút để tất cả services start lên (AI Worker tải m
 curl http://localhost:3000/health
 
 # AI Worker health (từ trong EC2)
-docker compose -f docker-compose.prod.yml exec ai-worker curl http://localhost:8000/health
+docker compose -f docker-compose.yml exec ai-worker curl http://localhost:8000/health
 
 # Frontend
 curl -I http://localhost:80
@@ -183,7 +183,7 @@ API:       http://<EC2_PUBLIC_IP>:3000/health
 ### Option A: Stop (giữ data, có thể start lại)
 ```bash
 # Trên EC2: tắt Docker containers
-docker compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.yml down
 
 # Trên AWS Console: EC2 → Select instance → Instance State → Stop
 # Hoặc dùng AWS CLI:
@@ -240,7 +240,7 @@ ssh -i your-key.pem ubuntu@<NEW_PUBLIC_IP>
 
 # Start lại Docker
 cd RAGBase
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.yml up -d
 ```
 
 > [!TIP]

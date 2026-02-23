@@ -31,7 +31,7 @@ Harden system for production deployment with structured logging, metrics, health
 - `routes/health-route.ts`: /health, /ready (detailed), /live endpoints
 
 ### Docker Production
-- `docker-compose.prod.yml`: Production config with health checks, volumes, resource limits
+- `docker-compose.yml`: Production config with health checks, volumes, resource limits
 - `.env.production.template`: Environment variable template
 
 ### Documentation
@@ -88,7 +88,7 @@ curl http://localhost:3000/metrics  # Prometheus
 curl http://localhost:3000/health   # {"status": "ok"}
 curl http://localhost:3000/ready    # Detailed health
 for i in {1..101}; do curl http://localhost:3000/api/documents; done  # Test 429
-docker-compose -f docker-compose.prod.yml up -d  # Production
+docker-compose -f docker-compose.yml up -d  # Production
 ```
 
 ## Critical Notes
