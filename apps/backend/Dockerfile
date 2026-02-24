@@ -29,7 +29,7 @@ RUN pnpm --filter @ragbase/backend db:generate
 
 # Copy source code and config
 COPY apps/backend/src ./apps/backend/src
-COPY apps/backend/tsconfig*.json ./apps/backend/
+COPY apps/backend/tsconfig*.json apps/backend/prisma.config.ts ./apps/backend/
 
 # =============================================================================
 # STAGE 2: Production — slim image, no build tools
@@ -57,8 +57,12 @@ EXPOSE 3000
 
 WORKDIR /app/apps/backend
 
+# Create uploads directory and set permissions for named volume initialization
+RUN mkdir -p /tmp/uploads && chown -R node:node /tmp/uploads
+
 # Run as non-root user
 USER node
 
-# Safe migration (migrate deploy) then start
-CMD ["sh", "-c", "npx prisma migrate deploy --schema prisma/schema.prisma && npx tsx src/index.ts"]
+# Safe migration was attempted but breaks existing db push environments without a manual baseline.
+# Reverting to db push to restore functionality.
+CMD ["sh", "-c", "npx prisma db push && npx tsx src/index.ts"]

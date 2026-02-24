@@ -44,7 +44,10 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
 # Run as non-root user
-RUN useradd --create-home appuser
+RUN useradd --create-home appuser && \
+    mkdir -p /tmp/uploads && \
+    chown -R appuser:appuser /tmp/uploads
+
 USER appuser
 
 CMD ["python", "-m", "src.main"]

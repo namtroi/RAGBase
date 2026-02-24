@@ -445,8 +445,29 @@ If budget or timeline is tight, skip managed services entirely:
 ssh ec2-user@<IP>
 git clone <repo>
 cp .env.example .env  # fill in secrets
-docker compose up -d
+
+# ⚠️ IMPORTANT: Use the run script, do NOT use raw docker-compose
+# The script automatically fixes Linux permissions (chown 1000:1000) 
+# for the shared /tmp/uploads volume across non-root containers.
+sh scripts/run-ragbase.sh
 ```
+
+### 9.1. EC2 Deployment Checklist
+
+- [ ] **Provision EC2 Instance:** Launch a `t3.xlarge` (or similar 4 vCPU, 16GB RAM instance) using Amazon Linux 2023 or Ubuntu 22.04.
+- [ ] **Configure Security Group (Firewall):** 
+  - Allow Inbound SSH (Port 22) from your IP.
+  - Allow Inbound HTTP (Port 80) and HTTPS (Port 443) from `0.0.0.0/0`.
+- [ ] **Allocate Elastic IP (Optional but Recommended):** Attach an Elastic IP to your EC2 instance so the public IP doesn't change on reboot.
+- [ ] **Install Dependencies:** Connect via SSH and install `git` and `docker`. Add the `ec2-user` (or `ubuntu` user) to the `docker` group.
+- [ ] **Clone Repository:** Run `git clone <your-repo-url>` and `cd` into the project directory.
+- [ ] **Configure Environment Variables:** 
+  - Copy `.env.example` to `.env`.
+  - Fill in required external API keys (Google, OpenAI, Qdrant Cloud, etc.).
+  - Set `NODE_ENV=production`.
+- [ ] **Start the Stack:** Execute `sh scripts/run-ragbase.sh`. The script handles building the images and initializing the `shared-uploads` volume permissions correctly.
+- [ ] **Verify Services:** Run `docker ps` to ensure `backend`, `ai-worker`, `frontend`, `postgres`, and `redis` are all healthy.
+- [ ] **Configure DNS (Optional):** Point your domain's A Record to your EC2's public IP address.
 
 **Pros:** Fast (1-2 hours), cheapest, matches local dev exactly.  
 **Cons:** Single point of failure, manual scaling, no auto-recovery.  
