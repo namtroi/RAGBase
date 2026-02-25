@@ -54,8 +54,9 @@ Crucial indices for fast filtering.
 
 ### B. Execution (Metadata Filtering)
 1. LLM executes tool: `search_texas_family_laws(query: "child custody divorce")`
-2. MCP Server captures request.
-3. Server **hardcodes** filters preventing unauthorized access.
+2. MCP Gateway captures the raw text query request.
+3. **Embedding Step**: Gateway converts the text string `"child custody divorce"` into a dense/sparse vector representation (e.g., calling OpenAI embeddings API, or routing to the internal Python AI Worker).
+4. Gateway **hardcodes** the subscription filters to prevent unauthorized access.
 ```json
 {
   "filter": {
@@ -66,7 +67,8 @@ Crucial indices for fast filtering.
   }
 }
 ```
-4. Query sent to Qdrant. Context returned to LLM.
+5. The combined Vector + Filter payload is sent to Qdrant.
+6. Qdrant returns top-K matching document chunks as context to the LLM.
 
 ## 5. Deployment
 - **Infra**: AWS ECS or EC2 Docker Compose.
