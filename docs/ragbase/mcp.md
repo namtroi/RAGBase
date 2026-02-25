@@ -10,7 +10,7 @@
 
 ```mermaid
 graph TD
-    Client["Client (Claude Desktop / Cursor)"]
+    Client["Hosted AI Backend (LangChain/etc.)"]
     Gateway["Node.js MCP Gateway"]
     PG[("PostgreSQL (Auth & Subscriptions)")]
     Qdrant[("Qdrant (Centralized Vector DB)")]
@@ -44,9 +44,9 @@ Crucial indices for fast filtering.
 ## 4. Request Flow
 
 ### A. Initialization (Dynamic Tool Registration)
-1. Client connects to MCP Gateway.
-2. Gateway verifies API Key in Postgres.
-3. Gateway reads `subscriptions`.
+1. Hosted AI Backend verifies user access in Postgres.
+2. AI Backend reads `subscriptions`.
+3. AI Backend spawns MCP Gateway via STDIO, passing the subscriptions.
 4. Gateway dynamically constructs tool list.
    - Example A (Texas Only): `list_tools` returns `["search_texas_family_laws"]`
    - Example B (Full Access): `list_tools` returns `["search_immigration_laws", "search_all_family_laws"]`
@@ -70,24 +70,24 @@ Crucial indices for fast filtering.
 5. The combined Vector + Filter payload is sent to Qdrant.
 6. Qdrant returns top-K matching document chunks to the MCP Gateway.
 7. Gateway formats these chunks as a standard MCP `text` response.
-8. The response is streamed back to the Client (Claude/Cursor).
-9. **Final Synthesis**: The Client's LLM Agent reads this context, synthesizes the legal information, and generates the final natural language answer for the user.
+8. The response is returned to the Hosted AI Backend via `stdout`.
+9. **Final Synthesis**: The Backend's LLM Agent reads this context, synthesizes the legal information, and sends the final natural language answer to the user's browser.
 
 ## 5. Deployment
 - **Infra**: AWS ECS or EC2 Docker Compose.
 - **Gateway**: Node.js + official `@modelcontextprotocol/sdk`.
-- **Clients**: Install via `mcp.json` config pointing to your hosted SSE endpoint or running a secure local proxy connecting to your remote server.
+- **Clients**: The Hosted AI Backend connects directly to the MCP Gateway as a sub-process via STDIO transport.
 
 ## 6. Detailed Implementation Guide
 
-### A. The Node.js MCP Server Setup
-The gateway is built using Node.js and the official Model Context Protocol SDK. It uses **Server-Sent Events (SSE)** for external client connections. This is chosen because standard STDIO routing is difficult to expose securely across the internet.
+### A. The Node.js MCP Server Setup (STDIO)
+Because the AI Agent backend is hosted on the same cloud infrastructure as the RAGBase system, the Gateway leverages **STDIO (Standard Input/Output)** transport. This eliminates the need for network ports, SSE streams, or HTTP timeouts, providing lightning-fast Inter-Process Communication (IPC).
 
-### B. Gateway Initialization & Auth Middleware
-When a client application (like Claude Desktop) connects to the gateway, it provides an API key in the connection headers/URL.
-1. The server intercepts this connection request and validates the API key against the PostgreSQL database.
-2. It retrieves the subscriber's specific data permissions (e.g., access to Immigration Law, or specific Texas Family Law).
-3. If valid, an SSE transport session is established and tied to those specific permissions.
+### B. Gateway Initialization & Spawning
+When a user begins a chat session, your Hosted AI Backend acts as the MCP Client.
+1. The AI Backend verifies the user's permissions in the PostgreSQL database.
+2. The AI Backend spawns the Node.js MCP Gateway as a child process, passing the user's validated subscriptions (e.g., via environment variables or initialization arguments).
+3. A secure, local STDIO transport session is established.
 
 ### C. Dynamic Tool Registration Strategy
 Instead of defining a static list of tools for every user, the server dynamically generates the tools based on the user's validated subscriptions.
