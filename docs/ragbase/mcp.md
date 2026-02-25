@@ -12,19 +12,19 @@
 graph TD
     Client["Client (Claude Desktop / Cursor)"]
     Gateway["Node.js MCP Gateway"]
-    PG[("PostgreSQL <br/> (Auth & Subscriptions)")]
-    Qdrant[("Qdrant <br/> (Centralized Vector DB)")]
+    PG[("PostgreSQL (Auth & Subscriptions)")]
+    Qdrant[("Qdrant (Centralized Vector DB)")]
 
-    Client -->|1. Connect + API Key| Gateway
-    Gateway -->|2. Validate Key| PG
-    PG -.->|3. Sub Data (e.g. TX, CA)| Gateway
-    Gateway -.->|4. Expose Tools <br/> (search_tx_law)| Client
+    Client -->|"1. Connect + API Key"| Gateway
+    Gateway -->|"2. Validate Key"| PG
+    PG -.->|"3. Sub Data (e.g. TX, CA)"| Gateway
+    Gateway -.->|"4. Expose Tools (search_tx_law)"| Client
     
-    Client -->|5. Call Tool (Query)| Gateway
-    Gateway -->|6. Inject Metadata Filters| Gateway
-    Gateway -->|7. Vector Search| Qdrant
-    Qdrant -.->|8. Return Chunks| Gateway
-    Gateway -.->|9. Return Context| Client
+    Client -->|"5. Call Tool (Query)"| Gateway
+    Gateway -->|"6. Inject Metadata Filters"| Gateway
+    Gateway -->|"7. Vector Search"| Qdrant
+    Qdrant -.->|"8. Return Chunks"| Gateway
+    Gateway -.->|"9. Return Context"| Client
 ```
 
 ## 3. Data Schema
