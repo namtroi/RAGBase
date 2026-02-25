@@ -12,13 +12,13 @@
 graph TD
     Client["Client (Claude Desktop / Cursor)"]
     Gateway["Node.js MCP Gateway"]
-    PG[("PostgreSQL\n(Auth & Subscriptions)")]
-    Qdrant[("Qdrant\n(Centralized Vector DB)")]
+    PG[("PostgreSQL <br/> (Auth & Subscriptions)")]
+    Qdrant[("Qdrant <br/> (Centralized Vector DB)")]
 
     Client -->|1. Connect + API Key| Gateway
     Gateway -->|2. Validate Key| PG
     PG -.->|3. Sub Data (e.g. TX, CA)| Gateway
-    Gateway -.->|4. Expose Tools\n(search_tx_law)| Client
+    Gateway -.->|4. Expose Tools <br/> (search_tx_law)| Client
     
     Client -->|5. Call Tool (Query)| Gateway
     Gateway -->|6. Inject Metadata Filters| Gateway
@@ -76,109 +76,24 @@ Crucial indices for fast filtering.
 ## 6. Detailed Implementation Guide
 
 ### A. The Node.js MCP Server Setup
-The gateway relies on the official Model Context Protocol TypeScript SDK. It uses **Server-Sent Events (SSE)** for external client connections since standard STDIO routing is difficult across the internet.
-
-**Core Dependencies:**
-```bash
-npm install @modelcontextprotocol/sdk pg @qdrant/js-client-rest fastify
-```
+The gateway is built using Node.js and the official Model Context Protocol SDK. It uses **Server-Sent Events (SSE)** for external client connections. This is chosen because standard STDIO routing is difficult to expose securely across the internet.
 
 ### B. Gateway Initialization & Auth Middleware
-When a client connects (e.g., Claude Desktop via a proxy), they pass their API key in the connection headers/URL. The server hooks into this to load their subscription profile.
-
-```typescript
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import fastify from "fastify";
-
-const server = fastify();
-const mcp = new McpServer({ name: "RAGBase-Law-Gateway", version: "1.0.0" });
-
-// Store active client transports and their validated subscription logic
-const activeClients = new Map<string, { transport: SSEServerTransport, subs: any }>();
-
-server.get("/sse", async (req, res) => {
-  const apiKey = req.headers['authorization']?.split(' ')[1];
-  
-  // 1. Validate API Key against PostgreSQL
-  const userSubs = await validateApiKey(apiKey); 
-  if (!userSubs) return res.status(401).send("Invalid Key");
-
-  // 2. Establish SSE Transport
-  const transport = new SSEServerTransport("/messages", res);
-  await mcp.connect(transport);
-  
-  // 3. Store session metadata
-  const sessionId = generateUUID();
-  activeClients.set(sessionId, { transport, subs: userSubs });
-});
-```
+When a client application (like Claude Desktop) connects to the gateway, it provides an API key in the connection headers/URL.
+1. The server intercepts this connection request and validates the API key against the PostgreSQL database.
+2. It retrieves the subscriber's specific data permissions (e.g., access to Immigration Law, or specific Texas Family Law).
+3. If valid, an SSE transport session is established and tied to those specific permissions.
 
 ### C. Dynamic Tool Registration Strategy
-Instead of defining static tools, we define a core search function and expose it via dynamically generated tools tailored to the user's `userSubs`.
+Instead of defining a static list of tools for every user, the server dynamically generates the tools based on the user's validated subscriptions.
+- If a user only has access to Texas data, the server registers a single tool specifically named for Texas (e.g., `search_family_law_tx`).
+- If a user has full access, the server registers tools for all available domains.
 
-```typescript
-// Core Vector Search Logic (Internal)
-async function performVectorSearch(query: string, domain: string, state: string) {
-  // 1. Embed Query
-  const queryVector = await embedQuery(query); 
-  
-  // 2. Query Qdrant with STRICT METADATA FILTERS
-  const results = await qdrantClient.search("law_collection", {
-    vector: queryVector,
-    filter: {
-      must: [
-        { key: "domain", match: { value: domain } },
-        { key: "state", match: { value: state } }
-      ]
-    },
-    limit: 10
-  });
-
-  return results.map(r => r.payload.text).join("\n\n");
-}
-
-// ---------------------------------------------------------
-// How Tools are Registered Dynamically based on the session
-// ---------------------------------------------------------
-// When Claude asks for tools, the MCP SDK calls the ListTools endpoint.
-// We intercept or dynamically construct the tool definitions.
-
-function registerClientTools(mcpServer: McpServer, userSubs: any) {
-  // If they have immigration law access:
-  if (userSubs.immigration) {
-    mcpServer.tool(
-      "search_immigration_laws",
-      "Search federal immigration laws, statutes, and guidelines.",
-      { query: z.string().describe("The search query (e.g. H1B visa requirements)") },
-      async ({ query }) => {
-        const text = await performVectorSearch(query, "immigration", "ALL");
-        return { content: [{ type: "text", text }] };
-      }
-    );
-  }
-
-  // If they have specific family law state access:
-  if (userSubs.family_law && userSubs.family_law.length > 0) {
-    for (const stateCode of userSubs.family_law) {
-      mcpServer.tool(
-        `search_family_law_${stateCode.toLowerCase()}`,
-        `Search family law documents specifically for the state of ${stateCode}.`,
-        { query: z.string().describe("Specific legal concept to search") },
-        async ({ query }) => {
-          // Hardcoded state filter injection here ensures security
-          const text = await performVectorSearch(query, "family_law", stateCode);
-          return { content: [{ type: "text", text }] };
-        }
-      );
-    }
-  }
-}
-```
+When the LLM asks the server what tools are available, it only sees the tools it is authorized to use. Behind the scenes, all tools route to a single core search function, but with hardcoded domain and state metadata filters applied server-side.
 
 ### D. The Crucial Security Principle (Zero Hallucination Routing)
 By registering tools dynamically:
-1. **Claude never "guesses" the state**: If you gave a generic `search_law(state, query)` tool, the LLM might hallucinate accessing `state="NY"` when the user only paid for `TX`.
-2. **Context Window Optimization**: Claude only sees tools for what it owns, saving tokens and improving reasoning focus.
-3. **Impenetrable Data Isolation**: The `performVectorSearch` function securely binds the `domain` and `state` parameters *on the server side* inside the closure. The client/LLM literally cannot manipulate the Qdrant filter payload.
+1. **No LLM Guesswork**: The LLM is never given a generic search tool where it has to "guess" or provide the state code. This prevents the LLM from hallucinating and attempting to access data the user hasn't paid for.
+2. **Optimized Context Window**: The LLM only receives tool definitions relevant to the user's subscription, saving tokens and keeping the AI focused.
+3. **Impenetrable Data Isolation**: Because the metadata filters (like `state=TX`) are hardcoded into the dynamically generated tool on the server side, the client or LLM cannot manipulate the vector database filter query.
 
