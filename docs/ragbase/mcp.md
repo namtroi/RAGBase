@@ -68,7 +68,10 @@ Crucial indices for fast filtering.
 }
 ```
 5. The combined Vector + Filter payload is sent to Qdrant.
-6. Qdrant returns top-K matching document chunks as context to the LLM.
+6. Qdrant returns top-K matching document chunks to the MCP Gateway.
+7. Gateway formats these chunks as a standard MCP `text` response.
+8. The response is streamed back to the Client (Claude/Cursor).
+9. **Final Synthesis**: The Client's LLM Agent reads this context, synthesizes the legal information, and generates the final natural language answer for the user.
 
 ## 5. Deployment
 - **Infra**: AWS ECS or EC2 Docker Compose.
