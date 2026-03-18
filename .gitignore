@@ -109,3 +109,11 @@ htmlcov/
 
 #Google Drive Sync
 service-account.json
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+.terraform.tfstate.lock.info
+terraform.tfvars

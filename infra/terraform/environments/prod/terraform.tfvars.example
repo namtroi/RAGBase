@@ -1,0 +1,10 @@
+# Copy this file to terraform.tfvars and fill in your secrets
+# DO NOT commit terraform.tfvars to version control
+
+aws_region   = "us-east-1"
+project_name = "ragbase"
+environment  = "prod"
+
+# Database Secrets
+db_username = "ragadmin"
+db_password = "CHANGE_ME_IN_PRODUCTION"
